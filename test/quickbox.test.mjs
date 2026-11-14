@@ -80,6 +80,11 @@ assert.ok(!/clearBtn/.test(quickHtml), '清空按钮的监听要一并删掉，�
 assert.match(quickHtml, /'x-chill-quick': '1'/, '快捷框发 /act 时必须带 x-chill-quick 头，否则会被判成自动化、不落记录')
 assert.match(brain, /headers\?\.\['x-chill-quick'\]/, '侧车要认这个头，把快捷框的请求当真人对话')
 
+// 鉴权：页面是壳（不鉴权），但接口要 token —— 宿主拼进 URL，页面转成头
+assert.match(brain, /'\/chill\/quick\?t=' \+ encodeURIComponent\(cfg\.token\)/, '快捷框地址要带上 token')
+assert.match(quickHtml, /x-chill-token': TOKEN/, '页面要把 URL 里的 token 转成请求头')
+assert.match(quickHtml, /URLSearchParams\(location\.search\)\.get\('t'\)/, '页面从 ?t= 取 token')
+
 // 1) 独立 profile（浏览器兜底路径）
 assert.match(brain, /const QUICK_PROFILE = join\(cfg\.dataDir, 'quickbox-profile'\)/,
   '快捷框必须用 cfg.dataDir 下的独立 profile（join(cfg.dataDir, \'quickbox-profile\')）')

@@ -11,9 +11,23 @@
  *   POST /chill/v1/act                原生指令（带 actions[]/state/meta，供自研表演端使用）
  */
 import { readFileSync, writeFileSync, rmSync, existsSync, appendFileSync, openSync, closeSync, mkdirSync, copyFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { mkdir, readFile, writeFile, stat, appendFile, rename } from 'node:fs/promises'
 import { mouthFrames, wavDuration } from './lib/lipsync.mjs'
 import { createLlm } from './lib/llm.mjs'
+import { createStateFile } from './lib/state-file.mjs'
+import { createModelClient } from './lib/model-client.mjs'
+import { registerPanelRoutes } from './routes/panel.mjs'
+import { registerVoiceAdminRoutes } from './routes/admin-voice.mjs'
+import { registerAdminRoutes } from './routes/admin.mjs'
+import { registerPersonaRoutes } from './routes/persona.mjs'
+import { registerMoodRoutes } from './routes/mood.mjs'
+import { registerAudioRoutes } from './routes/audio.mjs'
+import { registerAvatarRoutes } from './routes/avatar.mjs'
+import { registerCharacterRoutes } from './routes/characters.mjs'
+import { registerAssetRoutes } from './routes/assets.mjs'
+import { registerVoiceRoutes } from './routes/voices.mjs'
+import { registerKbRoutes } from './routes/kb.mjs'
 import net from 'node:net'
 import { spawn, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -54,7 +68,7 @@ import {
 } from './lib/assets.js'
 
 import { resolveConfig } from './lib/config.mjs'
-import { createAuth, readBody, sendJson, sendText } from './lib/http.mjs'
+import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
 import { createFeed } from './lib/feed.mjs'
 import { createGame } from './lib/game.mjs'
 import { createVoice } from './lib/voice.mjs'
@@ -83,11 +97,18 @@ export function apply(ctx, rawConfig = {}) {
   const cfg = resolveConfig(rawConfig, PLUGIN_DIR)
   const log = (...args) => ctx.logger?.info?.('[dsh-chill-with-you-companion]', ...args)
 
-  const state = { ...DEFAULT_STATE }
+  // state.json 的读写与对账在 lib/state-file.mjs：那里的 state 就是下面这个对象本身，
+  // 后面所有 state.xxx 与 saveState() 看到的是同一份，不用改调用点。
+  const stateFile = createStateFile({
+    path: join(cfg.dataDir, 'state.json'),
+    defaults: DEFAULT_STATE,
+    log,
+    ensureDir: () => ensureDirs(),
+  })
+  const state = stateFile.state
   let memory = []
   let persona = ''
   let personaMtime = 0
-  const statePath = join(cfg.dataDir, 'state.json')
   const memoryPath = join(cfg.dataDir, 'memory.jsonl')
   // 分层记忆：recent 原文窗口 + facts 长期事实 + summary 滚动摘要
   const mem = createMemoryStore({
@@ -154,47 +175,8 @@ export function apply(ctx, rawConfig = {}) {
     }
   }
 
-  /**
-   * 读回上次的状态。以前只有 saveState、没有 loadState：好感度、心情、能量、
-   * 番茄钟计数每次重启都从 DEFAULT_STATE 重来，用户攒的东西白攒。
-   * 坏文件不覆盖（改名留证），按默认值继续，别让一行坏 JSON 把侧车拦在启动前。
-   */
-  const loadState = async () => {
-    try {
-      const raw = await readFile(statePath, 'utf8')
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object') {
-        // 白名单合并：只认 DEFAULT_STATE 里已有的键，防止旧版本残留字段污染
-        for (const key of Object.keys(DEFAULT_STATE)) {
-          if (parsed[key] !== undefined) state[key] = parsed[key]
-        }
-        // 这几个字段必须是数字，坏值会让 good/能量计算一路 NaN
-        for (const key of ['affection', 'mood', 'energy', 'moodVel', 'turnCount', 'focusCount', 'breakCount']) {
-          if (typeof state[key] !== 'number' || !Number.isFinite(state[key])) state[key] = DEFAULT_STATE[key]
-        }
-        if (state.pomo && typeof state.pomo === 'object') {
-          state.pomo = { ...DEFAULT_STATE.pomo, ...state.pomo }
-        }
-        log('state loaded', { affection: state.affection, turnCount: state.turnCount })
-      }
-    } catch (error) {
-      if (error && error.code !== 'ENOENT') {
-        log('state load failed, using defaults', { error: String(error?.message || error) })
-        try {
-          await rename(statePath, statePath + '.bad-' + Date.now())
-        } catch { /* 留证失败就算了，不挡启动 */ }
-      }
-    }
-  }
-
-  const saveState = async () => {
-    try {
-      await ensureDirs()
-      await writeFile(statePath, JSON.stringify({ ...state, savedAt: nowIso() }, null, 2), 'utf8')
-    } catch (error) {
-      log('state save failed', { error: String(error?.message || error) })
-    }
-  }
+  const loadState = stateFile.load
+  const saveState = stateFile.save
 
   const appendTurn = async (userText, result, opts = {}) => {
     const said = String(result?.subtitle_text || result?.voice_text || '').trim()
@@ -265,7 +247,6 @@ export function apply(ctx, rawConfig = {}) {
     log,
   })
 
-  /** 模型调用：JSON 模式 + 关思考。供应商由 llm.resolve() 决定，失败重试 retries 次。 */
   // 每次调用记一行用量。DeepSeek 的 prefix cache 命中价是全价的一成，
   // 所以 hit/miss 分开记才有意义——只看 prompt_tokens 分不出钱花在哪儿。
   const USAGE_LOG = join(cfg.dataDir, 'usage.log')
@@ -283,62 +264,9 @@ export function apply(ctx, rawConfig = {}) {
     try { appendFileSync(USAGE_LOG, JSON.stringify(row) + '\n') } catch { /* 记账失败不该影响对话 */ }
   }
 
-  const callModel = async (messages, opts = {}) => {
-    const live = llm.resolve()
-    if (!live.apiKey) throw new Error('没有可用的 key：在控制台「模型」里选一个 provider，或给它的 keyRef / token 补上密钥')
-    const body = {
-      model: live.model,
-      messages,
-      temperature: cfg.temperature,
-      // 反重复：同一个词说过了就压分，别让"嗯""好像"这种词反复出现。
-      // 论据：Galetzka et al. 2023 §5.2，repetition 与 genericity 是闲聊的两大问题，
-      // 解码期惩罚是代价最小的一档干预。默认轻推，压太狠会让句子变别扭。
-      frequency_penalty: Number(cfg.frequencyPenalty) || 0,
-      presence_penalty: Number(cfg.presencePenalty) || 0,
-      max_tokens: cfg.maxTokens,
-      ...(opts.jsonMode === false ? {} : { response_format: { type: 'json_object' } }),
-      stream: false,
-    }
-    if (cfg.thinking === 'disabled') body.thinking = { type: 'disabled' }
-    if (cfg.reasoningEffort) body.reasoning_effort = cfg.reasoningEffort
-
-    let lastError = null
-    for (let attempt = 0; attempt <= cfg.retries; attempt += 1) {
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), cfg.requestTimeoutMs)
-      const startedAt = Date.now()
-      try {
-        const response = await fetch(live.baseUrl, {
-          method: 'POST',
-          headers: Object.assign(
-            { 'content-type': 'application/json', authorization: `Bearer ${live.apiKey}` },
-            live.headers || {},
-          ),
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        })
-        const text = await response.text()
-        if (!response.ok) throw new Error(`${live.id} ${response.status}: ${text.slice(0, 300)}`)
-        const payload = JSON.parse(text)
-        const content = payload?.choices?.[0]?.message?.content ?? ''
-        const usage = payload?.usage ?? null
-        recordUsage(usage, Date.now() - startedAt, live.model)
-        return {
-          content,
-          latencyMs: Date.now() - startedAt,
-          usage,
-          model: payload?.model ?? live.model,
-        }
-      } catch (error) {
-        lastError = error
-        log('model call failed', { attempt, error: String(error?.message || error) })
-      } finally {
-        clearTimeout(timer)
-      }
-    }
-    throw lastError || new Error('model call failed')
-  }
-
+  /** 模型调用：交给 lib/model-client.mjs（重试 + 跨 provider 降级都在里面，依赖注入）。 */
+  const model = createModelClient({ cfg, llm, log, recordUsage })
+  const callModel = model.call
   /** TTS：调本地 GPT-SoVITS，按内容哈希缓存 wav，返回可被游戏直接播放的 URL。 */
   let lastTtsError = ''
 // 她自己的开口节拍：隔一阵子没人说话，她会自己搭一句（走完整人设链路，不是汇报）
@@ -1747,12 +1675,6 @@ const runTurn = async (userText, options = {}) => {
   // 记忆同理：open 幂等，先开一次，/health 首屏就有真实条数
   void loadMemory()
 
-  const assetReport = () => {
-    const counts = {}
-    for (const [k, v] of Object.entries(manifest)) if (Array.isArray(v)) counts[k] = v.length
-    counts.total = manifestSize(manifest).total
-    return { ok: true, version: 1, counts, manifest }
-  }
 
   ctx.effect(() => ctx.webServer.register(caps.route({
     kind: 'exact',
@@ -1834,462 +1756,26 @@ const runTurn = async (userText, options = {}) => {
     }
   }
 
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/audio',
-    note: '返回合成的 wav（?name=xxx.wav）',
-    handler: async (req, res) => {
-      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      const url = new URL(req.url || '/', 'http://127.0.0.1')
-      return serveAudio(res, url.searchParams.get('name'))
-    },
-  })), 'dsh-chill-with-you-companion: GET /chill/v1/audio')
-
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'prefix',
-    path: '/chill/v1/audio/',
-    note: '返回合成的 wav（路径形态）',
-    handler: async (req, res) => {
-      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      const url = new URL(req.url || '/', 'http://127.0.0.1')
-      let tail = url.pathname.slice('/chill/v1/audio/'.length)
-      try { tail = decodeURIComponent(tail) } catch { /* 保留原串，交给下面判非法 */ }
-      return serveAudio(res, tail)
-    },
-  })), 'dsh-chill-with-you-companion: GET /chill/v1/audio/*')
+  registerAudioRoutes({ ctx, caps, authorized, sendJson, serveAudio })
 
   // ---- 头像：内置默认两张（聪音企鹅 / 玩家少女），可自定义覆盖 ----
-  // data/avatar/<id>.png      自定义（或首次从 defaults 复制过来的）
-  // data/avatar/defaults/<id>.png  内置默认，永不改动，用于「恢复默认」
-  const avatarDir = join(cfg.dataDir, 'avatar')
-  const avatarDefaults = join(avatarDir, 'defaults')
-  const charAvatarDir = join(cfg.dataDir, 'characters', 'avatars')
-  const AVATAR_MAX = 2 * 1024 * 1024
-  const isPng = (buf) => buf.length > 64 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47
-  const readBinary = async (req, limit) => {
-    const chunks = []
-    let size = 0
-    for await (const chunk of req) {
-      size += chunk.length
-      if (size > limit) throw new Error('文件太大（上限 2 MB）')
-      chunks.push(chunk)
-    }
-    return Buffer.concat(chunks)
-  }
-
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'prefix',
-    path: '/chill/v1/avatar',
-    note: '角色头像：GET 取当前图，POST 上传自定义，POST <id>/reset 恢复默认',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      let tail = String(req.url || '').split('?')[0].replace('/chill/v1/avatar', '').replace(/^\/+/, '').replace(/\/+$/, '')
-      let reset = false
-      if (tail.endsWith('/reset')) {
-        reset = true
-        tail = tail.slice(0, -'/reset'.length).replace(/\/+$/, '')
-      }
-      const id = tail.replace(/[^A-Za-z0-9_-]/g, '')
-      if (!id) return sendJson(res, 400, { error: 'bad id' })
-      // 角色头像跟着角色卡走：data/characters/avatars/<id>.png
-      // 玩家自己的头像（id=user）不属于任何角色卡，仍在 data/avatar/ 下
-      const custom = id === 'user' ? join(avatarDir, 'user.png') : join(charAvatarDir, id + '.png')
-      const legacy = id === 'user' ? '' : join(avatarDir, id + '.png')
-      const fallback = id === 'user' ? join(avatarDefaults, 'user.png') : join(avatarDefaults, 'character.png')
-
-      if (req.method === 'POST') {
-        try {
-          if (reset) {
-            rmSync(custom, { force: true })
-            return sendJson(res, 200, { ok: true, id, reset: true })
-          }
-          const buf = await readBinary(req, AVATAR_MAX)
-          if (!isPng(buf)) return sendJson(res, 400, { ok: false, error: '只收 PNG（面板会把图片转成 256×256 PNG 再传）' })
-          await mkdir(id === 'user' ? avatarDir : charAvatarDir, { recursive: true })
-          await writeFile(custom + '.tmp', buf)
-          await rename(custom + '.tmp', custom)
-          return sendJson(res, 200, { ok: true, id, bytes: buf.length })
-        } catch (error) {
-          return sendJson(res, 400, { ok: false, error: String(error?.message || error) })
-        }
-      }
-      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-      for (const file of [custom, legacy, fallback].filter(Boolean)) {
-        try {
-          const [buf, info] = await Promise.all([readFile(file), stat(file)])
-          res.statusCode = 200
-          res.setHeader('content-type', 'image/png')
-          res.setHeader('content-length', buf.length)
-          res.setHeader('cache-control', 'no-store')
-          res.setHeader('x-avatar-source',
-            id === 'user'
-              ? (file === custom ? 'custom' : 'default')
-              : (file === custom ? 'card' : (legacy && file === legacy ? 'legacy' : 'default')))
-          res.setHeader('x-avatar-mtime', String(Math.round(info.mtimeMs)))
-          return res.end(buf)
-        } catch { /* 试下一个候选 */ }
-      }
-      return sendJson(res, 404, { error: 'no avatar' })
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/avatar')
+  registerAvatarRoutes({ ctx, caps, authorized, sendJson, dataDir: cfg.dataDir })
 
   // ---- 声线：内置聪音几条 + 自定义（上传参考音频即可） ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'prefix',
-    path: '/chill/v1/voices',
-    note: '声线库：GET 列表 / POST 新建 · 激活 · 上传参考音频 · 试听 / DELETE 删除',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      const tail = String(req.url || '').split('?')[0].replace('/chill/v1/voices', '').replace(/^\/+|\/+$/g, '')
-      const parts = tail ? tail.split('/') : []
-      const id = (parts[0] || '').replace(/[^A-Za-z0-9_-]/g, '')
-      const action = parts[1] || ''
+  registerVoiceRoutes({
+    ctx, caps, authorized, sendJson, readBody, cfg,
+    voices, voiceProbe, voice, audioDir,
+  })
 
-      if (req.method === 'GET') {
-        const data = await voices.list()
-        const online = await voiceProbe()
-        // 引擎缺件和"离线"是两回事：缺件要给安装指引，离线只要点启动。
-        const dep = voice.doctor()
-        return sendJson(res, 200, Object.assign({ ok: true, online, ready: dep.ok, missing: dep.missing }, data))
-      }
+  registerKbRoutes({ ctx, caps, authorized, sendJson, readBody, cfg, kb })
 
-      if (req.method === 'POST') {
-        if (!id) {
-          const parsed = await readBody(req)
-          if (!parsed || !parsed.json || typeof parsed.json !== 'object') return sendJson(res, 400, { error: 'bad json' })
-          const body = parsed.json
-          const r = await voices.create(body)
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        if (action === 'activate') {
-          const r = await voices.activate(id)
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        if (action === 'audio') {
-          try {
-            const buf = await readBinary(req, 12 * 1024 * 1024)
-            const r = await voices.saveAudio(id, buf)
-            if (r.error) return sendJson(res, 400, r)
-            return sendJson(res, 200, { ok: true, bytes: r.item.bytes, duration: r.wav.duration, rate: r.wav.rate })
-          } catch (error) {
-            return sendJson(res, 400, { ok: false, error: String(error?.message || error) })
-          }
-        }
-        if (action === 'preview') {
-          const v = await voices.get(id)
-          if (!v) return sendJson(res, 404, { error: '没有这条声线' })
-          if (!(await voiceProbe())) return sendJson(res, 503, { ok: false, error: '语音引擎没在线（先在状态页启动语音引擎）' })
-          const text = 'ねえ、聞こえてる？'
-          const q = new URLSearchParams({
-            text,
-            text_lang: v.textLang || cfg.tts.textLang,
-            ref_audio_path: v.path || v.file,
-            prompt_text: v.promptText,
-            prompt_lang: v.promptLang,
-            speed_factor: String(v.speedFactor),
-          })
-          const controller = new AbortController()
-          const timer = setTimeout(() => controller.abort(), Math.max(20000, cfg.tts.timeoutMs))
-          try {
-            const resp = await fetch(cfg.tts.url.replace(/\/$/, '') + '/tts?' + q, { signal: controller.signal })
-            if (!resp.ok) throw new Error('tts ' + resp.status)
-            const buf = Buffer.from(await resp.arrayBuffer())
-            if (buf.length < 1024) throw new Error('tts 只返回了 ' + buf.length + ' 字节')
-            const name = 'preview-' + v.id + '.wav'
-            // 全新数据目录里 audio/ 还没建（只有 ensureDirs 会建），
-    // 而"第一次进语音页点试听"正好发生在那之前，不 mkdir 就是必然 502。
-    await mkdir(audioDir, { recursive: true })
-    await writeFile(join(audioDir, name), buf)
-            return sendJson(res, 200, {
-              ok: true,
-              audioUrl: '/chill/v1/audio?name=' + encodeURIComponent(name),
-              bytes: buf.length,
-              duration: wavDuration(buf),
-            })
-          } catch (error) {
-            return sendJson(res, 502, { ok: false, error: String(error?.message || error) })
-          } finally {
-            clearTimeout(timer)
-          }
-        }
-        return sendJson(res, 400, { error: '未知操作：' + action })
-      }
-
-      if (req.method === 'DELETE') {
-        if (!id) return sendJson(res, 400, { error: 'bad id' })
-        const r = await voices.remove(id)
-        return sendJson(res, r.error ? 400 : 200, r)
-      }
-      return sendJson(res, 405, { error: 'method not allowed' })
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/voices')
-
-  // ---- 外挂知识库：库 / 文档 / 检索 ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'prefix',
-    path: '/chill/v1/kb',
-    note: '知识库：GET 列表·检索·读文档，POST 建库·启停·收文档，DELETE 删库·删文档',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      const url = new URL(String(req.url || '/'), 'http://127.0.0.1')
-      const tail = url.pathname.replace('/chill/v1/kb', '').replace(/^\/+|\/+$/g, '')
-      const parts = tail ? tail.split('/') : []
-      const head = (parts[0] || '').replace(/[^A-Za-z0-9_-]/g, '')
-
-      if (req.method === 'GET') {
-        if (head === 'mode') {
-          return sendJson(res, 200, { ok: true, mode: await kb.getMode() })
-        }
-        if (head === 'search') {
-          const q = url.searchParams.get('q') || ''
-          const k = Math.min(12, Math.max(1, Number(url.searchParams.get('k')) || 5))
-          const hits = await kb.search(q, { k })
-          return sendJson(res, 200, { ok: true, query: q, hits })
-        }
-        if (!head) {
-          const data = await kb.list()
-          return sendJson(res, 200, Object.assign({ ok: true }, data))
-        }
-        if (parts[1] === 'refresh') {
-          // 更新检查：把每篇里「会随时间失效」的行挑出来，生成待核对清单。
-          // 只做识别，不联网、不改库 —— 真正去查由调用方（控制台/agent）执行。
-          const data = await kb.list()
-          const lib = (data.libraries || []).find((l) => l.id === head)
-          if (!lib) return sendJson(res, 404, { error: '没有这个库' })
-          const VER_RE = /\b\d\.\d\b/
-          const DATE_RE = /\d{4}-\d{2}-\d{2}/
-          // 只挑「会随时间失效」的表述。单纯出现版本号不算 —— 历史版本号是事实，
-          // 永远不会过期，扫进来只会把清单灌满噪音。
-          const STATE_RE = /(最新|目前已|尚未|还没|即将|预计|将要|已完结|未完结|已上线|已实装|可抽|已解封|已开幕|已终幕|首曝|停服|改动|调整为|改为)/
-          const topic = String(lib.name || '').replace(/[：:·\s]/g, '')
-
-          // 找出库里真正的最新版本：只认「版本索引」类文档里 `## 4.7「...」` 这样的章节标题。
-          // 全文扫 x.y 会把「4.8 起再补」「1.5 倍」都算进去，推出的下一代版本号就是错的。
-          let maxVer = 0
-          const docs = []
-          let totalItems = 0
-          for (const d of lib.docs) {
-            let found = null
-            try { found = await kb.getDoc(head, d.id) } catch { found = null }
-            if (!found) continue
-            const text = String(found.text || '')
-            if (/版本/.test(String(d.name || ''))) {
-              for (const m of text.matchAll(/^#{2,4}\s*(\d+)\.(\d+)\s*「/gm)) {
-                maxVer = Math.max(maxVer, Number(m[1]) + Number(m[2]) / 10)
-              }
-            }
-            const items = []
-            for (const raw of text.split('\n')) {
-              const line = raw.trim().replace(/^\|?\s*/, '')
-              if (line.length < 8 || line.startsWith('#') || line.startsWith('>')) continue
-              const reasons = []
-              if (STATE_RE.test(line)) reasons.push('状态')
-              if (DATE_RE.test(line) && STATE_RE.test(line)) reasons.push('日期')
-              if (reasons.length && items.length < 12) items.push({ line: line.slice(0, 200), reasons })
-            }
-            totalItems += items.length
-            docs.push({
-              docId: d.id, docName: d.name,
-              updatedAt: d.updatedAt || d.addedAt || '', ageDays: d.ageDays,
-              itemCount: items.length, items,
-            })
-          }
-
-          // 查询建议：从「最高版本 → 下一代」推出最有价值的那几条，
-          // 而不是把明细丢给人自己拼。
-          const queries = []
-          const cur = maxVer > 0 ? maxVer.toFixed(1) : ''
-          if (cur) {
-            const nxt = (Math.round(maxVer * 10) + 1) / 10
-            queries.push(`${topic} ${nxt.toFixed(1)} 版本 更新`)
-            queries.push(`${topic} 最新版本 公告`)
-            queries.push(`${topic} 版本名`)
-          } else {
-            queries.push(`${topic} 最新消息`)
-          }
-          queries.push(`${topic} 版本更新内容 汇总`)
-
-          const staleDocs = docs.filter((d) => d.ageDays === null || d.ageDays >= 7)
-
-          // 落盘成一份可执行任务。按钮的意义是「我现在决定跟外面同步一次」，
-          // 不是过期告警 —— 所以每次点击都产出一个带时间戳的任务文件，
-          // 交给能联网的一方去查，查完改原文重导。
-          let taskFile = ''
-          try {
-            const syncDir = join(cfg.dataDir, 'kb-sync')
-            await mkdir(syncDir, { recursive: true })
-            const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-            taskFile = join(syncDir, String(head) + '-' + stamp + '.md')
-            const lines = []
-            lines.push('# 知识库同步任务：' + lib.name)
-            lines.push('')
-            lines.push('- 发起时间：' + new Date().toISOString())
-            lines.push('- 当前覆盖版本：' + (cur || '未识别'))
-            lines.push('- 需要确认的下一代：' + (cur ? ((Math.round(maxVer * 10) + 1) / 10).toFixed(1) : '—'))
-            lines.push('')
-            lines.push('## 要查的')
-            lines.push('')
-            for (const qq of queries) lines.push('- [ ] ' + qq)
-            lines.push('')
-            lines.push('## 查到之后怎么做')
-            lines.push('')
-            lines.push('1. 改知识库对应的 markdown 原文，不要直接改库里的切片。')
-            lines.push('2. 有推翻的说法，同时更新 `08-时效表.md` 的「已被推翻」。')
-            lines.push('3. 跑 `node import.mjs` 重新导入，mtime 自动刷新。')
-            lines.push('')
-            if (docs.some((d) => d.itemCount)) {
-              lines.push('## 需要留意的表述')
-              lines.push('')
-              for (const d of docs) {
-                if (!d.itemCount) continue
-                lines.push('### ' + d.docName)
-                for (const it of d.items) lines.push('  ' + it.line)
-                lines.push('')
-              }
-            }
-            await writeFile(taskFile, lines.join('\n'), 'utf8')
-          } catch { taskFile = '' }
-
-          return sendJson(res, 200, {
-            ok: true,
-            library: { id: lib.id, name: lib.name },
-            currentVersion: cur,
-            nextVersion: cur ? ((Math.round(maxVer * 10) + 1) / 10).toFixed(1) : '',
-            queries,
-            staleDocs: staleDocs.map((d) => ({ docName: d.docName, ageDays: d.ageDays })),
-            docs, totalItems, taskFile,
-            hint: '同步任务已落盘，交给能联网的一方执行，查完改原文重导。',
-          })
-        }
-        if (parts[1] === 'export') {
-          const r = await kb.exportPack(head)
-          return sendJson(res, r.error ? 404 : 200, r)
-        }
-        if (parts[1] === 'docs' && parts[2]) {
-          const found = await kb.getDoc(head, parts[2].replace(/[^A-Za-z0-9_-]/g, ''))
-          if (!found) return sendJson(res, 404, { error: '没有这篇文档' })
-          return sendJson(res, 200, {
-            ok: true, library: { id: found.lib.id, name: found.lib.name },
-            doc: found.doc, text: found.text,
-          })
-        }
-        const data = await kb.list()
-        return sendJson(res, 200, Object.assign({ ok: true }, data))
-      }
-
-      if (req.method === 'POST') {
-        if (head === 'mode') {
-          const parsed = await readBody(req)
-          if (!parsed || !parsed.json) return sendJson(res, 400, { error: 'bad json' })
-          const mode = await kb.setMode(parsed.json.mode)
-          return sendJson(res, 200, { ok: true, mode })
-        }
-        if (head === 'import') {
-          const parsed = await readBody(req, 16 * 1024 * 1024)
-          if (!parsed || !parsed.json) return sendJson(res, 400, { error: 'bad json' })
-          const r = await kb.importPack(parsed.json)
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        if (!head) {
-          const parsed = await readBody(req)
-          if (!parsed || !parsed.json) return sendJson(res, 400, { error: 'bad json' })
-          const r = await kb.create(parsed.json)
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        if (!parts[1]) {
-          const parsed = await readBody(req)
-          if (!parsed || !parsed.json || typeof parsed.json !== 'object') return sendJson(res, 400, { error: 'bad json' })
-          const r = await kb.update(head, parsed.json)
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        if (parts[1] === 'toggle') {
-          let enabled
-          try {
-            const parsed = await readBody(req)
-            if (parsed && parsed.json && typeof parsed.json.enabled === 'boolean') enabled = parsed.json.enabled
-          } catch { /* 没 body 就当作取反 */ }
-          const r = await kb.toggle(head, enabled)
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        if (parts[1] === 'docs') {
-          const parsed = await readBody(req, 8 * 1024 * 1024)
-          if (!parsed) return sendJson(res, 400, { error: 'empty body' })
-          let name = ''
-          let text = ''
-          if (parsed.json && typeof parsed.json === 'object') {
-            name = parsed.json.name || ''
-            text = String(parsed.json.text || '')
-          } else {
-            name = String(req.headers['x-doc-name'] || '')
-            text = parsed.raw
-          }
-          const r = await kb.addDoc(head, { name, text })
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        return sendJson(res, 400, { error: '未知操作' })
-      }
-
-      if (req.method === 'DELETE') {
-        if (!head) return sendJson(res, 400, { error: 'bad id' })
-        if (parts[1] === 'docs' && parts[2]) {
-          const r = await kb.removeDoc(head, parts[2].replace(/[^A-Za-z0-9_-]/g, ''))
-          return sendJson(res, r.error ? 400 : 200, r)
-        }
-        const r = await kb.remove(head)
-        return sendJson(res, r.error ? 400 : 200, r)
-      }
-      return sendJson(res, 405, { error: 'method not allowed' })
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/kb')
-
-  // ---- 让她自己开口说一句（纯闲聊，不掺工作）----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/spark',
-    note: '手动触发一次「她自己想说话」，走完整人设链路并推游戏',
-    handler: async (req, res) => {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      let force = true
-      try {
-        const { json } = await readBody(req)
-        if (json && json.force === false) force = false   // 传 false 走"自动节拍"的规则（专注中会拒）
-      } catch { /* 空 body 就是手动触发 */ }
-      const r = await spark(force)
-      if (!r) return sendJson(res, 200, { ok: false, reason: force ? '这一轮她没说出话' : '还不该开口（专注中或刚说过）' })
-      return sendJson(res, 200, Object.assign({ ok: true }, r))
-    },
-  })), 'dsh-chill-with-you-companion: POST /chill/v1/spark')
-
-  // ---- 旁边的近况：Host 推来，进聪音自己的对话上下文 ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/ambient',
-    note: '他那边在干什么（进度概况），由 Host 的观察者定期推来',
-    handler: async (req, res) => {
-      if (req.method === 'GET') {
-        if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-        return sendJson(res, 200, { ok: true, text: ambient, at: ambientAt, fresh: Boolean(ambientBlock()) })
-      }
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      try {
-        const { json } = await readBody(req)
-        const text = String(json?.text || '').slice(0, 600)
-        if (text) {
-          ambient = text
-          ambientAt = Date.now()
-        } else {
-          ambient = ''
-          ambientAt = 0
-        }
-        return sendJson(res, 200, { ok: true, chars: ambient.length })
-      } catch (error) {
-        return sendJson(res, 400, { error: String(error?.message || error) })
-      }
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/ambient')
+  // 氛围那两条：spark 与环境旁白都留在 brain（它们要读状态机与模型），模块只调它们
+  registerMoodRoutes({
+    ctx, caps, authorized, sendJson, readBody,
+    spark, ambientBlock,
+    getAmbient: () => ambient, getAmbientAt: () => ambientAt,
+    setAmbient: (text, at) => { ambient = text; ambientAt = at },
+  })
 
   // ---- 旁观：他那边干完一轮活，聪音看一眼，值得说才说一句 ----
   // 不注入人设、不碰那条对话：只读它这一轮的产出，然后在聪音自己的链路上说一句话。
@@ -2478,66 +1964,11 @@ const runTurn = async (userText, options = {}) => {
       }
     },
   })), 'dsh-chill-with-you-companion: /chill/v1/context')
-  // ---- 人设 ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/persona',
-    note: '读取 / 保存人设文本',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      // 兼容旧接口：这里的"人设"就是当前激活角色卡的 persona 字段
-      const activeCard = await chars.active()
-      if (req.method === 'GET') {
-        const text = await loadPersona().then(() => persona)
-        return sendJson(res, 200, {
-          ok: true,
-          text: String(text || ''),
-          characterId: activeCard ? activeCard.id : '',
-          characterName: activeCard ? activeCard.name : '',
-          path: activeCard ? join(chars.dir, activeCard.id + '.json') : cfg.personaPath,
-          chars: String(text || '').length,
-        })
-      }
-      if (req.method === 'POST') {
-        try {
-          const { raw } = await readBody(req, 256 * 1024)
-          const bodyText = String(raw || '')
-          // 面板发的是纯文本；也接受 {text|persona} 外壳。以前直接把整段 body 当人设落盘，
-          // 于是 POST {} 会把人设覆盖成 2 个字符（内容就是一个 {}），/context 里「你是谁」下面
-          // 从此只剩一个空对象。人设是最不可逆的东西，必须先拆壳、再判空。
-          let text = bodyText
-          if (bodyText.trim().startsWith('{')) {
-            try {
-              const obj = JSON.parse(bodyText.trim())
-              if (obj && typeof obj === 'object') text = String(obj.text ?? obj.persona ?? '')
-            } catch { /* 不是 JSON，按纯文本处理 */ }
-          }
-          if (!String(text).trim()) {
-            return sendJson(res, 400, { ok: false, error: '人设文本不能为空（覆盖前请确认内容）' })
-          }
-          if (!activeCard) return sendJson(res, 409, { ok: false, error: '没有激活的角色卡' })
-          // 覆盖前留一份：写坏了没有撤回
-          try {
-            const cardPath = join(chars.dir, activeCard.id + '.json')
-            if (existsSync(cardPath)) copyFileSync(cardPath, cardPath + '.bak-' + Date.now())
-          } catch (error) {
-            log('persona backup failed', { error: String(error?.message || error) })
-          }
-          const saved = await chars.save(activeCard.id, { persona: text })
-          persona = saved.persona
-          return sendJson(res, 200, {
-            ok: true,
-            characterId: saved.id,
-            path: join(chars.dir, saved.id + '.json'),
-            chars: persona.length,
-          })
-        } catch (error) {
-          return sendJson(res, 500, { ok: false, error: String(error?.message || error) })
-        }
-      }
-      return sendJson(res, 405, { error: 'method not allowed' })
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/persona')
+  registerPersonaRoutes({
+    ctx, caps, authorized, sendJson, readBody, cfg, chars, log, existsSync, copyFileSync,
+    readPersona: async () => { await loadPersona(); return persona },
+    setPersona: (text) => { persona = text; personaMtime = 0 },
+  })
 
   // ---- 角色卡 ----
   // GET  /characters                 列表（含 active）
@@ -2545,134 +1976,19 @@ const runTurn = async (userText, options = {}) => {
   // GET  /characters/<id>            详情（含 persona / lore）
   // POST /characters/<id>            保存 {persona,lore,name,tagline,voice,actionMap}
   // POST /characters/<id>/activate   切换当前角色
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'prefix',
-    path: '/chill/v1/characters',
-    note: '角色卡：列表 / 详情 / 保存 / 新建 / 激活',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      let tail = String(req.url || '').split('?')[0].replace('/chill/v1/characters', '').replace(/\/+$/, '')
-      const segs = tail.split('/').filter(Boolean).map((s) => {
-        try { return decodeURIComponent(s) } catch { return s }
-      })
-      const method = req.method
-      const readJsonBody = async (limit) => {
-        const { raw } = await readBody(req, limit)
-        const text = String(raw || '').trim()
-        if (!text) return {}
-        return JSON.parse(text)
-      }
-      try {
-        if (segs.length === 0) {
-          if (method === 'GET') return sendJson(res, 200, Object.assign({ ok: true }, await chars.list()))
-          if (method === 'POST') {
-            const body = await readJsonBody(64 * 1024)
-            const out = await chars.create(body)
-            if (out.error) return sendJson(res, 400, { ok: false, error: out.error })
-            return sendJson(res, 200, { ok: true, card: out.card })
-          }
-          return sendJson(res, 405, { error: 'method not allowed' })
-        }
-        const id = segs[0]
-        if (segs[1] === 'activate') {
-          if (method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
-          const card = await chars.activate(id)
-          if (!card) return sendJson(res, 404, { ok: false, error: 'no such character' })
-          persona = card.persona
-          personaMtime = 0
-          return sendJson(res, 200, { ok: true, active: card.id, name: card.name, chars: card.persona.length })
-        }
-        if (segs.length !== 1) return sendJson(res, 404, { error: 'not found' })
-        if (method === 'GET') {
-          const card = await chars.get(id)
-          if (!card) return sendJson(res, 404, { ok: false, error: 'no such character' })
-          return sendJson(res, 200, { ok: true, card })
-        }
-        if (method === 'POST') {
-          const body = await readJsonBody(512 * 1024)
-          delete body.id
-          delete body.builtin
-          const card = await chars.save(id, body)
-          if (!card) return sendJson(res, 404, { ok: false, error: 'no such character' })
-          const now = await chars.active()
-          if (now && now.id === id) persona = now.persona
-          return sendJson(res, 200, { ok: true, card, active: now ? now.id === id : false })
-        }
-        return sendJson(res, 405, { error: 'method not allowed' })
-      } catch (error) {
-        return sendJson(res, 400, { ok: false, error: String(error?.message || error) })
-      }
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/characters')
+  registerCharacterRoutes({
+    ctx, caps, authorized, sendJson, readBody, chars,
+    setPersona: (text) => { persona = text; personaMtime = 0 },
+  })
 
   // ---- 资源清单 ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/assets',
-    note: '游戏上报的资源清单（读 / 写）',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      if (req.method === 'GET') return sendJson(res, 200, assetReport())
-      if (req.method === 'POST') {
-        try {
-          const { json } = await readBody(req, 8 * 1024 * 1024)
-          const next = normalizeManifest(json)
-          // 空清单一律拒收：否则一旦上报失败，大脑会以为"游戏里什么都没有"，什么都演不了
-          if (manifestSize(next).total === 0) {
-            return sendJson(res, 400, { ok: false, error: 'empty manifest rejected' })
-          }
-          await mkdir(cfg.dataDir, { recursive: true })
-          await writeFile(assetsPath, JSON.stringify(next), 'utf8')
-          manifest = next
-          log('assets manifest updated', manifestSize(manifest))
-          caps.emit('assets', manifest)
-          return sendJson(res, 200, assetReport())
-        } catch (error) {
-          return sendJson(res, 500, { ok: false, error: String(error?.message || error) })
-        }
-      }
-      return sendJson(res, 405, { error: 'method not allowed' })
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/assets')
+  registerAssetRoutes({
+    ctx, caps, authorized, sendJson, readBody, log,
+    dataDir: cfg.dataDir, getManifest: () => manifest, setManifest: (next) => { manifest = next },
+    emit: (next) => caps.emit('assets', next),
+  })
 
-  // ---- 游戏：状态与拉起 ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/admin/game',
-    note: '游戏进程状态',
-    handler: async (req, res) => {
-      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      // 别叫 state：外层有个同名的业务状态，遮蔽了以后加一行就会静默读错对象
-      const probe = await gameRunning()
-      return sendJson(res, 200, {
-        ok: true,
-        running: Boolean(probe.running),
-        pid: probe.pid || 0,
-        image: game.image,
-        uri: game.uri,
-        error: probe.error || game.error() || '',
-        inScene: Boolean(game.age() != null),
-        heartbeatAgeMs: game.age(),
-      })
-    },
-  })), 'dsh-chill-with-you-companion: GET /chill/v1/admin/game')
-
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/admin/game/launch',
-    note: '通过 Steam 拉起游戏',
-    handler: async (req, res) => {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      try {
-        const result = await game.launch()
-        return sendJson(res, 200, Object.assign({ image: game.image, uri: game.uri }, result))
-      } catch (error) {
-        return sendJson(res, 500, { ok: false, error: String(error?.message || error) })
-      }
-    },
-  })), 'dsh-chill-with-you-companion: POST /chill/v1/admin/game/launch')
+  registerAdminRoutes({ ctx, caps, authorized, sendJson, game, gameRunning })
 
   // ---- 桌面快捷框 ----
   // 以前这里拉的是 tools/ChillQuickBox.exe：一个 WinForms 小窗，得手工用 csc 编译，
@@ -2737,7 +2053,9 @@ const runTurn = async (userText, options = {}) => {
       try {
         // 端口从请求头取，不要在代码里写死 10723——sidecar 也可能落在别的口上。
         const host = String(req.headers.host || '').trim() || '127.0.0.1'
-        const url = 'http://' + host + '/chill/quick'
+        // 页面本身不鉴权（它就是个壳），但页面里的 fetch 要带 token，所以拼进 URL。
+        // 这个地址只有本机拿得到；`?t=` 里就是本机 token，不进日志。
+        const url = 'http://' + host + '/chill/quick?t=' + encodeURIComponent(cfg.token)
 
         // 默认走原生浮窗（WinForms + WebView2）：不启动、也不借用用户的浏览器，
         // 就是一个普通窗口（不强制置顶，不抢焦点）。?browser=1 保留老路径，
@@ -2888,44 +2206,7 @@ const runTurn = async (userText, options = {}) => {
     },
   })), 'dsh-chill-with-you-companion: POST /chill/v1/turn')
 
-  // ---- 模型供应商：控制台「模型」页的读写口 ----
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/llm',
-    note: '模型供应商：GET 列表 / POST 切换 · 添加 · 删除 · 测试',
-    handler: async (req, res) => {
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      const withState = (extra) => Object.assign(
-        { ok: true },
-        llm.view(),
-        // 「当前生效」连同 key 出处一起回，面板才不用猜
-        { current: llm.resolve().id, currentKeyFrom: llm.resolve().keyFrom },
-        extra || {},
-      )
-      if (req.method === 'GET') return sendJson(res, 200, withState())
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
-      let body = {}
-      try { body = (await readBody(req)).json || {} } catch { body = {} }
-      const action = String(body.action || '')
-      if (action === 'activate') {
-        const r = llm.activate(body.id)
-        return sendJson(res, r.ok ? 200 : 400, withState(r.ok ? {} : { ok: false, error: r.error }))
-      }
-      if (action === 'add') {
-        const r = llm.add(body.provider || body)
-        return sendJson(res, r.ok ? 200 : 400, withState(r.ok ? { added: r.id } : { ok: false, error: r.error }))
-      }
-      if (action === 'remove') {
-        const r = llm.remove(body.id)
-        return sendJson(res, r.ok ? 200 : 400, withState(r.ok ? {} : { ok: false, error: r.error }))
-      }
-      if (action === 'test') {
-        const probe = await llm.test(body.id)
-        return sendJson(res, 200, withState({ probe }))
-      }
-      return sendJson(res, 400, { error: 'unknown action: ' + action })
-    },
-  })), 'dsh-chill-with-you-companion: /chill/v1/llm')
+  registerPanelRoutes({ ctx, caps, authorized, sendJson, readBody, llm })
   // ---- 语音引擎：状态与起停 ----
   const voiceSnapshot = async (note) => Object.assign({
     ok: true,
@@ -2941,32 +2222,7 @@ const runTurn = async (userText, options = {}) => {
     lastError: lastTtsError,
   }, note ? { note } : {})
 
-  ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/admin/voice',
-    note: '语音引擎状态',
-    handler: async (req, res) => {
-      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      return sendJson(res, 200, await voiceSnapshot())
-    },
-  })), 'dsh-chill-with-you-companion: GET /chill/v1/admin/voice')
-
-  const voiceAction = (action, handler) => ctx.effect(() => ctx.webServer.register(caps.route({
-    kind: 'exact',
-    path: '/chill/v1/admin/voice/' + action,
-    note: '语音引擎：' + action,
-    handler: async (req, res) => {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
-      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      try {
-        const note = await handler()
-        return sendJson(res, 200, await voiceSnapshot(note))
-      } catch (error) {
-        return sendJson(res, 500, Object.assign(await voiceSnapshot(), { ok: false, error: String(error?.message || error) }))
-      }
-    },
-  })), 'dsh-chill-with-you-companion: POST /chill/v1/admin/voice/' + action)
+  const { voiceAction } = registerVoiceAdminRoutes({ ctx, caps, authorized, sendJson, voiceSnapshot })
 
   voiceAction('start', async () => {
     setVoiceWant(true)

@@ -114,6 +114,12 @@
   var send = document.getElementById('send');
   var dot = document.getElementById('dot');
 
+  // token 从宿主拼进来的 ?t= 取：页面本身不鉴权，接口鉴权。
+  // 拿不到就照发，接口回 401，页面会照常把错误显示出来，不会静默。
+  var TOKEN = (function () {
+    try { return new URLSearchParams(location.search).get('t') || ''; } catch (e) { return ''; }
+  })();
+
   var busy = false;
   var history = [];
 
@@ -190,7 +196,9 @@
     // 页面由 sidecar 自己发出来，用同源相对路径就够了，不用管端口。
     fetch('/chill/v1/act', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-chill-quick': '1' },
+      headers: TOKEN
+          ? { 'content-type': 'application/json', 'x-chill-quick': '1', 'x-chill-token': TOKEN }
+          : { 'content-type': 'application/json', 'x-chill-quick': '1' },
       body: JSON.stringify({ text: text })
     })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })

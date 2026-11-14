@@ -212,6 +212,19 @@ Select-String "$GAME\BepInEx\LogOutput.log" -Pattern 'ChillPerformer' | Select-O
 能看到加载行即为成功。**这一步没验过就不要进 §6**——没有它，§6 的第 4、5 条永远过不了，
 而 `health` 会一直是绿的，让你以为问题在插件侧。
 
+### 必须再把 token 同步进游戏端配置
+
+侧车从 2026-11-14 起不再放行空 token，`ChillPerformer.dll` 只认 BepInEx 配置里的 `brain.Token`。
+不同步过去，游戏里她**一动不动**，而 `health` 全绿、面板完全正常——DLL 只是安静地重试被拒的请求。
+
+```powershell
+node "<本仓库>\tools\sync-token.mjs" --apply --game "$GAME"
+# 只看不改：去掉 --apply；也可以 --cfg "<GAME>\BepInEx\config\local.chill.performer.cfg" 直接指文件
+```
+
+它把 `<数据目录>/token` 写进配置的 `Token =`，写前备份成 `.bak-<时间戳>`，不带 BOM。
+**改完要重启游戏**（或重进一次场景）让 DLL 重新读配置。
+
 ---
 
 ## 5. 配 API key
@@ -249,6 +262,9 @@ $env:DEEPSEEK_API_KEY = "sk-..."
 ## 6. 端到端验收
 
 重启 `dsh web`，然后逐条跑。**每条的失败含义都不一样，别混。**
+
+> 鉴权：除 `health` / `meta` 外都要 token。走宿主端口 `10722` 时它会代贴，直连侧车
+> `10723` 才需要自己带 `-H "x-chill-token: <token>"`。token 在 `<数据目录>/token`。
 
 ```powershell
 # ① 进程活着
@@ -318,6 +334,8 @@ Test-Path "<数据目录>\assets.json"                 # 应为 True
 | `/chill/v1/health` 404 | 插件未挂载 | `node_modules/<包名>` 联接是否存在、目标是否存在 |
 | 改包名后面板消失、接口 404 | 联接还是旧名字，loader 解析不到 | 同上。名字改了必须重建联接 |
 | health 200 但 `gameOnline:false` | 游戏端 DLL 没装 / 游戏没开 | §4 的 `LogOutput.log` |
+| 游戏里她一动不动，但 health 全绿 | 游戏端 `brain.Token` 没同步（请求全被 401，DLL 静默重试） | §4 末尾的 `sync-token.mjs`，改完重启游戏 |
+| 直连侧车 401 / 面板接口 401 | token 不对或没带（`health` 除外） | `<数据目录>/token`；面板路径由宿主代贴，别自己拼 |
 | `hasApiKey:false` | key 四档全空（面板没填、环境变量没设、凭据文件没有、宿主也没借到） | §5 |
 | 语音一直"缺件" | 参考音频文件名与配置不符 | `ref/ref-index.json` 里 `required:true` 那个 |
 | 她只动不说话 | 语音引擎不可用，已降级 | 设计行为，不是 bug |
@@ -345,8 +363,9 @@ Test-Path "<数据目录>\assets.json"                 # 应为 True
 <仓库根>                        ← 只有代码与随包资产，没有任何私人内容
 ├── index.js              宿主插件：监护侧车 + 反代 /chill/v1 + 热换代
 ├── serve.mjs             侧车进程入口（默认 127.0.0.1:10723）
-├── brain.mjs             全部业务：对话 / 记忆 / 演出编排 / 路由
-├── lib/                  16 个模块：client.js（面板）/ core / assets / voice / memory…
+├── brain.mjs             业务编排 + 核心路由（对话 / 记忆 / 演出 / 观察）
+├── lib/                  18 个模块：client.js（面板）/ core / assets / voice / memory / state-file / model-client…
+├── routes/               11 组外围路由：panel（模型页）/ avatar / characters / assets / voices / kb / audio / mood / persona / admin / admin-voice
 ├── persona.md            ★ 聪音的默认人格与说话纪律，内置角色卡的播种源
 ├── game/                 ★ 游戏端，全部随包
 │   ├── ChillPerformer.dll    预编译，直接丢进 BepInEx/plugins
@@ -355,7 +374,7 @@ Test-Path "<数据目录>\assets.json"                 # 应为 True
 ├── ref/ref-index.json    需要哪些参考音频（wav 本身不随包）
 ├── skills/               配套技能文档
 ├── tools/                清单生成、用量统计、发布体检
-├── test/                 6 个测试，不联网、不碰真实数据
+├── test/                 20 个测试，不联网、不碰真实数据
 ├── locale/zh.json        界面文案
 └── cordis.patch.yml      默认配置（模型 / 预算 / 语音开关 / dataDir）
 ```

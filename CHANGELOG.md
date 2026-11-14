@@ -3,6 +3,114 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 重构（续四）：外围路由收尾，brain.mjs → 2,267 行（累计 −26.2%）
+
+这一轮补搬五组，并**明确划出停止线**：
+
+| 模块 | 搬走的路由 |
+| --- | --- |
+| `routes/audio.mjs` | `/chill/v1/audio`（`?name=` 与路径两种形态） |
+| `routes/mood.mjs` | `/chill/v1/spark` · `/chill/v1/ambient` |
+| `routes/persona.mjs` | `/chill/v1/persona` |
+| `routes/admin.mjs` | `/chill/v1/admin/game` · `/admin/game/launch` |
+| `routes/admin-voice.mjs` | `/chill/v1/admin/voice`（动词仍由 brain 注册） |
+
+- `/observe` + `/context` **试搬后回滚**：185 行要注入 25 个内部件，搬出去只是把闭包摊成参数表，
+  架构没变好还把"一轮怎么走"拆散了。判据写进 ARCHITECTURE：读写内部件 > 6 个就留在 brain
+- `admin-voice` 是个例外形态：`start/stop/restart` 三个动词由 brain 在注册后继续用 `voiceAction` 挂，
+  所以模块 `return { voiceAction }` 交回注册器，调用点一行没改
+- 提取器（临时脚本）踩到的坑：`--imports "join:node:path"` 按冒号 `split` 会得到 `from != node`，
+  `node --check` 通过、一 import 就 `ERR_MODULE_NOT_FOUND: Cannot find package node`。改成按第一个冒号切
+- `test/route-registry.test.mjs` 扩到 11 组 / 14 条路径，并单独确认 `admin-voice` 真的把 `voiceAction` 交回来
+  （否则 brain 里三个语音动词会静默消失——这类"少注册一条"的错，只有守门测试能提前抓到）
+## 重构（续三）：声线库与知识库路由外迁，brain.mjs → 2,441 行
+
+- `routes/voices.mjs`：`/chill/v1/voices` 整条（列表 / 新建 / 激活 / 上传参考音频 / 试听 / 删除）。
+  试听段要 `mkdir -p audio/` 再落 wav，目录从 deps 注入，不在模块里重新推导
+- `routes/kb.mjs`：`/chill/v1/kb` 整条（230 行，本轮最大一块）。检索与存储都在 `lib/kb.mjs`，
+  这段只管 HTTP 形状
+- 累计：`brain.mjs` 3,072 → 2,441 行（−631，−20.5%），路由 31 条不变、拆成 6 个文件
+- 两个搬家期的坑：
+  1. 判断"import 加没加"时用了 `includes("registerVoiceRoutes")`，而调用点本身就会命中 → import 没写进去，
+     侧车起来第一行就 `ReferenceError: registerVoiceRoutes is not defined`。改成匹配完整的 import 语句
+  2. `test/hygiene.test.mjs` 只在 `brain.mjs` 里数路由，搬走 7 条后报"路由太少：24"。改成 brain + `routes/*` 合起来数
+- 新增 `test/route-registry.test.mjs`：用最小依赖把六组路由各注册一遍，校验路径不缺不重、不回 brain，
+  并断言注册点下限（注册点 ≠ 路由条数：有的注册点用前缀一次覆盖多条）
+## 重构（续二）：角色卡与资源清单路由外迁，brain.mjs → 2,741 行
+
+- `routes/characters.mjs`：`/chill/v1/characters`（列表 / 详情 / 保存 / 新建 / 激活）。
+  激活会改"当前人设"，但人设本体留在 brain——模块只调注入的 `setPersona` 写回一处
+- `routes/assets.mjs`：`/chill/v1/assets` + `assetReport`。清单本体留在 brain，模块经
+  `getManifest` / `setManifest` 动它；空清单依然一律拒收（上报失败不能把已有清单清空）
+- 这次没立 `personaStore` / `assetStore`：状态留在原处、只把代码搬走，比分家更省事且没有双份状态
+- 搬家时抓到一处只在运行时报的错：模块里还留着 `manifest = next` / `manifestSize(manifest)`，
+  而 `manifest` 是 brain 的变量 → `POST /chill/v1/assets` 直接 500 "manifest is not defined"。
+  冒烟当场红，改成 `setManifest(next)` / `manifestSize(next)`。
+  查这类问题的办法：拿假 ctx 起一遍 brain，POST 同一个载荷，把响应体打出来——比看 500 猜快得多
+- 新增 `test/route-groups.test.mjs`：角色卡激活必须调一次 `setPersona`、资源空清单必须 400 且不广播、
+  正常上报要落盘+广播+刷新内存，并锁住"路径不许再回 brain.mjs"与"人设只有一个写入口"
+## 重构（续）：路由开始外迁，brain.mjs 3,072 → 2,823 行
+
+- `routes/panel.mjs`：`/chill/v1/llm`（控制台「模型」页的读写口）整条搬走。
+  选它打头是因为 handler 只碰注入进来的 `llm`，不读写 brain 内部状态，可以整块搬
+- `routes/avatar.mjs`：`/chill/v1/avatar` 整条搬走，目录约定（`data/avatar` / `defaults` / `characters/avatars`）
+  与 `AVATAR_MAX` / `isPng` 一起进模块；`readBinary` 提到 `lib/http.mjs`（声线上传也用同一份）
+- brain 侧只剩两次注册调用，位置与原注册点一致（`kind: prefix` 的匹配顺序不受影响）
+- 搬家时踩到两个只在运行时才炸的坑：`rmSync` 在 `node:fs` 而不在 `node:fs/promises`（`node --check` 通过、
+  一 import 就 SyntaxError）；`cfg.dataDir` 在模块里不存在，改成注入的 `dataDir`
+- 新增 `test/routes.test.mjs`：用假 ctx/caps 把路由取出来，直测 401、GET、POST action 分支、
+  头像上传/读取/reset，并锁住"这两条路径不许再写回 brain.mjs"
+## 重构：brain.mjs 拆出两块（3,072 → 2,930 行）
+
+- `lib/state-file.mjs`：`state.json` 的加载、白名单合并、写前对账、原子落盘。
+  从 brain 里搬走 `loadState` / `saveState` 共 84 行，附带两条硬规则（外部编辑优先、tmp+rename）。
+  brain 侧只剩 `const state = stateFile.state` 与 `loadState` / `saveState` 两个别名，调用点一行没改
+- `lib/model-client.mjs`：请求体拼装、重试、跨 provider 降级、用量记账回调（依赖注入）。
+  搬走 `callModel` 共 67 行。注意工厂要放在 `recordUsage` 之后——引用在调用时求值，声明在后就是 TDZ 报错
+- 拆的过程中真抓到一个 bug：`nowIso()` 没跟着搬过去，`save()` 一写就抛、被 catch 吞掉，
+  表现是「state.json 根本不生成」而日志里只有一行 save failed。冒烟用例「focus_start 之后 state.json 真的写了 phase」立刻红了
+- 新增两个直测文件：`test/state-file.test.mjs`（默认值 / 白名单 / 原子写 / 外部编辑优先 / 坏文件隔离）、
+  `test/model-client.test.mjs`（假 fetch 测重试与降级、请求体开关、无 key 报错）
+- 路由注册**没搬**，原因写进 ARCHITECTURE.md「拆分边界」：handler 直接闭包改 `persona` / `manifest`，
+  得先有 owner 对象才能动，不是机械位移
+## 安全：本机任何进程都能读她的记忆（`cfg.token` 为空即放行）
+
+- 根因：`lib/http.mjs` 的 `createAuth(cfg)` 在 `cfg.token` 为空时直接 `return true`，
+  而 `lib/config.mjs` 的默认值就是 `token: ''`。结果：本机任何进程/脚本 `curl 127.0.0.1:10723/chill/v1/chat`
+  都能读到全部聊天记录、状态、知识库
+- 现在：`cfg.token` 为空 = **全部拒绝**；比较走 `sha256` + `timingSafeEqual`（常数时间，不泄漏前缀长度）；
+  `Bearer` 与 `x-chill-token` 两种头都认
+- token 自动生成：`resolveToken()` 优先级 **配置 `token` → `CHILL_TOKEN` → `<数据目录>/token`**；
+  文件不存在时生成 32 字节随机（64 位 hex），`mode 0o600`
+- 三条调用路径都已接上：宿主反代给侧车的请求由 `index.js` 统一贴 `x-chill-token`（面板不持有 token）；
+  快捷浮窗的页面地址由侧车拼成 `/chill/quick?t=<token>`，页面转成请求头；游戏端读 BepInEx 配置的 `brain.Token`
+- 新增 `tools/sync-token.mjs`：把本机 token 写进游戏端 `BepInEx/config/local.chill.performer.cfg`
+  （写前备份 `.bak-<时间戳>`，不带 BOM）。**忘了这步的表现是「游戏里她一动不动，而 health 全绿」**——
+  DLL 只会安静地重试被拒的请求
+- `health` / `meta` 仍然是公开的（验收与探活要用），里面不含任何密钥/token
+- 新增 `test/auth.test.mjs`：空 token 不放行、错 token 403→401、两种头、token 文件复用、值不进响应
+
+## 修复：清理记忆被「下一次保存」整份盖回去
+
+- 现象：手工清空 `<数据目录>/state.json` 的内存相关字段后，进程下一次保存把内存里的旧值
+  整份写回，`lastTopic` / `recentSubs` 又回来了，看起来像没删
+- 现在 `saveState()` 写之前先和盘上对账：**盘上被别人改过就以盘上为准**（`stateSeenHash` 比对），
+  并留一行 `state reloaded: 盘上被外部改过` 日志
+- `lib/memory-store.mjs` 的 `appendTurn()` 同样先对账（行数比对）：外部删过几行就以盘上重建，
+  不会在下次裁剪时把删掉的轮次又「复活」
+- 顺带修掉一个真事故：`state.json` 是**直接 `writeFile`**，撞上进程换代就剩半份 JSON，
+  下次启动按坏文件隔离成 `state.json.bad-*`（2026-11-14 真发生过，被隔离那份其实内容合法——是读到了写一半）。
+  现在整份写一律 `tmp + rename`；`loadState()` 解析失败先等 150ms 重读一次再判死
+- 新增冒烟用例「外部改过 state.json，下一次保存不许盖回去」
+
+## 修复：DeepSeek 抖一下，整轮就哑了
+
+- 以前只有一个 20s 超时 + `retries` 次原地重试，没有降级：主力 provider 一挂，这一轮就没有台词
+- 现在 `callModel()` 走**降级链**：先用当前 provider 重试够，再顺着 `llm.candidates()`
+  （只含有 key 且有 `baseUrl` 的）换下一家；换家时 `body.model` 跟着换，日志留一行 `model fallback`
+- 返回值多两个字段：`providerId`（这一轮谁答的）与 `fallback`（是不是降级来的），面板/日志可以据此判断
+- 新增 `test/llm-fallback.test.mjs`：候选顺序、无 key 不混入、`body.model` 随候选切换
+
 ## 修复：快捷框说的话进不了控制台记录
 
 - 根因：`isAutomation()` 只认「Origin/Referer 是面板端口」的请求为真人对话，

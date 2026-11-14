@@ -59,10 +59,13 @@ check('package.json 的 files 覆盖了 tools/ 与 NOTICE.md', () => {
 })
 
 check('注册的路由没有重复（meta 描述表不算注册）', () => {
-  const brain = readFileSync(join(ROOT, 'brain.mjs'), 'utf8')
+  // 路由从 2026-11-14 起分布在 brain.mjs 与 routes/*.mjs 两处，一起数，否则会误报"路由太少"
+  const routeFiles = ['brain.mjs'].concat(
+    readdirSync(join(ROOT, 'routes')).filter((f) => f.endsWith('.mjs')).map((f) => 'routes/' + f),
+  )
   // 只取「登记进 webServer 的那一行」：同行没有 note: 的才是注册，
   // 带 note: 的是 /meta 的描述表，它不是注册，重复出现是正常的。
-  const paths = brain.split('\n')
+  const paths = routeFiles.flatMap((f) => readFileSync(join(ROOT, f), 'utf8').split('\n'))
     .filter((l) => /path:\s*'\/chill\/v1/.test(l) && !/note:/.test(l))
     .map((l) => l.match(/path:\s*'(\/chill\/v1[A-Za-z0-9_\/]*)'/)[1])
   assert.ok(paths.length >= 25, '路由太少：' + paths.length)
