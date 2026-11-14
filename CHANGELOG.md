@@ -3,6 +3,16 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 新增：key 直接复用安装机 dsh 的，不用再配一遍
+
+宿主插件启动侧车前会调 dsh 的 ctx.credentials.resolve(keyRef)（默认 DEEPSEEK_API_KEY），
+把解析到的凭据通过环境变量交给侧车——用户在 dsh 里配过的那一份。解析不到才回退到
+<DSH_HOME>/.credentials.yaml 与 llm.json。
+
+顺带：/chill/v1/health 增加 keySource 字段（只报来源，值是永远不回显的）；
+health.hasApiKey 改成先算布尔再用，避免 keySource 的拼接路径碰到 key 本身；
+新增 test/host-key.test.mjs 11 条用例锁死"空值当没配""服务缺席不崩""日志不含值"。
+
 ## 修复：只设环境变量时 health 谎报没有 key
 
 AGENTS.md §5 写着 key 解析顺序是「环境变量 → .credentials.yaml → llm.json」，

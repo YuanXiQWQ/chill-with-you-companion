@@ -264,6 +264,18 @@ curl.exe http://127.0.0.1:10722/chill/v1/health
 
 `ok:true` 且 `hasApiKey:true` 即就绪（key 来自 `config.apiKey` 或 `$env:DEEPSEEK_API_KEY`）。
 
+## API key：默认直接复用安装机 dsh 的
+
+插件不需要你单独配一份 key。宿主插件启动侧车前会调用 dsh 的 `ctx.credentials.resolve(`keyRef`)`
+（`keyRef` 默认 `DEEPSEEK_API_KEY`），把解析到的凭据通过环境变量交给侧车——
+也就是你在 `dsh` 里配的那一份，插件的对话与记忆用的就是它。
+
+解析不到时按顺序再试：`<DSH_HOME>/.credentials.yaml` → `llm.json` 里的 `token` →
+面板「模型」页手填。三种都没有时 `health.hasApiKey` 为 `false`，表现是"能回话但不出声/直接报错"。
+
+`/chill/v1/health` 的 `keySource` 字段会告诉你 key 来自哪（`dsh` / 文件名 / `env` / `none`），
+值是永远不会回显的。
+
 ## 卸载
 
 ```powershell

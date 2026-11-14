@@ -1137,6 +1137,8 @@ const runTurn = async (userText, options = {}) => {
     path: '/chill/v1/health',
     handler: async (req, res) => {
       const [currentPersona] = await Promise.all([loadPersona()])
+      // 先算成布尔再用：下面 keySource 只拿布尔做判断，绝不把 key 本身拼进响应
+      const hasApiKey = Boolean(llm.resolve().apiKey)
       sendJson(res, 200, {
         ok: true,
         plugin: name,
@@ -1161,7 +1163,9 @@ const runTurn = async (userText, options = {}) => {
         game: game.snapshot(),
         gameAgeMs: game.age(),
         gameOnline: game.online(),
-        hasApiKey: Boolean(llm.resolve().apiKey),
+        hasApiKey,
+        // 只报「key 从哪来」，不报值：宿主借来的凭据会在 env 里标 CHILL_KEY_SOURCE
+        keySource: String(process.env.CHILL_KEY_SOURCE || '') || (hasApiKey ? 'credentials-file-or-env' : 'none'),
         at: nowIso(),
       })
     },

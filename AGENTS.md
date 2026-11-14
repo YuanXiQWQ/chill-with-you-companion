@@ -221,7 +221,11 @@ Select-String "$GAME\BepInEx\LogOutput.log" -Pattern 'ChillPerformer' | Select-O
 > 最后重启 `dsh web` 在面板里点一次测试。仓库里的明文靠 `node tools/scan-secrets.mjs` 挡
 > （已接进 `check-publish` 硬门）。
 
-DeepSeek 的 key 按这个顺序解析，**前面找到就不看后面**：
+**默认什么都不用配**：宿主插件启动侧车前会调 dsh 的 `ctx.credentials.resolve(keyRef)`，
+把安装机 dsh 里已经在用的那份凭据通过环境变量交给侧车。`keyRef` 默认 `DEEPSEEK_API_KEY`，
+可以在 `cordis.patch.yml` 的 `keyRef` 改。
+
+解析不到时才按下面顺序回退，**前面找到就不看后面**：
 
 1. 环境变量（`keyRef` 指向的变量名，默认 `DEEPSEEK_API_KEY`）
 2. `<DSH_HOME>/.credentials.yaml`

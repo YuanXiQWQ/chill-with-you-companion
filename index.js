@@ -43,6 +43,26 @@ function appendSidecarLog(line) {
   } catch { /* 落盘失败不影响运行 */ }
 }
 
+/**
+ * 直接借用安装机 dsh 的凭据：宿主有 ctx.credentials 服务，refs 就是环境变量名。
+ * 解析不到就返回 null —— 侧车仍会自己读 <DSH_HOME>/.credentials.yaml，两条路都在。
+ * 值只在内存里传给子进程：不落盘、不进日志、不进面板。
+ */
+export async function pickDshCredential(ctx, keyRef) {
+  const name = String(keyRef || 'DEEPSEEK_API_KEY')
+  let svc = null
+  try { svc = ctx && typeof ctx.get === 'function' ? ctx.get('credentials') : null } catch { svc = null }
+  if (!svc || typeof svc.resolve !== 'function') return null
+  try {
+    const got = await svc.resolve(name)
+    const value = got && typeof got.value === 'string' ? got.value.trim() : ''
+    if (!value) return null   // 空值一律当没配：别让空串冒充成「已配置」
+    return { keyRef: name, value, source: String(got.source || 'dsh') }
+  } catch {
+    return null
+  }
+}
+
 export function apply(ctx, rawConfig = {}) {
   // 与 brain.mjs 同一套优先级；相对路径按插件目录解析
   {
@@ -89,11 +109,18 @@ export function apply(ctx, rawConfig = {}) {
   }
 
   let exitReason = 'boot'
-  function spawnSidecar(reason) {
+  async function spawnSidecar(reason) {
     if (stopping) return
     ready = false
     exitReason = reason
+    // 先向宿主借 key：安装机 dsh 里配过，这里就一定有，用户不必在插件里再配一遍。
+    const cred = await pickDshCredential(ctx, (rawConfig && rawConfig.keyRef) || 'DEEPSEEK_API_KEY')
     const env = { ...process.env, CHILL_BRAIN_PORT: String(PORT), CHILL_BRAIN_CONFIG: JSON.stringify(rawConfig || {}) }
+    if (cred) {
+      env[cred.keyRef] = cred.value
+      env.CHILL_KEY_SOURCE = cred.source
+      log('key from dsh credentials', { ref: cred.keyRef, source: cred.source })   // 只报来源，不报值
+    }
     log('starting sidecar', { reason, port: PORT })
     child = spawn(process.execPath, [SERVE], { cwd: HERE, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
     const pid = child.pid
@@ -134,7 +161,7 @@ export function apply(ctx, rawConfig = {}) {
       const count = noteRestart()
       const delay = count >= 5 ? 10000 : Math.min(1000 * count, 5000)
       warn('sidecar exited, restarting', { pid, code, signal, attempt: count, delayMs: delay })
-      bootTimer = setTimeout(() => { bootTimer = null; spawnSidecar('crash-restart') }, delay)
+      bootTimer = setTimeout(() => { bootTimer = null; void spawnSidecar('crash-restart') }, delay)
       if (bootTimer.unref) bootTimer.unref()
     })
     child.on('error', (error) => {
@@ -144,7 +171,7 @@ export function apply(ctx, rawConfig = {}) {
       if (stopping || recycling || bootTimer) return
       ready = false
       const count = noteRestart()
-      bootTimer = setTimeout(() => { bootTimer = null; spawnSidecar('spawn-error') }, Math.min(1000 * count, 5000))
+      bootTimer = setTimeout(() => { bootTimer = null; void spawnSidecar('spawn-error') }, Math.min(1000 * count, 5000))
       if (bootTimer.unref) bootTimer.unref()
     })
   }
@@ -194,7 +221,7 @@ export function apply(ctx, rawConfig = {}) {
         if (await portClosed()) break
         await new Promise((r) => setTimeout(r, 200))
       }
-      spawnSidecar(reason)
+      void spawnSidecar(reason)
     } catch (error) {
       warn('recycle failed, keeping old process', { error: String(error?.message || error) })
     } finally {
@@ -501,7 +528,7 @@ export function apply(ctx, rawConfig = {}) {
   }
 
   ctx.effect(() => {
-    spawnSidecar('boot')
+    void spawnSidecar('boot')
     return () => {
       stopping = true
       if (bootTimer) clearTimeout(bootTimer)
