@@ -13,6 +13,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 默认 depth=1 是浅克隆，本地推送类测试会因此失败；仓库很小，直接拿全历史
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:

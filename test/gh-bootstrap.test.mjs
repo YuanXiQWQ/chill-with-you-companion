@@ -66,6 +66,9 @@ const runTool = (extra = [], token = FAKE_TOKEN) =>
 let api = ''
 const main = async () => {
   assert.equal(git('init', '--bare', '-q', bare).status, 0, '建裸仓库失败')
+    // CI 的 actions/checkout 默认是浅克隆（--depth 1），浅历史推到裸仓库会被
+    // "shallow update not allowed" 拒绝。允许它，测试才不挑环境。
+    git('--git-dir', bare, 'config', 'receive.shallowUpdate', 'true')
   await new Promise((r) => server.listen(0, '127.0.0.1', r))
   api = 'http://127.0.0.1:' + server.address().port
 
