@@ -1,0 +1,72 @@
+/**
+ * 静态卫生：拦那些"语法通过、跑到某条分支才炸"的错。
+ * 起因很具体：'require is not defined in ES module scope' 在本轮里犯了三次，
+ * 每次都是 node --check 全绿、只在真正走到那行时才抛，测试还很可能不覆盖那行。
+ */
+import assert from 'node:assert/strict'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const files = []
+const walk = (dir, depth = 0) => {
+  if (depth > 3) return
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === 'node_modules' || e.name === '.git' || e.name === 'game') continue
+    const full = join(dir, e.name)
+    if (e.isDirectory()) { walk(full, depth + 1); continue }
+    if (/\.(mjs|js)$/.test(e.name)) files.push(full)
+  }
+}
+walk(ROOT)
+
+let passed = 0
+const check = (label, fn) => { fn(); passed += 1; console.log('  ok  ' + label) }
+
+check('没有 ESM 里不能用的 require()（' + files.length + ' 个文件）', () => {
+  const bad = []
+  for (const f of files) {
+    const text = readFileSync(f, 'utf8')
+    // 只认「真的调用且参数是字面量」：lib/client.js 里 factory(require) 是加载器注入的形参，
+    // 打印提示里 node -e "require('fs')" 是字符串，两者都不算违规。
+    if (text.includes('__ModuleLoader__')) continue
+    const hits = text.split('\n').filter((l) => /(?<!['"`\w.])require\s*\(\s*['"`][^'"`]+['"`]\s*\)/.test(l) && !/^\s*(\/\/|\*)/.test(l))
+    if (hits.length) bad.push(relative(ROOT, f).replace(/\\/g, '/') + ': ' + hits[0].trim().slice(0, 70))
+  }
+  assert.deepEqual(bad, [], '这些文件在 ESM 里用了 require：\n  ' + bad.join('\n  '))
+})
+
+check('没有 CJS 时代的目录变量与导出写法', () => {
+  // 模式串拼接出来，否则检查器会把源码里的字面量当成违规（这个错我犯过一次）
+  const DIR = '__dir' + 'name'
+  const EXPORTS = 'module' + '.exports'
+  const reDir = new RegExp('(^|[^.\\w])' + DIR + '\\b')
+  const bad = []
+  for (const f of files) {
+    const text = readFileSync(f, 'utf8')
+    if (reDir.test(text) || text.includes(EXPORTS)) bad.push(relative(ROOT, f))
+  }
+  assert.deepEqual(bad, [])
+})
+
+check('package.json 的 files 覆盖了 tools/ 与 NOTICE.md', () => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8').replace(/^\uFEFF/, ''))
+  const list = pkg.files || []
+  assert.ok(list.includes('tools/'), 'files 缺 tools/：卸载、换钥、扫密钥都在里面')
+  assert.ok(list.includes('NOTICE.md'), 'files 缺 NOTICE.md：资源来源声明要随包')
+})
+
+check('注册的路由没有重复（meta 描述表不算注册）', () => {
+  const brain = readFileSync(join(ROOT, 'brain.mjs'), 'utf8')
+  // 只取「登记进 webServer 的那一行」：同行没有 note: 的才是注册，
+  // 带 note: 的是 /meta 的描述表，它不是注册，重复出现是正常的。
+  const paths = brain.split('\n')
+    .filter((l) => /path:\s*'\/chill\/v1/.test(l) && !/note:/.test(l))
+    .map((l) => l.match(/path:\s*'(\/chill\/v1[A-Za-z0-9_\/]*)'/)[1])
+  assert.ok(paths.length >= 25, '路由太少：' + paths.length)
+  const dupes = paths.filter((p, i) => paths.indexOf(p) !== i)
+  assert.deepEqual([...new Set(dupes)], [], '同一个路径注册了两次：' + dupes.join(','))
+})
+
+console.log('\nPASS ' + passed + ' hygiene checks')

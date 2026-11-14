@@ -1,0 +1,22 @@
+[
+  {
+    "file": "Voice_MainScenario_18_001.wav",
+    "required": true,
+    "note": "主线，默认参考"
+  },
+  {
+    "file": "Voice_MainScenario_18_003.wav",
+    "required": false,
+    "note": "备选"
+  },
+  {
+    "file": "Voice_MainScenario_18_004.wav",
+    "required": false,
+    "note": "备选"
+  },
+  {
+    "file": "Voice_GameStart_Noon_2_004.wav",
+    "required": false,
+    "note": "备选"
+  }
+]

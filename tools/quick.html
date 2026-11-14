@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>聪音</title>
+<style>
+  /* 和原 WinForms 快捷框同一套色，换过来的观感不会断层。 */
+  :root {
+    --bg: #202124;
+    --bar: #2a2b2f;
+    --text: #ececee;
+    --dim: #bababe;
+    --faint: #8c8c92;
+    --accent: #ff6060;
+    --field: #18191c;
+    --line: #34353a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%; margin: 0;
+    background: var(--bg); color: var(--text);
+    font: 13px/1.55 "Microsoft YaHei UI", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  #app { display: flex; flex-direction: column; height: 100%; }
+
+  header {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: var(--bar);
+    -webkit-app-region: drag; user-select: none;
+  }
+  header .name { font-weight: 600; font-size: 12.5px; letter-spacing: .3px; }
+  header .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--faint); transition: background .2s;
+  }
+  header .dot.on { background: #3ddc84; }
+  header .dot.busy { background: var(--accent); }
+  header .spacer { flex: 1 1 auto; }
+  header button {
+    font: inherit; font-size: 11px; color: var(--dim);
+    background: transparent; border: 1px solid var(--line);
+    border-radius: 999px; padding: 2px 8px; cursor: pointer;
+  }
+  header button:hover { color: var(--text); border-color: var(--faint); }
+
+  #log {
+    flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
+    padding: 10px 10px 4px; scroll-behavior: smooth;
+  }
+  #log::-webkit-scrollbar { width: 6px; }
+  #log::-webkit-scrollbar-thumb { background: #3a3b40; border-radius: 3px; }
+
+  .row { margin-bottom: 9px; }
+  .row.me { text-align: right; }
+  .bubble {
+    display: inline-block; max-width: 88%; text-align: left;
+    padding: 6px 10px; border-radius: 10px;
+    background: var(--field); border: 1px solid var(--line);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .row.me .bubble { background: #2f3035; border-color: #3b3c42; }
+  .kana { color: var(--faint); font-size: 11.5px; margin-top: 2px; }
+  .meta { color: var(--faint); font-size: 10.5px; margin-top: 2px; }
+
+  .hint { color: var(--faint); font-size: 12px; padding: 6px 2px; }
+  .err { color: var(--accent); font-size: 12px; padding: 6px 2px; }
+
+  footer {
+    flex: 0 0 auto; display: flex; gap: 6px; align-items: flex-end;
+    padding: 8px 10px 10px; border-top: 1px solid var(--line);
+  }
+  #input {
+    flex: 1 1 auto; resize: none; min-height: 34px; max-height: 120px;
+    font: inherit; color: var(--text); background: var(--field);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 7px 10px; outline: none; line-height: 1.5;
+  }
+  #input:focus { border-color: var(--accent); }
+  #send {
+    flex: 0 0 auto; height: 34px; padding: 0 14px;
+    font: inherit; font-weight: 600; color: #fff;
+    background: var(--accent); border: none; border-radius: 9px; cursor: pointer;
+  }
+  #send:disabled { opacity: .45; cursor: default; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="dot" id="dot"></span>
+    <span class="name">聪音</span>
+    <span class="spacer"></span>
+    <button id="clear" type="button" title="清空这块窗口里的显示（不影响游戏里的记忆）">清空</button>
+  </header>
+
+  <div id="log"><div class="hint" id="hint">Enter 发送 · Shift+Enter 换行 · Esc 清空输入</div></div>
+
+  <footer>
+    <textarea id="input" rows="1" placeholder="说点什么…" autofocus></textarea>
+    <button id="send" type="button">发送</button>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'chill.quick.log.v1';
+  var MAX = 40;
+
+  var log = document.getElementById('log');
+  var input = document.getElementById('input');
+  var send = document.getElementById('send');
+  var dot = document.getElementById('dot');
+  var clearBtn = document.getElementById('clear');
+
+  var busy = false;
+  var history = [];
+
+  // 重开窗口还能看见刚才说过的话，跟原来的 quickbox.pos 是一类用途：
+  // 记住「上次停在哪」，只是这里记的是对话而不是坐标。
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (Array.isArray(arr)) history = arr.slice(-MAX);
+    } catch (e) { /* 存档坏了就当空的，不该拦着人说话 */ }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(history.slice(-MAX))); } catch (e) {}
+  }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function renderRow(item) {
+    var row = el('div', 'row' + (item.role === 'me' ? ' me' : ''));
+    var bubble = el('div', 'bubble', item.text);
+    row.appendChild(bubble);
+    if (item.kana) row.appendChild(el('div', 'kana', item.kana));
+    if (item.meta) row.appendChild(el('div', 'meta', item.meta));
+    return row;
+  }
+
+  function paint() {
+    log.textContent = '';
+    if (history.length === 0) {
+      log.appendChild(el('div', 'hint', 'Enter 发送 · Shift+Enter 换行 · Esc 清空输入'));
+      return;
+    }
+    history.forEach(function (item) { log.appendChild(renderRow(item)); });
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function setDot(state) {
+    dot.className = 'dot' + (state === 'busy' ? ' busy' : state === 'ok' ? ' on' : '');
+  }
+
+  function autosize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  }
+
+  function sayError(msg) {
+    log.appendChild(el('div', 'err', msg));
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function sendText() {
+    var text = (input.value || '').trim();
+    if (!text || busy) return;
+    busy = true;
+    send.disabled = true;
+    setDot('busy');
+
+    input.value = '';
+    autosize();
+
+    history.push({ role: 'me', text: text });
+    paint();
+
+    var pending = el('div', 'hint', '……');
+    log.appendChild(pending);
+
+    // 页面由 sidecar 自己发出来，用同源相对路径就够了，不用管端口。
+    fetch('/chill/v1/act', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        pending.remove();
+        if (!res.ok || !res.j || res.j.ok === false) {
+          var why = (res.j && (res.j.error || res.j.message)) || '她这次没接上话';
+          sayError(String(why));
+          setDot('');
+          return;
+        }
+        var j = res.j;
+        var subtitle = String(j.subtitleText || j.subtitle_text || '').trim();
+        var kana = String(j.voiceText || j.voice_text || '').trim();
+        var emo = String(j.emotion || '').trim();
+        history.push({
+          role: 'her',
+          text: subtitle || '（这次没有字幕）',
+          kana: kana && kana !== subtitle ? kana : '',
+          meta: emo ? emo : ''
+        });
+        save();
+        paint();
+        setDot('ok');
+      })
+      .catch(function (e) {
+        pending.remove();
+        sayError('发不出去：' + (e && e.message ? e.message : e));
+        setDot('');
+      })
+      .then(function () {
+        busy = false;
+        send.disabled = false;
+        input.focus();
+      });
+  }
+
+  send.addEventListener('click', sendText);
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendText();
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      autosize();
+      e.preventDefault();
+    }
+  });
+
+  input.addEventListener('input', autosize);
+
+  clearBtn.addEventListener('click', function () {
+    history = [];
+    save();
+    paint();
+    input.focus();
+  });
+
+  load();
+  paint();
+  setDot('');
+  autosize();
+  input.focus();
+})();
+</script>
+</body>
+</html>

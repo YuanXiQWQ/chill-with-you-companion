@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 语法检查
+        shell: pwsh
+        run: |
+          $files = @('brain.mjs', 'index.js', 'serve.mjs') +
+                   (Get-ChildItem lib, test, tools -Recurse -File | Where-Object { $_.Extension -eq '.mjs' -or $_.Extension -eq '.js' } | ForEach-Object { $_.FullName })
+          $bad = 0
+          foreach ($f in $files) {
+            node --check $f
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error file=$f::语法错误"; $bad++ }
+          }
+          if ($bad -gt 0) { exit 1 }
+          Write-Host "检查 $($files.Count) 个文件，全部通过"
+
+      - name: 发布体检（密钥 / 禁发文件 / 清单自洽）
+        shell: pwsh
+        run: node tools/check-publish.mjs
+
+      - name: 测试
+        shell: pwsh
+        run: |
+          $failed = 0
+          Get-ChildItem test -Filter *.mjs -File | ForEach-Object {
+            Write-Host "--- $($_.Name) ---"
+            node $_.FullName
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error file=$($_.FullName)::测试失败"; $failed++ }
+          }
+          if ($failed -gt 0) { exit 1 }

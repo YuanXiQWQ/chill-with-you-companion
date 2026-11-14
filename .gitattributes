@@ -1,0 +1,21 @@
+# 统一行尾：仓库里一律 LF，检出到 Windows 时也不转换
+* text=auto eol=lf
+
+# 二进制：不做行尾转换、不做文本 diff
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.wav   binary
+*.mp3   binary
+*.ogg   binary
+*.zip   binary
+*.dll   binary
+*.exe   binary
+
+# 锁文件：diff 里折叠
+pnpm-lock.yaml  -diff
+package-lock.json -diff
+
+# 文档：GitHub 统计语言时不算进主要语言
+*.md linguist-documentation
