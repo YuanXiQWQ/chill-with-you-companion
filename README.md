@@ -362,6 +362,37 @@ node tools/gen-anim-manifest.mjs
 
 输出默认写 `game/assets.seed.json`。**日常使用不需要跑**——运行时清单走游戏上报那条路。
 
+## agent 的权限边界（它会碰哪些文件）
+
+这个插件由 agent 安装和维护，所以边界写死、写得能被查。
+
+**允许碰的，只有这四类：**
+
+| 位置 | 为什么允许 |
+| --- | --- |
+| `<游戏>/BepInEx/plugins/ChillPerformer.dll` | 游戏端本体，不放进去她就不会动 |
+| `<游戏>/BepInEx/config/local.chill.performer.cfg` | 里面只有 `brain.Token` 与端口，用于和侧车对上 |
+| `<数据目录>/`（`memory/` `audio/` `kb/` `state.json` `llm.json` `token` `*.log`） | 记忆、缓存、配置与日志都在这里；换机器整个拷走即可 |
+| 本仓库自身（源码、`tools/`、`test/`、文档） | 装、修、升级都在这一层发生 |
+
+**不允许碰的：**
+
+- 游戏目录里除上面两个文件以外的任何东西（`_Data/`、exe、其它 `plugins/`）——Steam 校验与更新会覆盖，改坏了回不去
+- Steam 安装目录、系统目录、其它 profile、其它磁盘
+- 删除 `<数据目录>/memory/` —— 那是她的记忆，删了就失忆；脚本只打印位置，不动手
+- 输出任何密钥明文（只能报"落在哪一档"）、上传任何内容
+
+**它靠什么判断自己在干什么：**
+
+```powershell
+node tools/doctor.mjs          # 人看：12 项 ✓ / ! / ×，末尾给下一步
+node tools/doctor.mjs --json   # agent 读：checks[] 带 detail，next[] 是要按顺序执行的命令
+```
+
+`doctor` 只读——不生成 token、不写配置、不改 dll。**出问题时把这份 JSON 贴出来就够了，不用猜。**
+
+> 换句话说：agent 能改的都是"装错了、配错了"这一类；改不动的（游戏本体、你的系统、别人的目录）它一律不碰。
+
 ## 接口
 
 | 方法 | 路径 | 说明 |

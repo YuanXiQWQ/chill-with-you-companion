@@ -329,18 +329,52 @@ Test-Path "<数据目录>\assets.json"                 # 应为 True
 
 ## 8. 故障对照表
 
-| 症状 | 最可能的原因 | 第一条要查的 |
+### 8.1 先跑这个，再决定查什么
+
+```powershell
+node tools/doctor.mjs          # 人看：逐项 ✓ / ! / ×，末尾给下一步
+node tools/doctor.mjs --json   # agent 看：单个 JSON 对象
+```
+
+`doctor` **只读**：不生成 token、不写配置、不改 dll。它把 12 项检查一次跑完
+（`runtime` / `repo` / `dataDir` / `game` / `bepinex` / `tokenSync` / `sidecar` / `host` /
+`routes` / `versions` / `key` / `voice`），每项给：
+
+| 字段 | 含义 |
+| --- | --- |
+| `status` | `pass` / `warn`（能用但缺一块，比如游戏没开、语音没装）/ `fail`（现在真跑不起来）/ `skip`（前置缺失，无法判断） |
+| `summary` | 一句话结论，人也能读 |
+| `detail` | 结构化现场（路径、数量、`gameOnline`、`hasApiKey`、缺哪些参考音频…） |
+| `fix[]` | 该执行的命令 `{cmd, why}` |
+| `next[]` | 汇总层：只由 `fail` / `warn` 的 `fix` 拼成，按顺序执行即可 |
+
+**退出码**：`0` = 没有 `fail`（有 `warn` 也算 0，因为「游戏没开」「语音没装」都是正常状态）；`1` = 有 `fail`。
+
+### 8.2 agent 执行约定
+
+1. **先 `--json` 再动手**。不要凭症状猜，`doctor` 的 `checks[].detail` 已经把路径与数量摆出来了。
+2. **一次只执行一条 `next[].cmd`，执行完重跑 `doctor`**。修 A 可能顺带解决 B，盲目全跑会掩盖真实的因果。
+3. **不要自己改游戏目录里的原文件**。允许碰的只有两处：`BepInEx/plugins/ChillPerformer.dll` 与
+   `BepInEx/config/local.chill.performer.cfg`。其余一律不动（Steam 校验/更新会覆盖，而且坏了没法回滚）。
+4. **不要手改 `~/.dsh/profiles/<profile>/package.json`**：用 `tools/install.mjs` / `tools/uninstall.mjs`，它们写前备份、不带 BOM。
+5. **`fail` 修不掉时，把 `checks` 里 `status=fail` 的那几项原文（含 `detail`）贴给用户**，不要替他决定换模型、换路径或重装游戏。
+6. 调演出用 `sandbox:true`，**别在 `sandbox:false` 下反复试错**——那会写进真实记忆与好感度。
+
+### 8.3 症状 → 对应检查项
+
+| 症状 | `doctor` 里看哪一项 | 最可能的原因 |
 | --- | --- | --- |
-| `/chill/v1/health` 404 | 插件未挂载 | `node_modules/<包名>` 联接是否存在、目标是否存在 |
-| 改包名后面板消失、接口 404 | 联接还是旧名字，loader 解析不到 | 同上。名字改了必须重建联接 |
-| health 200 但 `gameOnline:false` | 游戏端 DLL 没装 / 游戏没开 | §4 的 `LogOutput.log` |
-| 游戏里她一动不动，但 health 全绿 | 游戏端 `brain.Token` 没同步（请求全被 401，DLL 静默重试） | §4 末尾的 `sync-token.mjs`，改完重启游戏 |
-| 直连侧车 401 / 面板接口 401 | token 不对或没带（`health` 除外） | `<数据目录>/token`；面板路径由宿主代贴，别自己拼 |
-| `hasApiKey:false` | key 四档全空（面板没填、环境变量没设、凭据文件没有、宿主也没借到） | §5 |
-| 语音一直"缺件" | 参考音频文件名与配置不符 | `ref/ref-index.json` 里 `required:true` 那个 |
-| 她只动不说话 | 语音引擎不可用，已降级 | 设计行为，不是 bug |
-| 动作抽搐 / 卡住 | 游戏更新后 clip 名或帧数变了 | `<数据目录>/cue.log`，再用 `game/assets.seed.json` 对名字 |
-| 面板接口全绿但没图标 | 客户端模块 ID 与当前插件名不符 | `lib/client.js` 第 1 段的 `id` |
+| `/chill/v1/health` 404 | `host` | 插件未挂载：联接、`bundles`、有没有真的重启 `dsh web` |
+| 改包名后面板消失、接口 404 | `host` | 联接还是旧名字，loader 解析不到；名字改了必须重建联接 |
+| health 200 但 `gameOnline:false` | `bepinex` | 游戏端 DLL 没装 / 游戏没开 |
+| 游戏里她一动不动，但 health 全绿 | `tokenSync` | 游戏端 `brain.Token` 没同步（请求全被 401，DLL 静默重试） |
+| 直连侧车 401 / 面板接口 401 | `routes`（`/meta` 读不到）、`dataDir` | token 不对或没带（`health` 除外）；面板路径由宿主代贴，别自己拼 |
+| `hasApiKey:false` | `key` | key 四档全空（面板没填、环境变量没设、凭据文件没有、宿主也没借到） |
+| 语音一直"缺件" | `voice`（`detail.missing`） | 参考音频文件名与配置不符；引擎没起来也会报在这里 |
+| 她只动不说话 | `voice` | 语音引擎不可用，已降级——设计行为，不是 bug |
+| 路由数不是 31 | `routes` | 插件与侧车版本不一致，或改完没重启 |
+| 动作抽搐 / 卡住 | `game`（`detail.core`）+ `<数据目录>/cue.log` | 游戏更新后 clip 名或帧数变了；用 `game/assets.seed.json` 对名字 |
+| 面板接口全绿但没图标 | `versions` + `lib/client.js` 第 1 段的 `id` | 客户端模块 ID 与当前插件名不符 |
 
 ### 日志在哪
 
@@ -373,8 +407,8 @@ Test-Path "<数据目录>\assets.json"                 # 应为 True
 │   └── src/                  C# 源码，可自行构建
 ├── ref/ref-index.json    需要哪些参考音频（wav 本身不随包）
 ├── skills/               配套技能文档
-├── tools/                清单生成、用量统计、发布体检
-├── test/                 20 个测试，不联网、不碰真实数据
+├── tools/                自检（doctor）/ 安装 / 卸载 / 同步 token / 清单生成 / 发布体检
+├── test/                 21 个测试，不联网、不碰真实数据
 ├── locale/zh.json        界面文案
 └── cordis.patch.yml      默认配置（模型 / 预算 / 语音开关 / dataDir）
 ```
