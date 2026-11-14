@@ -74,7 +74,7 @@ import { createGame } from './lib/game.mjs'
 import { createVoice } from './lib/voice.mjs'
 import { createCapabilities } from './lib/capabilities.mjs'
 
-const VERSION = '0.9.0'
+const VERSION = '0.10.0'
 
 const execFileAsync = promisify(execFile)
 const HERE = dirname(fileURLToPath(import.meta.url))
