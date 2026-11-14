@@ -53,6 +53,11 @@
 - 删掉 `onSay` 里没用上的 payload 死代码；推送文案按返回里是否真有 `seq` 分两种，
   不再写"已推给游戏 seq=?"这种不存在的记录
 
+### 新增：建库一条命令
+
+`tools/gh-bootstrap.mjs`：校验 token → 建远端仓库（个人或组织）→ 推送 → 补描述与 topics。
+token 只从 `GH_TOKEN` / `--token` 读，永不打印、永不落盘；推送用一次性 URL，成功后写回的 remote 不带凭据。
+
 ### 新增：卸载与换钥
 
 - **`tools/uninstall.mjs`**：装的反向操作。三条硬规矩——只摘 `realpath` 指回本仓库的目录联接、

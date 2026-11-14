@@ -109,6 +109,15 @@ ref/ref-index.json             需要哪些参考音频的清单
 
 ## 首次发布步骤
 
+远端仓库可以用一条命令建出来并推上去（需要一次 GitHub token）：
+
+```powershell
+$env:GH_TOKEN = 'ghp_xxx'      # 权限勾 repo；地址 https://github.com/settings/tokens
+node tools/gh-bootstrap.mjs    # 预演：验证 token、算目标仓库名
+node tools/gh-bootstrap.mjs --apply   # 建库 + 推送 + 补描述与 topics
+```
+
+token 只从环境变量/参数读，不打印、不落盘；推送成功后 remote 里存的是不带 token 的地址。
 本地仓库已经建好了（3 个提交：大脑与宿主 / 游戏端 / 文档工具测试），分支先改名成 GitHub 的默认名：
 
 ```bash
