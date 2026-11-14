@@ -11,7 +11,6 @@
  * token 从 GH_TOKEN 或本机 Git 凭据缓存里取，永不打印。
  */
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,6 +23,8 @@ const arg = (n, d) => {
 }
 
 const git = (...a) => spawnSync('git', ['-C', ROOT, ...a], { encoding: 'utf8', timeout: 60000 })
+/** 取原始字节（blob 内容不能走 utf8 解码，二进制/换行都得原样） */
+const gitBytes = (...a) => spawnSync('git', ['-C', ROOT, ...a], { timeout: 60000, maxBuffer: 256 * 1024 * 1024 }).stdout
 const say = (m, s) => console.log('  ' + m + ' ' + s)
 
 const token = (() => {
@@ -121,7 +122,9 @@ const parseIdentity = (line) => {
     const [flag, ...rest] = row.split('\t')
     const rel = rest[0]
     if (flag === 'D') { entries.push({ path: rel, mode: '100644', type: 'blob', sha: null }); continue }
-    const buf = readFileSync(join(ROOT, rel))
+    // 内容取自 git 对象（HEAD 里的那份），不是工作区文件：
+    // 两者可能因换行归一而不同，读磁盘会做出另一个树、另一个哈希。
+    const buf = gitBytes('cat-file', 'blob', head + ':' + rel)
     const blob = await api(`/repos/${owner}/${repo}/git/blobs`, { method: 'POST', body: JSON.stringify({ content: buf.toString('base64'), encoding: 'base64' }) })
     const mode = (git('ls-files', '-s', rel).stdout.trim().split(/\s+/)[0]) || '100644'
     entries.push({ path: rel, mode, type: 'blob', sha: blob.sha })
@@ -129,6 +132,8 @@ const parseIdentity = (line) => {
 
   const treeBody = baseTree ? { base_tree: baseTree, tree: entries } : { tree: entries }
   const tree = await api(`/repos/${owner}/${repo}/git/trees`, { method: 'POST', body: JSON.stringify(treeBody) })
+  const localTree = git('rev-parse', head + '^{tree}').stdout.trim()
+  if (localTree !== tree.sha) say('!', '树与本地不一致（本地 ' + localTree.slice(0, 7) + '，远端将写入 ' + tree.sha.slice(0, 7) + '）')
   const commit = await api(`/repos/${owner}/${repo}/git/commits`, { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents, author, committer }) })
   say(commit.sha === head ? '✓' : '!', '新提交 ' + commit.sha.slice(0, 7) + (commit.sha === head ? '（与本地一致）' : '（与本地 ' + head.slice(0, 7) + ' 不同）'))
 
