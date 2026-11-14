@@ -3,6 +3,12 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 模型 tab：去掉密钥来源选项，默认与对话共用
+
+面板不再问"密钥从哪来"：默认那条就是「DeepSeek · 与对话共用」，
+自己加的 provider 填 key 就用自己那套、留空就跟着对话那把走。
+`llm.add()` 对空 token 自动落到 `DEEPSEEK_API_KEY`；卡片的 chip 回到「key 就绪 / 无 key」二态。
+
 ## 新增：key 直接复用安装机 dsh 的，不用再配一遍
 
 宿主插件启动侧车前会调 dsh 的 ctx.credentials.resolve(keyRef)（默认 DEEPSEEK_API_KEY），

@@ -264,29 +264,22 @@ curl.exe http://127.0.0.1:10722/chill/v1/health
 
 `ok:true` 且 `hasApiKey:true` 即就绪（key 来自 `config.apiKey` 或 `$env:DEEPSEEK_API_KEY`）。
 
-## API key：默认直接复用安装机 dsh 的
+## 模型与 API key：默认与对话共用
 
-插件不需要你单独配一份 key。宿主插件启动侧车前会调用 dsh 的 `ctx.credentials.resolve(`keyRef`)`
-（`keyRef` 默认 `DEEPSEEK_API_KEY`），把解析到的凭据通过环境变量交给侧车——
-也就是你在 `dsh` 里配的那一份，插件的对话与记忆用的就是它。
+面板「模型」页默认就是 **DeepSeek · 与对话共用**：用的是你在 dsh 里配的那把 key，
+不需要再填一遍，页面上也没有"密钥来源"这类选项要你选。
 
-**自定义永远优先。** dsh 借来的 key 只是最低一档兜底，四档从高到低：
+要换别家（自建中转、豆包、通义、OpenRouter、本地 ollama / llama.cpp）就点「再加一条」，
+填四样：名称、`baseUrl`、模型名、key。
 
-| # | 来源 | 怎么配 |
-| --- | --- | --- |
-| ① | provider 自己的 `token` | 面板「模型」里填，或 `/llm add --token` |
-| ② | 你自己设的环境变量 | `$env:DEEPSEEK_API_KEY = "sk-..."` |
-| ③ | `<DSH_HOME>/.credentials.yaml` 的 `refs:` 段 | dsh 自己写的那份 |
-| ④ | 安装机 dsh 借来的 | 什么都不用做，默认就有 |
+- **key 填了** → 完全用你自己那套，与对话那把无关。
+- **key 留空** → 跟着对话那把走（同一个 `DEEPSEEK_API_KEY`）。
 
-`baseUrl` / `model` / `headers` 同理：面板里改了就按你改的发请求，插件不覆盖。
-想完全绕开 dsh（自建中转、本地模型、别家 API），只要在面板「模型」里新增一条即可。
+`baseUrl` / 模型名 / 请求头一律按你填的发出去，插件不覆盖。
+分辨率上的细节：真解析时按「provider 自己的 token → 环境变量 → dsh 凭据文件 → 宿主借来的」四档取，
+面板不暴露这个顺序，只在你选中的那条上生效。
 
-面板上 `health.hasApiKey` 为 `false` 表示四档全空。
-面板「模型」页手填。三种都没有时 `health.hasApiKey` 为 `false`，表现是"能回话但不出声/直接报错"。
-
-`/chill/v1/health` 的 `keySource` 字段会告诉你 key 来自哪（`dsh` / 文件名 / `env` / `none`），
-值是永远不会回显的。
+`/chill/v1/health` 的 `hasApiKey` 为 `false` 表示四档全空。值是永远不会回显的。
 
 ## 卸载
 

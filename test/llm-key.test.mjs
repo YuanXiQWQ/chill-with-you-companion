@@ -179,4 +179,36 @@ check('没有借来的时候 dshBorrow 老实说没有', () => {
   assert.equal(out.dshBorrow.present, false)
   assert.equal(out.dshBorrow.ref, '')
 })
+
+console.log('# 自己加的 provider：留空 key 就跟着对话走')
+check('留空 token → keyRef 落到 DEEPSEEK_API_KEY，用的就是对话那把', () => {
+  const added = run({ env: { DEEPSEEK_API_KEY: KEY.env } }, ({ llm }) => {
+    const r = llm.add({ label: 'my relay', baseUrl: 'https://relay.example.com/v1/chat/completions', model: 'm', token: '' })
+    const view = llm.view()
+    return view.providers.find((x) => x.id === r.id)
+  })
+  assert.equal(added.keyRef, 'DEEPSEEK_API_KEY')
+  assert.equal(added.hasKey, true)
+  assert.equal(added.keyFrom, 'env')
+})
+
+check('填了 token 再切过去 → 用自己那把，不蹭对话的 key', () => {
+  const out = run({ env: { DEEPSEEK_API_KEY: KEY.env } }, ({ llm }) => {
+    const r = llm.add({ label: 'other', baseUrl: 'https://o.example.com/v1/chat/completions', model: 'x', token: KEY.custom })
+    llm.activate(r.id)
+    return llm.resolve()
+  })
+  assert.equal(out.apiKey, KEY.custom)
+  assert.equal(out.keyFrom, 'token')
+})
+
+check('自定义那条的 baseUrl / model 原样生效', () => {
+  const out = run({}, ({ llm }) => {
+    const r = llm.add({ label: 'local-ish', baseUrl: 'http://127.0.0.1:9090/v1/chat/completions', model: 'qwen3', token: KEY.custom })
+    llm.activate(r.id)
+    return llm.resolve()
+  })
+  assert.equal(out.baseUrl, 'http://127.0.0.1:9090/v1/chat/completions')
+  assert.equal(out.model, 'qwen3')
+})
 console.log('\nPASS ' + passed + ' llm-key checks')

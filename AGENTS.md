@@ -221,19 +221,19 @@ Select-String "$GAME\BepInEx\LogOutput.log" -Pattern 'ChillPerformer' | Select-O
 > 最后重启 `dsh web` 在面板里点一次测试。仓库里的明文靠 `node tools/scan-secrets.mjs` 挡
 > （已接进 `check-publish` 硬门）。
 
-**默认什么都不用配**：宿主插件启动侧车前会调 dsh 的 `ctx.credentials.resolve(keyRef)`，
-把安装机 dsh 里已经在用的那份凭据通过环境变量交给侧车。`keyRef` 默认 `DEEPSEEK_API_KEY`，
-可以在 `cordis.patch.yml` 的 `keyRef` 改。
+**默认什么都不用配**：面板「模型」页默认那条就是「DeepSeek · 与对话共用」，
+拿的是安装机 dsh 里已经在用的凭据——宿主插件启动侧车前会调 `ctx.credentials.resolve(keyRef)`
+（`keyRef` 默认 `DEEPSEEK_API_KEY`，可在 `cordis.patch.yml` 改）。
 
-**自定义永远优先**，借来的只是最低一档兜底。四档从高到低，前面找到就不看后面：
+要换别家就在同一页「再加一条」：填名称 / `baseUrl` / 模型名 / key。
+**key 填了就用自己那套，留空就跟着对话那把走**；`baseUrl` 与模型名一律按填的请求。
+页面上没有"密钥来源"选项——真解析顺序（provider token → 环境变量 → dsh 凭据 → 宿主借来的）
+是实现细节，不摆在界面上。
 
-1. provider 自己的 `token`（面板「模型」里填的、`/llm add` 加的）
-2. 环境变量（`keyRef` 指向的变量名，默认 `DEEPSEEK_API_KEY`）
-3. `<DSH_HOME>/.credentials.yaml` 的 `refs:` 段
-4. 宿主借来的 `CHILL_DSH_KEY`（仅当 `CHILL_DSH_KEY_REF` 与 `keyRef` 相同）
+排查用：`/chill/v1/health` 的 `hasApiKey` 为 `false` 就是四档全空；`/chill/v1/llm` 里
+每条 provider 的 `keyFrom` 会说是哪一档（`token` / `env` / `credentials` / `dsh`）。
 
-`baseUrl` / `model` / `headers` 同理：面板里改了就按你改的发请求。想完全不用 dsh 的 key
-（自建中转、本地模型、别家 API），面板里新增一条 provider 即可。
+想用环境变量也行，它比凭据文件更优先（同一台机器多套 key 时有用）：
 
 ```powershell
 $env:DEEPSEEK_API_KEY = "sk-..."
@@ -318,7 +318,7 @@ Test-Path "<数据目录>\assets.json"                 # 应为 True
 | `/chill/v1/health` 404 | 插件未挂载 | `node_modules/<包名>` 联接是否存在、目标是否存在 |
 | 改包名后面板消失、接口 404 | 联接还是旧名字，loader 解析不到 | 同上。名字改了必须重建联接 |
 | health 200 但 `gameOnline:false` | 游戏端 DLL 没装 / 游戏没开 | §4 的 `LogOutput.log` |
-| `hasApiKey:false` | key 三处都没配 | §5 |
+| `hasApiKey:false` | key 四档全空（面板没填、环境变量没设、凭据文件没有、宿主也没借到） | §5 |
 | 语音一直"缺件" | 参考音频文件名与配置不符 | `ref/ref-index.json` 里 `required:true` 那个 |
 | 她只动不说话 | 语音引擎不可用，已降级 | 设计行为，不是 bug |
 | 动作抽搐 / 卡住 | 游戏更新后 clip 名或帧数变了 | `<数据目录>/cue.log`，再用 `game/assets.seed.json` 对名字 |
