@@ -12,6 +12,7 @@
  * 这里只从环境变量/参数读 token，永不打印、永不落盘。
  */
 import { spawnSync } from 'node:child_process'
+import { pickBranch } from './gh-ref.mjs'
 import { existsSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -61,7 +62,10 @@ const api = async (path, init = {}) => {
   return { status: res.status, json, text }
 }
 
-const branch = (git('branch', '--show-current').stdout || '').trim() || 'main'
+// 分支解析：detached HEAD（PR 构建）下推 HEAD 到 main，有分支时推同名分支。规则见 tools/gh-ref.mjs
+const picked = pickBranch(git('branch', '--show-current').stdout)
+const branch = picked.branch
+const pushSrc = picked.src
 if (!existsSync(join(ROOT, '.git'))) {
   say('×', '这里不是 git 仓库：' + ROOT)
   process.exit(1)
@@ -104,7 +108,7 @@ if (!APPLY) process.exit(0)
 // 推送：用 token 走一次性 URL，避免把凭据写进 .git/config
 const REMOTE_OVERRIDE = typeof val('remote') === 'string' ? val('remote') : ''
 const remoteUrl = REMOTE_OVERRIDE || ('https://x-access-token:' + TOKEN + '@github.com/' + owner + '/' + NAME + '.git')
-const push = spawnSync('git', ['-C', ROOT, 'push', remoteUrl, branch + ':refs/heads/' + branch], {
+const push = spawnSync('git', ['-C', ROOT, 'push', remoteUrl, pushSrc + ':refs/heads/' + branch], {
   encoding: 'utf8',
   env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
 })
@@ -116,7 +120,8 @@ say('✓', '已推送 ' + branch)
 // 远端地址不带 token，落盘的那个是干净的
 git('remote', 'remove', 'origin')
 git('remote', 'add', 'origin', REMOTE_OVERRIDE || ('https://github.com/' + owner + '/' + NAME + '.git'))
-git('branch', '--set-upstream-to=origin/' + branch, branch)
+// detached HEAD 上没有本地分支可设 upstream，跳过（否则这条命令自己会失败）
+if (pushSrc !== 'HEAD') git('branch', '--set-upstream-to=origin/' + branch, branch)
 
 await api('/repos/' + owner + '/' + NAME + '/topics', {
   method: 'PUT',

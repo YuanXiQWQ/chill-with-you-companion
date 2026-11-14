@@ -9,13 +9,14 @@
  */
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const { pickBranch } = await import('../tools/gh-ref.mjs')
 const TOOL = join(ROOT, 'tools', 'gh-bootstrap.mjs')
 const tmp = mkdtempSync(join(tmpdir(), 'chill-gh-'))
 const bare = join(tmp, 'remote.git')
@@ -63,6 +64,20 @@ const runTool = (extra = [], token = FAKE_TOKEN) =>
     child.on('close', (status) => { clearTimeout(timer); resolve({ status, stdout: out, stderr: err }) })
   })
 
+// 在指定仓库目录里跑工具（detached 用例要把工具搬进临时仓库，ROOT 才能落在那里）
+const runToolAt = (toolPath, cwd, extra = []) =>
+  new Promise((resolve) => {
+    const child = spawn(process.execPath, [toolPath, ...extra], {
+      cwd,
+      env: { ...process.env, CHILL_GH_API: api, GH_TOKEN: FAKE_TOKEN },
+    })
+    let out = '', err = ''
+    const timer = setTimeout(() => child.kill(), T)
+    child.stdout.on('data', (d) => { out += d.toString() })
+    child.stderr.on('data', (d) => { err += d.toString() })
+    child.on('close', (status) => { clearTimeout(timer); resolve({ status, stdout: out, stderr: err }) })
+  })
+
 let api = ''
 const main = async () => {
   assert.equal(git('init', '--bare', '-q', bare).status, 0, '建裸仓库失败')
@@ -90,13 +105,16 @@ const main = async () => {
       assert.equal(state.created.full_name, 'tester/chill-with-you-companion')
       assert.equal(state.created.private, false)
     })
-    check('裸仓库收到 main', () => {
-      const v = git('--git-dir', bare, 'rev-parse', '--verify', 'refs/heads/main')
-      assert.equal(v.status, 0, '远端没有 main：' + v.stderr)
+    // PR 构建是 detached HEAD，工具会把 HEAD 推到 main；普通分支则推同名分支
+    const expected = ((git('-C', ROOT, 'branch', '--show-current').stdout || '').trim()) || 'main'
+    const localRef = expected
+    check('裸仓库收到 ' + expected, () => {
+      const v = git('--git-dir', bare, 'rev-parse', '--verify', 'refs/heads/' + expected)
+      assert.equal(v.status, 0, '远端没有 ' + expected + '：' + v.stderr)
     })
     check('远端提交数与原仓库一致', () => {
-      const local = git('-C', ROOT, 'rev-list', '--count', 'main').stdout.trim()
-      const remote = git('--git-dir', bare, 'rev-list', '--count', 'main').stdout.trim()
+      const local = git('-C', ROOT, 'rev-list', '--count', localRef).stdout.trim()
+      const remote = git('--git-dir', bare, 'rev-list', '--count', expected).stdout.trim()
       assert.equal(remote, local)
     })
     check('.git/config 里没有 token', () => {
@@ -109,6 +127,36 @@ const main = async () => {
     check('幂等：再跑一次走"仓库已存在"', () => {
       assert.equal(again.status, 0, 'stdout=' + again.stdout + ' stderr=' + again.stderr)
       assert.match(again.stdout, /仓库已存在/)
+    })
+  }
+
+  console.log('# PR 构建：detached HEAD（这条以前在 CI 上必挂）')
+  {
+    const det = join(tmp, 'detached')
+    mkdirSync(join(det, 'tools'), { recursive: true })
+    for (const f of ['gh-bootstrap.mjs', 'gh-ref.mjs']) copyFileSync(join(ROOT, 'tools', f), join(det, 'tools', f))
+    copyFileSync(join(ROOT, 'package.json'), join(det, 'package.json'))
+    const g = (...a) => spawnSync('git', ['-C', det, ...a], { encoding: 'utf8', timeout: T })
+    g('init', '-q')
+    g('add', '-A')
+    g('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'x')
+    const detatched = g('checkout', '-q', '--detach')
+    check('临时仓库已进入 detached HEAD', () => {
+      assert.equal(detatched.status, 0, detatched.stderr)
+      assert.equal((g('branch', '--show-current').stdout || '').trim(), '', 'detach 后分支名应为空')
+    })
+
+    const bare2 = join(tmp, 'remote2.git')
+    git('init', '--bare', '-q', bare2)
+    git('--git-dir', bare2, 'config', 'receive.shallowUpdate', 'true')
+    const r = await runToolAt(join(det, 'tools', 'gh-bootstrap.mjs'), det, ['--apply', '--remote', bare2])
+    check('detached 下不再报 src refspec does not match any', () => {
+      assert.doesNotMatch(r.stdout + r.stderr, /src refspec/, '输出里还有 refspec 错误：' + r.stdout + r.stderr)
+      assert.equal(r.status, 0, 'stdout=' + r.stdout + ' stderr=' + r.stderr)
+    })
+    check('detached 下裸仓库照样收到 main', () => {
+      const v = git('--git-dir', bare2, 'rev-parse', '--verify', 'refs/heads/main')
+      assert.equal(v.status, 0, '远端没有 main：' + r.stdout + r.stderr)
     })
   }
 
