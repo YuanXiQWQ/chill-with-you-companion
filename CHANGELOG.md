@@ -3,6 +3,27 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 修复：只设环境变量时 health 谎报没有 key
+
+AGENTS.md §5 写着 key 解析顺序是「环境变量 → .credentials.yaml → llm.json」，
+但 lib/llm.mjs 的 resolve() 从来没读过环境变量：只设 DEEPSEEK_API_KEY 的机器
+health.hasApiKey 会是 false，面板显示"没配 key"。已补上最后一档回落。
+
+## 修复：测试依赖本机凭据（干净机器必红）
+
+server.smoke.mjs 断言 hasApiKey === true，而本机配了 key 所以一直绿，CI 第一次跑就红。
+测试改为自建空 DSH_HOME + 注入假 key，与本机环境无关。
+
+## 新增：tools/push-via-api.mjs
+
+github.com:443 不通时用 Git Data API 推送（国内常见）。照抄 author / committer / 时区 / 父提交，
+推完自动把本地同步到远端提交。
+
+## CI：windows-latest 上跑语法 / 密钥 / 体检 / 全部测试
+
+只跑 Windows：插件是 net472 + BepInEx，卸载用例还依赖目录联接。
+并设 fetch-depth: 0——默认浅克隆会让"推向本地裸仓库"的测试报 shallow update not allowed。
+
 ## [未发布]
 
 ## [0.9.0] - 2026-11-14

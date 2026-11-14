@@ -121,9 +121,18 @@ token 只从环境变量/参数读，不打印、不落盘；推送成功后 rem
 本地仓库已经建好了（3 个提交：大脑与宿主 / 游戏端 / 文档工具测试），分支先改名成 GitHub 的默认名：
 
 ```bash
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/chill-with-you-companion.git
+git remote add origin https://github.com/shumourena/chill-with-you-companion.git
 git push -u origin main
+```
+
+仓库已经上线：<https://github.com/shumourena/chill-with-you-companion>，main 上 CI 全绿。
+
+github.com:443 不通时（国内常见，症状是 Failed to connect 或 Connection was reset），
+走 API 通道推，效果一样：
+
+```bash
+node tools/push-via-api.mjs            # 预演：只看差异
+node tools/push-via-api.mjs --apply    # 用 Git Data API 推送并同步本地
 ```
 
 推之前再确认这四件事（都在 CI 里跑，本地也可以先跑一遍）：

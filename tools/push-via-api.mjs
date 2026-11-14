@@ -135,4 +135,16 @@ const parseIdentity = (line) => {
   if (remoteSha) await api(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) })
   else await api(`/repos/${owner}/${repo}/git/refs`, { method: 'POST', body: JSON.stringify({ ref: 'refs/heads/' + branch, sha: commit.sha }) })
   say('✓', '已更新 refs/heads/' + branch)
+
+  // API 造的提交对象与本地未必逐字节相同（GitHub 会规整 message / 时间），
+  // 哈希不一致时把本地同步到远端，避免下次 diff 变成空提交。
+  if (commit.sha !== head && !args.includes('--no-sync')) {
+    const f = git('fetch', 'origin', branch)
+    if (f.status === 0) {
+      git('reset', '--hard', 'origin/' + branch)
+      say('·', '本地已同步到远端提交 ' + commit.sha.slice(0, 7))
+    } else {
+      say('!', 'fetch 失败，稍后手动 git fetch && git reset --hard origin/' + branch)
+    }
+  }
 })().catch((e) => { say('×', e && e.message); process.exit(1) })
