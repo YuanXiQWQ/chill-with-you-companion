@@ -34,6 +34,10 @@ assets.seed.dll-derived.json
 ref/*.wav
 ref/*.ogg
 ref/*.mp3
+ref/*.flac
+ref/*.m4a
+ref/*.ogg
+ref/*.aac
 # 静态动作清单没有下载渠道（只能从游戏里导），所以随包发，见 game/assets.seed.json。
 
 # ---- 游戏端源码的构建产物 ----
