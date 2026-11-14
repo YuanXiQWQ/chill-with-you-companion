@@ -1,0 +1,66 @@
+{
+  "name": "dsh-chill-with-you-companion",
+  "version": "0.9.0",
+  "private": true,
+  "type": "module",
+  "description": "Chill with You 的聪音大脑：DSH 侧薄壳（拉起+反代+热换代）+ 侧车进程 brain.mjs/serve.mjs。",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./brain": "./brain.mjs",
+    "./serve": "./serve.mjs",
+    "./client": "./lib/client.js",
+    "./persona.md": "./persona.md"
+  },
+  "files": [
+    "index.js",
+    "serve.mjs",
+    "brain.mjs",
+    "persona.md",
+    "cordis.patch.yml",
+    "lib/",
+    "game/",
+    "skills/",
+    "locale/",
+    "ref/ref-index.json",
+    "README.md",
+    "AGENTS.md",
+    "ARCHITECTURE.md",
+    "EXTENDING.md",
+    "CHANGELOG.md",
+    "PUBLISHING.md",
+    "LICENSE",
+    "NOTICE.md",
+    "tools/",
+    "test/"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "deepseek",
+    "companion",
+    "lofi",
+    "game-mod"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  },
+  "scripts": {
+    "test": "node tools/run-tests.mjs",
+    "test:core": "node test/core.test.mjs",
+    "test:work": "node test/work-watch.verify.mjs",
+    "sidecar": "node serve.mjs",
+    "sidecar:port": "node serve.mjs --port 10723"
+  }
+}

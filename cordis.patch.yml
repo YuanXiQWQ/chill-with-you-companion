@@ -1,0 +1,45 @@
+- insert:
+    - id: dsh-chill-with-you-companion
+      name: 'dsh-chill-with-you-companion'
+      config:
+        # ——— DeepSeek：只负责「想」 ———
+        baseUrl: 'https://api.deepseek.com/v1/chat/completions'
+        model: 'deepseek-flash'
+        thinking: 'disabled'
+        maxTokens: 600
+        temperature: 0.9
+        token: ''
+        # 数据目录：聊天记录 / 音频缓存 / 知识库 / 用户自己捏的人设卡都在这里。
+        # 留空 = 插件目录下的 data/（首次启动自动创建）；填绝对路径可把私人数据挪出源码树。
+        # 环境变量 CHILL_DATA_DIR 优先级低于这里、高于留空。
+        dataDir: ''
+        # ——— 稳定优先：一次只说一句、只切一次动作 ———
+        emotionSet: 'extended'      # 情绪集从 8 个扩到 23 个，每个都能落到真实 clip
+        memoryTurns: 12
+        maxCues: 4                  # 允许一拍起步 + 一句转折，别把编排砍成单动作
+        gestureChance: 0.7          # soft 档情绪动手的概率（strong 档无视它）
+        gestureCooldownTurns: 1     # soft 档冷却轮数（strong 档无视）
+        maxAtMs: 60000
+        # ——— 语音：游戏音色 + 日语 ———
+        # 引擎本体（模型 / python 环境）不随插件分发，装完插件按提示补；
+        # 这里只描述它在哪、怎么起。路径写相对时按插件根解析，换机器不用改。
+        tts:
+          enabled: true
+          url: 'http://127.0.0.1:9880'
+          refAudio: 'Voice_MainScenario_18_001.wav'   # 相对插件根的 ref/
+          promptText: ''
+          promptLang: 'ja'
+          textLang: 'ja'
+          speedFactor: 1.0
+          timeoutMs: 40000
+          retries: 1
+          launcher: 'auto'            # auto = 插件自己拉，拉不起来才退计划任务
+          # python / repo / log 三样留空：插件会按「插件内 tools/ → 插件同级的 tools/」
+          # 自己找（见 lib/config.mjs 的 discoverEngine）。原来这里写死绝对路径，
+          # 换台机器整段配置就得重写。要指定特定安装，把路径填回来即可，填了就以它为准。
+          engine:
+            python: ''
+            repo: ''
+            log: ''
+            env:
+              HF_ENDPOINT: 'https://hf-mirror.com'
