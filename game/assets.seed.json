@@ -1,0 +1,6997 @@
+{
+  "version": 2,
+  "source": "runtime-animator-clips",
+  "generatedAt": "2026-11-12T11:07:04.467Z",
+  "note": "id 即真实 clip 名；semantic 为中文标签，供模型选择；loop 表示循环片段。UI 动画器未收录。",
+  "animations": [
+    {
+      "id": "anim_start_v3_full",
+      "name": "anim_start_v3_full",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 3983,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "Bulbul_Chara_Rig_Motion_start_v3_loop",
+      "name": "Bulbul_Chara_Rig_Motion_start_v3_loop",
+      "semantic": [
+        "进入",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "Bulbul_Chara_Rig_Motion_start_v3",
+      "name": "Bulbul_Chara_Rig_Motion_start_v3",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2117,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_base_loop",
+      "name": "anim_story_subbase001_base_loop",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_sub_joy",
+      "name": "anim_story_subbase001_sub_joy",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "子动作",
+        "开心"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_base_start",
+      "name": "anim_story_subbase001_base_start",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_base_end",
+      "name": "anim_story_subbase001_base_end",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_sub_fun",
+      "name": "anim_story_subbase001_sub_fun",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "子动作",
+        "玩笑"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_sub_sad",
+      "name": "anim_story_subbase001_sub_sad",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "子动作",
+        "难过"
+      ],
+      "loop": false,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase001_sub_guts",
+      "name": "anim_story_subbase001_sub_guts",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "子动作",
+        "加油"
+      ],
+      "loop": false,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_sub_thinking_end",
+      "name": "anim_work_pc_sub_thinking_end",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_sub_thinking_loop",
+      "name": "anim_work_pc_sub_thinking_loop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "思考"
+      ],
+      "loop": true,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_sub_thinking_start",
+      "name": "anim_work_pc_sub_thinking_start",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_sub_stop_end",
+      "name": "anim_work_pc_sub_stop_end",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "停止"
+      ],
+      "loop": false,
+      "durationMs": 500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_sub_stop_loop",
+      "name": "anim_work_pc_sub_stop_loop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "停止"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_sub_stop_start",
+      "name": "anim_work_pc_sub_stop_start",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "停止"
+      ],
+      "loop": false,
+      "durationMs": 667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_end",
+      "name": "anim_work_pc_base_end",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1100,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_loop",
+      "name": "anim_work_pc_base_loop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 10000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_start",
+      "name": "anim_work_pc_base_start",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_loop2_end",
+      "name": "anim_work_pc_base_loop2_end",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_loop2_loop",
+      "name": "anim_work_pc_base_loop2_loop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 4333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_loop2_start",
+      "name": "anim_work_pc_base_loop2_start",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_end",
+      "name": "anim_break_movie_base_loop2_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_loop",
+      "name": "anim_break_movie_base_loop2_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_start",
+      "name": "anim_break_movie_base_loop2_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_end",
+      "name": "anim_break_movie_base_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_pc_base_end",
+      "name": "anim_work_pc_base_end",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1100,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_wet",
+      "name": "anim_wild_wet",
+      "semantic": [
+        "站立动作",
+        "被淋湿"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_start",
+      "name": "anim_break_movie_base_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_laugh_end",
+      "name": "anim_break_movie_sub_laugh_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "笑"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_laugh_loop",
+      "name": "anim_break_movie_sub_laugh_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "笑"
+      ],
+      "loop": true,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_laugh_start",
+      "name": "anim_break_movie_sub_laugh_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "笑"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_end",
+      "name": "anim_break_movie_base_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop",
+      "name": "anim_break_movie_base_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 17833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_start",
+      "name": "anim_break_movie_base_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_suspense_end",
+      "name": "anim_break_movie_sub_suspense_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_suspense_loop",
+      "name": "anim_break_movie_sub_suspense_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_suspense_start",
+      "name": "anim_break_movie_sub_suspense_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_sub_trash",
+      "name": "anim_break_movie_sub_trash",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_end",
+      "name": "anim_break_movie_base_loop2_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_loop",
+      "name": "anim_break_movie_base_loop2_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_start",
+      "name": "anim_break_movie_base_loop2_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_shy_end",
+      "name": "anim_story_base001_sub_shy_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 1417,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_frustration2_start",
+      "name": "anim_story_base001_sub_frustration2_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "沮丧二"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_frustration2_loop",
+      "name": "anim_story_base001_sub_frustration2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "沮丧二"
+      ],
+      "loop": true,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_frustration2_end",
+      "name": "anim_story_base001_sub_frustration2_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "沮丧二"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_jump_loop",
+      "name": "anim_story_base001_sub_jump_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 17,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_frustration1_start",
+      "name": "anim_story_base001_sub_frustration1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_frustration1_loop",
+      "name": "anim_story_base001_sub_frustration1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_frustration1_end",
+      "name": "anim_story_base001_sub_frustration1_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_dropshoulders_start",
+      "name": "anim_story_base001_sub_dropshoulders_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_dropshoulders_loop",
+      "name": "anim_story_base001_sub_dropshoulders_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_dropshoulders_end",
+      "name": "anim_story_base001_sub_dropshoulders_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_jump_start",
+      "name": "anim_story_base001_sub_jump_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_jump_end",
+      "name": "anim_story_base001_sub_jump_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 583,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_confidence_start",
+      "name": "anim_story_base001_sub_confidence_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_confidence_end",
+      "name": "anim_story_base001_sub_confidence_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 583,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_confidence_loop",
+      "name": "anim_story_base001_sub_confidence_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 50,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_deep_start",
+      "name": "anim_story_base001_sub_deep_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_deep_loop",
+      "name": "anim_story_base001_sub_deep_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_deep_end",
+      "name": "anim_story_base001_sub_deep_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_presshands_start",
+      "name": "anim_story_base001_sub_presshands_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_presshands_loop",
+      "name": "anim_story_base001_sub_presshands_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_presshands_end",
+      "name": "anim_story_base001_sub_presshands_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_start",
+      "name": "anim_story_base001_sub_thinking1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_loop",
+      "name": "anim_story_base001_sub_thinking1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 50,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_end",
+      "name": "anim_story_base001_sub_thinking1_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_shy_start",
+      "name": "anim_story_base001_sub_shy_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_deep_start",
+      "name": "anim_story_base001_sub_deep_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_deep_loop",
+      "name": "anim_story_base001_sub_deep_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_deep_end",
+      "name": "anim_story_base001_sub_deep_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_pattern1_start",
+      "name": "anim_story_base001_sub_pattern1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_pattern1_loop",
+      "name": "anim_story_base001_sub_pattern1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_pattern1_end",
+      "name": "anim_story_base001_sub_pattern1_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_nod",
+      "name": "anim_story_base001_sub_nod",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "点头"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_shakehead",
+      "name": "anim_story_base001_sub_shakehead",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_lookpenguin_start",
+      "name": "anim_story_base001_sub_lookpenguin_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_lookpenguin_loop",
+      "name": "anim_story_base001_sub_lookpenguin_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_lookpenguin_end",
+      "name": "anim_story_base001_sub_lookpenguin_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_introduce_start",
+      "name": "anim_story_base001_sub_introduce_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_introduce_loop",
+      "name": "anim_story_base001_sub_introduce_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_introduce_end",
+      "name": "anim_story_base001_sub_introduce_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_12_1",
+      "name": "anim_story_base001_sub_12_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_20",
+      "name": "anim_story_base001_sub_20",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_125_1",
+      "name": "anim_story_base001_sub_125_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_125_2",
+      "name": "anim_story_base001_sub_125_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_copycat",
+      "name": "anim_story_base001_sub_copycat",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_copycat (1)",
+      "name": "anim_story_base001_sub_copycat (1)",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_copycat (2)",
+      "name": "anim_story_base001_sub_copycat (2)",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_eieio (2)",
+      "name": "anim_story_base001_sub_eieio (2)",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_eieio (1)",
+      "name": "anim_story_base001_sub_eieio (1)",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_eieio",
+      "name": "anim_story_base001_sub_eieio",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "哼歌"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_distress",
+      "name": "anim_story_base001_sub_distress",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_distress (1)",
+      "name": "anim_story_base001_sub_distress (1)",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_distress (2)",
+      "name": "anim_story_base001_sub_distress (2)",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_feellarge",
+      "name": "anim_wild_feellarge",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 1600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_feellarge (1)",
+      "name": "anim_wild_feellarge (1)",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 3333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_feellarge (2)",
+      "name": "anim_wild_feellarge (2)",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 2233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_look_and_regrect",
+      "name": "anim_story_base001_sub_look_and_regrect",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 14000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_touch_glasses_end",
+      "name": "anim_story_base001_sub_touch_glasses_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_touch_glasses_loop",
+      "name": "anim_story_base001_sub_touch_glasses_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 3333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_touch_glasses_start",
+      "name": "anim_story_base001_sub_touch_glasses_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase_002_base_loop",
+      "name": "anim_story_subbase_002_base_loop",
+      "semantic": [
+        "剧情动作",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase002_sub_joy",
+      "name": "anim_story_subbase002_sub_joy",
+      "semantic": [
+        "剧情动作",
+        "子姿势2",
+        "子动作",
+        "开心"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase002_base_start",
+      "name": "anim_story_subbase002_base_start",
+      "semantic": [
+        "剧情动作",
+        "子姿势2",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase002_base_end",
+      "name": "anim_story_subbase002_base_end",
+      "semantic": [
+        "剧情动作",
+        "子姿势2",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase002_sub_fun",
+      "name": "anim_story_subbase002_sub_fun",
+      "semantic": [
+        "剧情动作",
+        "子姿势2",
+        "子动作",
+        "玩笑"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase002_sub_sad",
+      "name": "anim_story_subbase002_sub_sad",
+      "semantic": [
+        "剧情动作",
+        "子姿势2",
+        "子动作",
+        "难过"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase003_base_loop",
+      "name": "anim_story_subbase003_base_loop",
+      "semantic": [
+        "剧情动作",
+        "子姿势3",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase003_base_start",
+      "name": "anim_story_subbase003_base_start",
+      "semantic": [
+        "剧情动作",
+        "子姿势3",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase003_base_end",
+      "name": "anim_story_subbase003_base_end",
+      "semantic": [
+        "剧情动作",
+        "子姿势3",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase003_sub_fun",
+      "name": "anim_story_subbase003_sub_fun",
+      "semantic": [
+        "剧情动作",
+        "子姿势3",
+        "子动作",
+        "玩笑"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_subbase003sub_sad",
+      "name": "anim_story_subbase003sub_sad",
+      "semantic": [
+        "剧情动作",
+        "难过"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_loop",
+      "name": "anim_story_base001_sub_thinking1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 50,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_start",
+      "name": "anim_story_base001_sub_thinking1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_end",
+      "name": "anim_story_base001_sub_thinking1_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_sub_frustration",
+      "name": "anim_story_base001_sub_thinking1_sub_frustration",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "沮丧"
+      ],
+      "loop": false,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_thinking1_sub_agree",
+      "name": "anim_story_base001_sub_thinking1_sub_agree",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "同意"
+      ],
+      "loop": false,
+      "durationMs": 1750,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tea_base",
+      "name": "anim_wild_tea_base",
+      "semantic": [
+        "站立动作",
+        "喝茶",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_stretchshoulder",
+      "name": "anim_wild_stretchshoulder",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_stretchfullbody",
+      "name": "anim_wild_stretchfullbody",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_guts",
+      "name": "anim_wild_guts",
+      "semantic": [
+        "站立动作",
+        "加油"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_wet",
+      "name": "anim_wild_wet",
+      "semantic": [
+        "站立动作",
+        "被淋湿"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_banzai",
+      "name": "anim_wild_banzai",
+      "semantic": [
+        "站立动作",
+        "欢呼"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_eieio",
+      "name": "anim_wild_eieio",
+      "semantic": [
+        "站立动作",
+        "哼歌"
+      ],
+      "loop": false,
+      "durationMs": 3333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_window_close",
+      "name": "anim_wild_window_close",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_window",
+      "name": "anim_wild_window",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_breath",
+      "name": "anim_wild_breath",
+      "semantic": [
+        "站立动作",
+        "呼吸"
+      ],
+      "loop": false,
+      "durationMs": 6000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_guts_2",
+      "name": "anim_wild_guts_2",
+      "semantic": [
+        "站立动作",
+        "加油"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_good",
+      "name": "anim_wild_good",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 3500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_fidget",
+      "name": "anim_wild_fidget",
+      "semantic": [
+        "站立动作",
+        "坐立不安"
+      ],
+      "loop": false,
+      "durationMs": 4500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_stretch_1",
+      "name": "anim_wild_stretch_1",
+      "semantic": [
+        "站立动作",
+        "伸展"
+      ],
+      "loop": false,
+      "durationMs": 6000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tired",
+      "name": "anim_wild_tired",
+      "semantic": [
+        "站立动作",
+        "疲惫"
+      ],
+      "loop": false,
+      "durationMs": 7000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_completetask",
+      "name": "anim_wild_completetask",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 5667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_deep_breath",
+      "name": "anim_wild_deep_breath",
+      "semantic": [
+        "站立动作",
+        "深沉",
+        "呼吸"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tired2_end",
+      "name": "anim_wild_tired2_end",
+      "semantic": [
+        "站立动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1517,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tired2_loop",
+      "name": "anim_wild_tired2_loop",
+      "semantic": [
+        "站立动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 3233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tired2_start",
+      "name": "anim_wild_tired2_start",
+      "semantic": [
+        "站立动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6083,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_gymnastics",
+      "name": "anim_wild_gymnastics",
+      "semantic": [
+        "站立动作",
+        "伸展操"
+      ],
+      "loop": false,
+      "durationMs": 5667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_stretch_2",
+      "name": "anim_wild_stretch_2",
+      "semantic": [
+        "站立动作",
+        "伸展"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_dryeye_end",
+      "name": "anim_break_dryeye_end",
+      "semantic": [
+        "休息",
+        "揉眼睛",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1700,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_dryeye_loop",
+      "name": "anim_break_dryeye_loop",
+      "semantic": [
+        "休息",
+        "揉眼睛",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 633,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_dryeye_start",
+      "name": "anim_break_dryeye_start",
+      "semantic": [
+        "休息",
+        "揉眼睛",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2033,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_guts_3",
+      "name": "anim_wild_guts_3",
+      "semantic": [
+        "站立动作",
+        "加油"
+      ],
+      "loop": false,
+      "durationMs": 4667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_guts_2_end",
+      "name": "anim_wild_guts_2_end",
+      "semantic": [
+        "站立动作",
+        "加油",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_guts_2_loop",
+      "name": "anim_wild_guts_2_loop",
+      "semantic": [
+        "站立动作",
+        "加油",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_yawn_1_start",
+      "name": "anim_break_yawn_1_start",
+      "semantic": [
+        "休息",
+        "打哈欠",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_yawn_1_end",
+      "name": "anim_break_yawn_1_end",
+      "semantic": [
+        "休息",
+        "打哈欠",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_yawn_2_start",
+      "name": "anim_break_yawn_2_start",
+      "semantic": [
+        "休息",
+        "打哈欠",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_memorie",
+      "name": "anim_wild_memorie",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 13333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_thinking_end",
+      "name": "anim_work_book_sub_thinking_end",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_thinking_loop",
+      "name": "anim_work_book_sub_thinking_loop",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "思考"
+      ],
+      "loop": true,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_thinking_start",
+      "name": "anim_work_book_sub_thinking_start",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_keytype_end",
+      "name": "anim_work_book_sub_keytype_end",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "打字"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_keytype_loop",
+      "name": "anim_work_book_sub_keytype_loop",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "打字"
+      ],
+      "loop": true,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_keytype_start",
+      "name": "anim_work_book_sub_keytype_start",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "打字"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_end",
+      "name": "anim_work_book_base_end",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2250,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_loop",
+      "name": "anim_work_book_base_loop",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 10000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_start",
+      "name": "anim_work_book_base_start",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1750,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_sub_pageflip",
+      "name": "anim_work_book_sub_pageflip",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "翻页"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_end",
+      "name": "anim_work_book_base_end",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2250,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tea_base",
+      "name": "anim_wild_tea_base",
+      "semantic": [
+        "站立动作",
+        "喝茶",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_loop2_end",
+      "name": "anim_work_book_base_loop2_end",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_loop2_loop",
+      "name": "anim_work_book_base_loop2_loop",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 6000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_loop2_pageflip",
+      "name": "anim_work_book_base_loop2_pageflip",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_book_base_loop2_start",
+      "name": "anim_work_book_base_loop2_start",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_sub_thinking_end",
+      "name": "anim_work_report_sub_thinking_end",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_sub_thinking_loop",
+      "name": "anim_work_report_sub_thinking_loop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "思考"
+      ],
+      "loop": true,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_sub_thinking_start",
+      "name": "anim_work_report_sub_thinking_start",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_sub_stop_end",
+      "name": "anim_work_report_sub_stop_end",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "停止"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_sub_stop_loop",
+      "name": "anim_work_report_sub_stop_loop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "停止"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_sub_stop_start",
+      "name": "anim_work_report_sub_stop_start",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "停止"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_end",
+      "name": "anim_work_report_base_end",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2400,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_loop",
+      "name": "anim_work_report_base_loop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 10667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_start",
+      "name": "anim_work_report_base_start",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 3600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_loop2_end",
+      "name": "anim_work_report_base_loop2_end",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_loop2_loop",
+      "name": "anim_work_report_base_loop2_loop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 7667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_loop2_start",
+      "name": "anim_work_report_base_loop2_start",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 4333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_tea_base",
+      "name": "anim_wild_tea_base",
+      "semantic": [
+        "站立动作",
+        "喝茶",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_end",
+      "name": "anim_work_report_base_end",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2400,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_work_report_base_loop3",
+      "name": "anim_work_report_base_loop3",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 4167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_end",
+      "name": "anim_break_novel_base_end",
+      "semantic": [
+        "休息",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_loop",
+      "name": "anim_break_novel_base_loop",
+      "semantic": [
+        "休息",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_start",
+      "name": "anim_break_novel_base_start",
+      "semantic": [
+        "休息",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_sub_pageflip_next",
+      "name": "anim_break_novel_sub_pageflip_next",
+      "semantic": [
+        "休息",
+        "子动作",
+        "翻页"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_sub_pageflip_back",
+      "name": "anim_break_novel_sub_pageflip_back",
+      "semantic": [
+        "休息",
+        "子动作",
+        "翻页"
+      ],
+      "loop": false,
+      "durationMs": 667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_sub_action_end",
+      "name": "anim_break_novel_sub_action_end",
+      "semantic": [
+        "休息",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_sub_action_loop",
+      "name": "anim_break_novel_sub_action_loop",
+      "semantic": [
+        "休息",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_sub_action_start",
+      "name": "anim_break_novel_sub_action_start",
+      "semantic": [
+        "休息",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 3500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_music_low_loop",
+      "name": "anim_break_music_low_loop",
+      "semantic": [
+        "休息",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_music_loop_high",
+      "name": "anim_break_music_loop_high",
+      "semantic": [
+        "休息",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_music_base",
+      "name": "anim_break_music_base",
+      "semantic": [
+        "休息",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_music_low_start",
+      "name": "anim_break_music_low_start",
+      "semantic": [
+        "休息",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_music_low_end",
+      "name": "anim_break_music_low_end",
+      "semantic": [
+        "休息",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_drink_end",
+      "name": "anim_break_tea_sub_drink_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_drink_loop",
+      "name": "anim_break_tea_sub_drink_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_drink",
+      "name": "anim_break_tea_sub_drink",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_base_end",
+      "name": "anim_break_tea_base_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_base_loop",
+      "name": "anim_break_tea_base_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 9000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_base_start",
+      "name": "anim_break_tea_base_start",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_unique001_end",
+      "name": "anim_break_tea_sub_unique001_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_unique001_loop",
+      "name": "anim_break_tea_sub_unique001_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_unique001_start",
+      "name": "anim_break_tea_sub_unique001_start",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_hot",
+      "name": "anim_break_tea_sub_hot",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_drink_loop",
+      "name": "anim_break_tea_sub_drink_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_drink_end",
+      "name": "anim_break_tea_sub_drink_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_end",
+      "name": "anim_break_tea_sub_maker_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_loop",
+      "name": "anim_break_tea_sub_maker_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 9333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_start",
+      "name": "anim_break_tea_sub_maker_start",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub",
+      "name": "anim_break_tea_sub",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_base",
+      "name": "anim_break_sleep_base",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 6000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_sub_fall_start",
+      "name": "anim_break_sleep_sub_fall_start",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_sub_fall_loop",
+      "name": "anim_break_sleep_sub_fall_loop",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_sub_wakeup_start",
+      "name": "anim_break_sleep_sub_wakeup_start",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_sub_wakeup_loop",
+      "name": "anim_break_sleep_sub_wakeup_loop",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_sub_wakeup_end",
+      "name": "anim_break_sleep_sub_wakeup_end",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_sleep_sub_wakeup",
+      "name": "anim_break_sleep_sub_wakeup",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_stretchshoulder",
+      "name": "anim_wild_stretchshoulder",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_layout_pcfrombook",
+      "name": "anim_wild_layout_pcfrombook",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_layout_bookfromreport",
+      "name": "anim_wild_layout_bookfromreport",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 5667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_layout_bookfrompc",
+      "name": "anim_wild_layout_bookfrompc",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_layout_pcfromreport",
+      "name": "anim_wild_layout_pcfromreport",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_layout_reportfrombook",
+      "name": "anim_wild_layout_reportfrombook",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 5333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_layout_reportfrompc",
+      "name": "anim_wild_layout_reportfrompc",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_base001_sub_lookaround001_loop",
+      "name": "anim_base001_sub_lookaround001_loop",
+      "semantic": [
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 10000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_base001_sub_lookaround001_start",
+      "name": "anim_base001_sub_lookaround001_start",
+      "semantic": [
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 417,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_base001_sub_lookaround001_end",
+      "name": "anim_base001_sub_lookaround001_end",
+      "semantic": [
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 417,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_cheer",
+      "name": "anim_wild_cheer",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_wanttotalk2_start",
+      "name": "anim_wild_wanttotalk2_start",
+      "semantic": [
+        "站立动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_wanttotalk2_end",
+      "name": "anim_wild_wanttotalk2_end",
+      "semantic": [
+        "站立动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_wanttotalk2_loop",
+      "name": "anim_wild_wanttotalk2_loop",
+      "semantic": [
+        "站立动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 10000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_goodbye",
+      "name": "anim_wild_goodbye",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 7000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_1",
+      "name": "anim_story_base001_sub_27_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_2",
+      "name": "anim_story_base001_sub_27_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_3_start",
+      "name": "anim_story_base001_sub_27_3_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 917,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_3_loop",
+      "name": "anim_story_base001_sub_27_3_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 3583,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_3_end",
+      "name": "anim_story_base001_sub_27_3_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_4",
+      "name": "anim_story_base001_sub_27_4",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_2",
+      "name": "anim_story_base001_sub_27_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_5",
+      "name": "anim_story_base001_sub_27_5",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_2",
+      "name": "anim_story_base001_sub_27_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_6",
+      "name": "anim_story_base001_sub_27_6",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_2",
+      "name": "anim_story_base001_sub_27_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_7",
+      "name": "anim_story_base001_sub_27_7",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_7_loop",
+      "name": "anim_story_base001_sub_27_7_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_8",
+      "name": "anim_story_base001_sub_27_8",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_8_loop",
+      "name": "anim_story_base001_sub_27_8_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_8_end",
+      "name": "anim_story_base001_sub_27_8_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_8_loop",
+      "name": "anim_story_base001_sub_27_8_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_1",
+      "name": "anim_story_base001_sub_28_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 12667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_2",
+      "name": "anim_story_base001_sub_28_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_3",
+      "name": "anim_story_base001_sub_28_3",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_3loop",
+      "name": "anim_story_base001_sub_28_3loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_4",
+      "name": "anim_story_base001_sub_28_4",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_4_loop",
+      "name": "anim_story_base001_sub_28_4_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_5",
+      "name": "anim_story_base001_sub_28_5",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_5_loop",
+      "name": "anim_story_base001_sub_28_5_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_5_end",
+      "name": "anim_story_base001_sub_28_5_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_6",
+      "name": "anim_story_base001_sub_28_6",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 18333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_0",
+      "name": "anim_story_base001_sub_28_0",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_sub_interest (2)",
+      "name": "anim_break_forward_sub_interest (2)",
+      "semantic": [
+        "休息",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_sub_interest (1)",
+      "name": "anim_break_forward_sub_interest (1)",
+      "semantic": [
+        "休息",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_sub_interest",
+      "name": "anim_break_forward_sub_interest",
+      "semantic": [
+        "休息",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 1333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_base (1)",
+      "name": "anim_break_forward_base (1)",
+      "semantic": [
+        "休息"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_base_loop",
+      "name": "anim_break_forward_base_loop",
+      "semantic": [
+        "休息",
+        "基本",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 6000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_base",
+      "name": "anim_break_forward_base",
+      "semantic": [
+        "休息",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_forward_sub_keyboard",
+      "name": "anim_break_forward_sub_keyboard",
+      "semantic": [
+        "休息",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_playingwithapen_drop",
+      "name": "anim_break_playingwithapen_drop",
+      "semantic": [
+        "休息"
+      ],
+      "loop": false,
+      "durationMs": 7733,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_playingwithapen_start",
+      "name": "anim_break_playingwithapen_start",
+      "semantic": [
+        "休息",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2067,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_playingwithapen_loop",
+      "name": "anim_break_playingwithapen_loop",
+      "semantic": [
+        "休息",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1467,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_playingwithapen_end",
+      "name": "anim_break_playingwithapen_end",
+      "semantic": [
+        "休息",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 4033,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_openbook_startloop",
+      "name": "anim_story_base001_sub_openbook_startloop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_openbook_loopchange1",
+      "name": "anim_story_base001_sub_openbook_loopchange1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_openbook_middleloop",
+      "name": "anim_story_base001_sub_openbook_middleloop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_openbook_loopchange2",
+      "name": "anim_story_base001_sub_openbook_loopchange2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_openbook_endloop",
+      "name": "anim_story_base001_sub_openbook_endloop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_openbook_end",
+      "name": "anim_story_base001_sub_openbook_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 3500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_start_fromoutside_001",
+      "name": "anim_start_fromoutside_001",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 10667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_start_christmas_001",
+      "name": "anim_start_christmas_001",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 8000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_newyear_countdown_1",
+      "name": "anim_story_base001_sub_newyear_countdown_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_newyear_countdown_2",
+      "name": "anim_story_base001_sub_newyear_countdown_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_newyear_countdown_3",
+      "name": "anim_story_base001_sub_newyear_countdown_3",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_newyear_countdown_4",
+      "name": "anim_story_base001_sub_newyear_countdown_4",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_start_fromoutside_001",
+      "name": "anim_start_fromoutside_001",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 10667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_start_haircheck",
+      "name": "anim_start_haircheck",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "Bulbul_Chara_Rig_Motion_start_v3_loop",
+      "name": "Bulbul_Chara_Rig_Motion_start_v3_loop",
+      "semantic": [
+        "进入",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_go",
+      "name": "anim_wild_leavechair_normal_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 6333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_comeback",
+      "name": "anim_wild_leavechair_normal_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 6667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cup_go",
+      "name": "anim_wild_leavechair_cup_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 7300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cup_comeback",
+      "name": "anim_wild_leavechair_cup_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 9000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_go",
+      "name": "anim_wild_leavechair_sofa_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 10233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_comeback",
+      "name": "anim_wild_leavechair_sofa_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_base",
+      "name": "anim_story_base001_base",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "基本"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_loop",
+      "name": "anim_wild_leavechair_sofa_loop",
+      "semantic": [
+        "站立动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 3767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_headphone",
+      "name": "anim_wild_leavechair_sofa_headphone",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 6333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_deepthink_end",
+      "name": "anim_wild_leavechair_sofa_deepthink_end",
+      "semantic": [
+        "站立动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_deepthink_loop",
+      "name": "anim_wild_leavechair_sofa_deepthink_loop",
+      "semantic": [
+        "站立动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 5667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_deepthink_start",
+      "name": "anim_wild_leavechair_sofa_deepthink_start",
+      "semantic": [
+        "站立动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_lookoutside_end",
+      "name": "anim_wild_leavechair_sofa_lookoutside_end",
+      "semantic": [
+        "站立动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_lookoutside_loop",
+      "name": "anim_wild_leavechair_sofa_lookoutside_loop",
+      "semantic": [
+        "站立动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_lookoutside_start",
+      "name": "anim_wild_leavechair_sofa_lookoutside_start",
+      "semantic": [
+        "站立动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_start",
+      "name": "anim_wild_leavechair_cupcake_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_camera_loop",
+      "name": "anim_wild_leavechair_cupcake_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2033,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4533,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2367,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4100,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_end",
+      "name": "anim_wild_leavechair_cupcake_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_start",
+      "name": "anim_wild_leavechair_cookie_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_camera_loop",
+      "name": "anim_wild_leavechair_cookie_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2033,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_eat_1",
+      "name": "anim_wild_leavechair_cookie_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_eat_loop_1",
+      "name": "anim_wild_leavechair_cookie_comeback_eat_loop_1",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2367,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_eat_2",
+      "name": "anim_wild_leavechair_cookie_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4100,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_eat_loop_2",
+      "name": "anim_wild_leavechair_cookie_comeback_eat_loop_2",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cookie_comeback_end",
+      "name": "anim_wild_leavechair_cookie_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_start",
+      "name": "anim_wild_leavechair_bread_A_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_camera_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4267,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_1_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_1_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_2_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_2_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_3_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_3_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_start",
+      "name": "anim_wild_leavechair_bread_B_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_camera_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4267,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_1_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_1_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_2_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_2_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_3_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_3_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_end",
+      "name": "anim_wild_leavechair_bread_B_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_end",
+      "name": "anim_wild_leavechair_bread_A_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_1_start",
+      "name": "anim_story_base001_sub_magicalprincess_1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 5333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_1_loop",
+      "name": "anim_story_base001_sub_magicalprincess_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_start",
+      "name": "anim_story_base001_sub_magicalprincess_2_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1867,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "name": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4133,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_middle",
+      "name": "anim_story_base001_sub_magicalprincess_2_middle",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_loop2",
+      "name": "anim_story_base001_sub_magicalprincess_2_loop2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 3667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_end",
+      "name": "anim_story_base001_sub_magicalprincess_2_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_start",
+      "name": "anim_story_base002_sub_magicalprincess_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_look_loop",
+      "name": "anim_story_base002_sub_magicalprincess_look_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_look_end",
+      "name": "anim_story_base002_sub_magicalprincess_look_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_1_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_start",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_loop",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_end",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 700,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_end",
+      "name": "anim_story_base002_sub_magicalprincess_idle_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": false,
+      "durationMs": 767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_2_start",
+      "name": "anim_story_base002_sub_magicalprincess_eat_2_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_eat_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_start",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_loop",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": true,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_end",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1633,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_3_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_3_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_go",
+      "name": "anim_wild_leavechair_normal_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 6333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_lookplayer_start",
+      "name": "anim_lookplayer_start",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "_None",
+      "name": "_None",
+      "semantic": [
+        "None"
+      ],
+      "loop": false,
+      "durationMs": null,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_rest",
+      "name": "anim_face_shy_rest",
+      "semantic": [
+        "表情",
+        "害羞",
+        "静止"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_fun",
+      "name": "anim_face_shy_fun",
+      "semantic": [
+        "表情",
+        "害羞",
+        "玩笑"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_anger",
+      "name": "anim_face_shy_anger",
+      "semantic": [
+        "表情",
+        "害羞",
+        "生气"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_sad",
+      "name": "anim_face_shy_sad",
+      "semantic": [
+        "表情",
+        "害羞",
+        "难过"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_joy",
+      "name": "anim_face_shy_joy",
+      "semantic": [
+        "表情",
+        "害羞",
+        "开心"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_surprise",
+      "name": "anim_face_shy_surprise",
+      "semantic": [
+        "表情",
+        "害羞",
+        "惊讶"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_deep",
+      "name": "anim_face_shy_deep",
+      "semantic": [
+        "表情",
+        "害羞",
+        "深沉"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_thinking",
+      "name": "anim_face_shy_thinking",
+      "semantic": [
+        "表情",
+        "害羞",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_wink",
+      "name": "anim_face_shy_wink",
+      "semantic": [
+        "表情",
+        "害羞",
+        "眨眼"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_smile",
+      "name": "anim_face_shy_smile",
+      "semantic": [
+        "表情",
+        "害羞",
+        "微笑"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_zito",
+      "name": "anim_face_shy_zito",
+      "semantic": [
+        "表情",
+        "害羞",
+        "沉默"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_monologue",
+      "name": "anim_face_shy_monologue",
+      "semantic": [
+        "表情",
+        "害羞",
+        "独白"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_monologue2",
+      "name": "anim_face_shy_monologue2",
+      "semantic": [
+        "表情",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_shy",
+      "name": "anim_face_shy_shy",
+      "semantic": [
+        "表情",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_sad2",
+      "name": "anim_face_shy_sad2",
+      "semantic": [
+        "表情",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_rough",
+      "name": "anim_face_shy_rough",
+      "semantic": [
+        "表情",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_ehehe",
+      "name": "anim_face_shy_ehehe",
+      "semantic": [
+        "表情",
+        "害羞"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "_None_openEyes",
+      "name": "_None_openEyes",
+      "semantic": [
+        "openEyes"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_shy_sleepy",
+      "name": "anim_face_shy_sleepy",
+      "semantic": [
+        "表情",
+        "害羞",
+        "困了"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "_None",
+      "name": "_None",
+      "semantic": [
+        "None"
+      ],
+      "loop": false,
+      "durationMs": null,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_face_talk",
+      "name": "anim_face_talk",
+      "semantic": [
+        "表情",
+        "说话"
+      ],
+      "loop": false,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_plankshake",
+      "name": "anim_plankshake",
+      "semantic": [
+        "plankshake"
+      ],
+      "loop": false,
+      "durationMs": 4500,
+      "seat": null,
+      "text": null
+    }
+  ],
+  "chairs": [
+    {
+      "id": "anim_story_base001_sub_27_1",
+      "name": "anim_story_base001_sub_27_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_2",
+      "name": "anim_story_base001_sub_27_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_8",
+      "name": "anim_story_base001_sub_27_8",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "Chair_Idle",
+      "name": "Chair_Idle",
+      "semantic": [
+        "Idle"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_3",
+      "name": "anim_story_base001_sub_28_3",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_window_close",
+      "name": "anim_wild_window_close",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_window",
+      "name": "anim_wild_window",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_loop",
+      "name": "anim_break_tea_sub_maker_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 9333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_start",
+      "name": "anim_break_tea_sub_maker_start",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 8533,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_end",
+      "name": "anim_break_tea_sub_maker_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_end",
+      "name": "anim_break_movie_base_loop2_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_loop",
+      "name": "anim_break_movie_base_loop2_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_start",
+      "name": "anim_break_movie_base_loop2_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_start_fromoutside_001",
+      "name": "anim_start_fromoutside_001",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 10667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_playingwithapen_drop.0002",
+      "name": "anim_break_playingwithapen_drop.0002",
+      "semantic": [
+        "休息"
+      ],
+      "loop": false,
+      "durationMs": 7633,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_greeting_wavehand",
+      "name": "anim_wild_greeting_wavehand",
+      "semantic": [
+        "站立动作",
+        "打招呼"
+      ],
+      "loop": false,
+      "durationMs": 4667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_go",
+      "name": "anim_wild_leavechair_normal_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4200,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_comeback_0001",
+      "name": "anim_wild_leavechair_normal_comeback_0001",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 6667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cup_go",
+      "name": "anim_wild_leavechair_cup_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 7300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cup_comeback",
+      "name": "anim_wild_leavechair_cup_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 9000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_go",
+      "name": "anim_wild_leavechair_sofa_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_comeback",
+      "name": "anim_wild_leavechair_sofa_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_start",
+      "name": "anim_break_novel_base_start",
+      "semantic": [
+        "休息",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_end",
+      "name": "anim_break_novel_base_end",
+      "semantic": [
+        "休息",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_start",
+      "name": "anim_wild_leavechair_cupcake_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_camera_loop",
+      "name": "anim_wild_leavechair_cupcake_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2033,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2367,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4100,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_end",
+      "name": "anim_wild_leavechair_cupcake_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_memorie",
+      "name": "anim_wild_memorie",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 13333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_memorie",
+      "name": "anim_wild_memorie",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 13333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_1_start",
+      "name": "anim_story_base001_sub_magicalprincess_1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_1_loop",
+      "name": "anim_story_base001_sub_magicalprincess_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_start",
+      "name": "anim_story_base001_sub_magicalprincess_2_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1867,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "name": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4133,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_middle",
+      "name": "anim_story_base001_sub_magicalprincess_2_middle",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_loop2",
+      "name": "anim_story_base001_sub_magicalprincess_2_loop2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 3667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_end",
+      "name": "anim_story_base001_sub_magicalprincess_2_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_start",
+      "name": "anim_story_base002_sub_magicalprincess_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_look_loop",
+      "name": "anim_story_base002_sub_magicalprincess_look_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_look_end",
+      "name": "anim_story_base002_sub_magicalprincess_look_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_1_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_loop",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_start",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_end",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 700,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_loop",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": true,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_end",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1633,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_start",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_3_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_3_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_end",
+      "name": "anim_story_base002_sub_magicalprincess_idle_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": false,
+      "durationMs": 767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_2_start",
+      "name": "anim_story_base002_sub_magicalprincess_eat_2_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_eat_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_start",
+      "name": "anim_wild_leavechair_bread_A_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_camera_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4267,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_1_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_1_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_2_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_2_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_3_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_3_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_end",
+      "name": "anim_wild_leavechair_bread_A_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_start",
+      "name": "anim_wild_leavechair_bread_B_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_camera_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4267,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_1_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_1_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_2_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_2_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_3_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_3_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_end",
+      "name": "anim_wild_leavechair_bread_B_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_1",
+      "name": "anim_story_base001_sub_27_1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_2",
+      "name": "anim_story_base001_sub_27_2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_27_8",
+      "name": "anim_story_base001_sub_27_8",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 5000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "Chair_Idle",
+      "name": "Chair_Idle",
+      "semantic": [
+        "Idle"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_28_3",
+      "name": "anim_story_base001_sub_28_3",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_window_close",
+      "name": "anim_wild_window_close",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_window",
+      "name": "anim_wild_window",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_loop",
+      "name": "anim_break_tea_sub_maker_loop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 9333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_start",
+      "name": "anim_break_tea_sub_maker_start",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 8533,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_tea_sub_maker_end",
+      "name": "anim_break_tea_sub_maker_end",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_end",
+      "name": "anim_break_movie_base_loop2_end",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_loop",
+      "name": "anim_break_movie_base_loop2_loop",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_movie_base_loop2_start",
+      "name": "anim_break_movie_base_loop2_start",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "loop": false,
+      "durationMs": 1000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_start_fromoutside_001",
+      "name": "anim_start_fromoutside_001",
+      "semantic": [
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 10667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_playingwithapen_drop.0002",
+      "name": "anim_break_playingwithapen_drop.0002",
+      "semantic": [
+        "休息"
+      ],
+      "loop": false,
+      "durationMs": 7633,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_greeting_wavehand",
+      "name": "anim_wild_greeting_wavehand",
+      "semantic": [
+        "站立动作",
+        "打招呼"
+      ],
+      "loop": false,
+      "durationMs": 4667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_go",
+      "name": "anim_wild_leavechair_normal_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 4200,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_normal_comeback_0001",
+      "name": "anim_wild_leavechair_normal_comeback_0001",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 6667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cup_go",
+      "name": "anim_wild_leavechair_cup_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 7300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cup_comeback",
+      "name": "anim_wild_leavechair_cup_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 9000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_go",
+      "name": "anim_wild_leavechair_sofa_go",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 9833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_sofa_comeback",
+      "name": "anim_wild_leavechair_sofa_comeback",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 8667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_start",
+      "name": "anim_break_novel_base_start",
+      "semantic": [
+        "休息",
+        "基本",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_break_novel_base_end",
+      "name": "anim_break_novel_base_end",
+      "semantic": [
+        "休息",
+        "基本",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_start",
+      "name": "anim_wild_leavechair_cupcake_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_camera_loop",
+      "name": "anim_wild_leavechair_cupcake_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2033,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2367,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4100,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "name": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": false,
+      "durationMs": 2300,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_cupcake_comeback_end",
+      "name": "anim_wild_leavechair_cupcake_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 8567,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_memorie",
+      "name": "anim_wild_memorie",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 13333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_memorie",
+      "name": "anim_wild_memorie",
+      "semantic": [
+        "站立动作"
+      ],
+      "loop": false,
+      "durationMs": 13333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_1_start",
+      "name": "anim_story_base001_sub_magicalprincess_1_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 4000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_1_loop",
+      "name": "anim_story_base001_sub_magicalprincess_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_start",
+      "name": "anim_story_base001_sub_magicalprincess_2_start",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 1867,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "name": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 4133,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_middle",
+      "name": "anim_story_base001_sub_magicalprincess_2_middle",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作"
+      ],
+      "loop": false,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_loop2",
+      "name": "anim_story_base001_sub_magicalprincess_2_loop2",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环二"
+      ],
+      "loop": true,
+      "durationMs": 3667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base001_sub_magicalprincess_2_end",
+      "name": "anim_story_base001_sub_magicalprincess_2_end",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 1667,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_start",
+      "name": "anim_story_base002_sub_magicalprincess_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_look_loop",
+      "name": "anim_story_base002_sub_magicalprincess_look_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_look_end",
+      "name": "anim_story_base002_sub_magicalprincess_look_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 2167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_1_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 1167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_loop",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_start",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_1_end",
+      "name": "anim_story_base002_sub_magicalprincess_eat_1_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 700,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_loop",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": true,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_end",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1633,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_thinking_start",
+      "name": "anim_story_base002_sub_magicalprincess_thinking_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "loop": false,
+      "durationMs": 1233,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_3_loop",
+      "name": "anim_story_base002_sub_magicalprincess_idle_3_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": true,
+      "durationMs": 2833,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_idle_end",
+      "name": "anim_story_base002_sub_magicalprincess_idle_end",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "loop": false,
+      "durationMs": 767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_2_start",
+      "name": "anim_story_base002_sub_magicalprincess_eat_2_start",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 2500,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_story_base002_sub_magicalprincess_eat_2_loop",
+      "name": "anim_story_base002_sub_magicalprincess_eat_2_loop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_start",
+      "name": "anim_wild_leavechair_bread_A_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_camera_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4267,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_1_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_1_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_2_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_2_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_eat_3_loop",
+      "name": "anim_wild_leavechair_bread_A_comeback_eat_3_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_A_comeback_end",
+      "name": "anim_wild_leavechair_bread_A_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_start",
+      "name": "anim_wild_leavechair_bread_B_comeback_start",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "进入"
+      ],
+      "loop": false,
+      "durationMs": 6600,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_camera_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_camera_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 2000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 4267,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_1_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_1_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1900,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3000,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_2_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_2_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1933,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "semantic": [
+        "站立动作",
+        "回座"
+      ],
+      "loop": false,
+      "durationMs": 3167,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_eat_3_loop",
+      "name": "anim_wild_leavechair_bread_B_comeback_eat_3_loop",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "loop": true,
+      "durationMs": 1767,
+      "seat": null,
+      "text": null
+    },
+    {
+      "id": "anim_wild_leavechair_bread_B_comeback_end",
+      "name": "anim_wild_leavechair_bread_B_comeback_end",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束"
+      ],
+      "loop": false,
+      "durationMs": 7333,
+      "seat": null,
+      "text": null
+    }
+  ],
+  "deskObjects": [],
+  "pen": [],
+  "cameras": [],
+  "scenes": [],
+  "sfx": [],
+  "voiceClips": [],
+  "bgm": []
+}
