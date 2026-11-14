@@ -109,16 +109,25 @@ ref/ref-index.json             需要哪些参考音频的清单
 
 ## 首次发布步骤
 
+本地仓库已经建好了（3 个提交：大脑与宿主 / 游戏端 / 文档工具测试），分支先改名成 GitHub 的默认名：
+
 ```bash
-cd <插件目录>
-node tools/check-publish.mjs      # 必须先看到 problems 为 0
-git init
-git add -A
-git status --short                # 再肉眼过一遍，确认没有 data/memory、没有 *.wav
-git commit -m "init"
+git branch -M main
+git remote add origin https://github.com/<你的用户名>/chill-with-you-companion.git
+git push -u origin main
 ```
 
-推之前再确认一次：`git ls-files | grep -E '\.(wav|mp3)$'` 应该没有输出。
+推之前再确认这四件事（都在 CI 里跑，本地也可以先跑一遍）：
+
+```bash
+node tools/check-publish.mjs       # problems 必须为 0
+node tools/scan-secrets.mjs        # 明文密钥必须 0
+node tools/run-tests.mjs           # 9 个测试文件全过
+git ls-files | grep -E '\.(wav|mp3|bundle|assets)$'   # 应该没有输出
+```
+
+**游戏本体不进仓库**：`*.bundle` / `*.assets` / `*_Data/` / `UnityPlayer.dll` 都在 `.gitignore` 里，
+不要用 `git add -f` 绕过。
 
 ---
 
