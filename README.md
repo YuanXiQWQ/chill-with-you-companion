@@ -269,7 +269,7 @@ curl.exe http://127.0.0.1:10722/chill/v1/health
 面板「模型」页默认就是 **DeepSeek · 与对话共用**：用的是你在 dsh 里配的那把 key，
 不需要再填一遍，页面上也没有"密钥来源"这类选项要你选。
 
-要换别家（自建中转、豆包、通义、OpenRouter、本地 ollama / llama.cpp）就点「再加一条」，
+要换别家（自建中转、通义、OpenRouter、本地 ollama / llama.cpp，或者任何 OpenAI 兼容服务）就点「再加一条」，
 填四样：名称、`baseUrl`、模型名、key。
 
 - **key 填了** → 完全用你自己那套，与对话那把无关。

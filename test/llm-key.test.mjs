@@ -211,4 +211,31 @@ check('自定义那条的 baseUrl / model 原样生效', () => {
   assert.equal(out.baseUrl, 'http://127.0.0.1:9090/v1/chat/completions')
   assert.equal(out.model, 'qwen3')
 })
+
+console.log('# 内置清单')
+check('内置只有两条：与对话共用 + 本地，不包含豆包', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'chill-empty-'))
+  const llm = createLlm({ dataDir: dir, cfg: {}, existsSync, readFileSync, writeFileSync, mkdir: mkdirSync, join, log: () => {} })
+  const ids = llm.view().providers.map((x) => x.id)
+  assert.deepEqual(ids, ['dsh-deepseek', 'local'])
+})
+
+check('老 llm.json 里自己留着的 dsh-ark 不会被删（那是用户的东西）', () => {
+  // 老配置：豆包曾是内置，用户可能已经填过 keyRef 或 token
+  const dir = mkdtempSync(join(tmpdir(), "chill-legacy-"))
+  const legacy = {
+    active: 'dsh-ark',
+    providers: [
+      { id: "dsh-ark", label: "豆包 ARK", baseUrl: "https://ark.example.com/api/v3/chat/completions", model: "doubao-pro", keyRef: "ARK_API_KEY" },
+    ],
+  }
+  writeFileSync(join(dir, "llm.json"), JSON.stringify(legacy), "utf8")
+  const llm = createLlm({ dataDir: dir, cfg: {}, existsSync, readFileSync, writeFileSync, mkdir: mkdirSync, join, log: () => {} })
+  const out = llm.view()
+  const ark = out.providers.find((x) => x.id === "dsh-ark")
+  assert.ok(ark, "自己留着的条目被删了")
+  assert.equal(ark.builtin, false)
+  assert.equal(out.active, "dsh-ark")
+  assert.ok(out.providers.some((x) => x.id === "dsh-deepseek"), "内置两条应当补回来")
+})
 console.log('\nPASS ' + passed + ' llm-key checks')

@@ -3,6 +3,12 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 去掉内置的豆包 ARK
+
+模型页只留两条内置：**DeepSeek · 与对话共用**（默认）和本地 llama.cpp / ollama。
+豆包已从默认清单移除；之前自己加过的那条仍在你自己的 `llm.json` 里，不会被删。
+要再添回来，就按「再加一条」填 `https://ark.cn-beijing.volces.com/api/v3/chat/completions` 和自己的 key。
+
 ## 模型 tab：去掉密钥来源选项，默认与对话共用
 
 面板不再问"密钥从哪来"：默认那条就是「DeepSeek · 与对话共用」，
