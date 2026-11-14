@@ -61,6 +61,17 @@ const sandboxData = mkdtempSync(joinPath(tmpdir(), 'chill-smoke-'))
   const { copyFileSync } = await import('node:fs')
   copyFileSync(new URL('../persona.md', import.meta.url), joinPath(sandboxData, 'persona.md'))
 }
+// health.hasApiKey 来自 llm.resolve()，而它只认 <DSH_HOME>/.credentials.yaml，
+// 不看 apply() 传进来的 apiKey。这里造一个临时 DSH_HOME，让断言不再依赖本机是否配了 key
+// （CI 上没有凭据文件，之前这条必然 false —— 是本机绿、干净机器红的那种测试）。
+{
+  // 空 DSH_HOME + 只有环境变量：既让断言与运行机器无关，
+  // 也顺带锁住 lib/llm.mjs 的环境变量回落（以前只读凭据文件，只设 env 的机器会显示没有 key）。
+  const fakeHome = mkdtempSync(joinPath(tmpdir(), 'chill-dshhome-'))
+  process.env.DSH_HOME = fakeHome
+  process.env.DEEPSEEK_API_KEY = 'sk-test-not-a-real-key'
+}
+
 apply(ctx, {
   apiKey: 'sk-test',
   model: 'deepseek-flash',

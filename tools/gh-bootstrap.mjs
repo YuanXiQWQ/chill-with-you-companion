@@ -43,8 +43,9 @@ if (!TOKEN) {
   process.exit(2)
 }
 
+const API_BASE = process.env.CHILL_GH_API || 'https://api.github.com'
 const api = async (path, init = {}) => {
-  const res = await fetch('https://api.github.com' + path, {
+  const res = await fetch(API_BASE + path, {
     ...init,
     headers: {
       authorization: 'token ' + TOKEN,
@@ -101,7 +102,8 @@ if (repo) {
 if (!APPLY) process.exit(0)
 
 // 推送：用 token 走一次性 URL，避免把凭据写进 .git/config
-const remoteUrl = 'https://x-access-token:' + TOKEN + '@github.com/' + owner + '/' + NAME + '.git'
+const REMOTE_OVERRIDE = typeof val('remote') === 'string' ? val('remote') : ''
+const remoteUrl = REMOTE_OVERRIDE || ('https://x-access-token:' + TOKEN + '@github.com/' + owner + '/' + NAME + '.git')
 const push = spawnSync('git', ['-C', ROOT, 'push', remoteUrl, branch + ':refs/heads/' + branch], {
   encoding: 'utf8',
   env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
@@ -113,7 +115,7 @@ if (push.status !== 0) {
 say('✓', '已推送 ' + branch)
 // 远端地址不带 token，落盘的那个是干净的
 git('remote', 'remove', 'origin')
-git('remote', 'add', 'origin', 'https://github.com/' + owner + '/' + NAME + '.git')
+git('remote', 'add', 'origin', REMOTE_OVERRIDE || ('https://github.com/' + owner + '/' + NAME + '.git'))
 git('branch', '--set-upstream-to=origin/' + branch, branch)
 
 await api('/repos/' + owner + '/' + NAME + '/topics', {
