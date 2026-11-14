@@ -105,9 +105,11 @@ const main = async () => {
       assert.equal(state.created.full_name, 'tester/chill-with-you-companion')
       assert.equal(state.created.private, false)
     })
-    // PR 构建是 detached HEAD，工具会把 HEAD 推到 main；普通分支则推同名分支
-    const expected = ((git('-C', ROOT, 'branch', '--show-current').stdout || '').trim()) || 'main'
-    const localRef = expected
+    // PR 构建是 detached HEAD：工具把 HEAD 推到 main，本地也没有 main 分支，
+    // 数提交数时本地这一侧要用 HEAD（用 main 只会得到空串，CI 上就是这么挂的）
+    const cur = ((git('-C', ROOT, 'branch', '--show-current').stdout || '').trim())
+    const expected = cur || 'main'
+    const localRef = cur || 'HEAD'
     check('裸仓库收到 ' + expected, () => {
       const v = git('--git-dir', bare, 'rev-parse', '--verify', 'refs/heads/' + expected)
       assert.equal(v.status, 0, '远端没有 ' + expected + '：' + v.stderr)
