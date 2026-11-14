@@ -4,6 +4,7 @@
  *
  *   node tools/scan-secrets.mjs              # 扫仓库，有命中就 exit 1
  *   node tools/scan-secrets.mjs --include-data
+ *   node tools/scan-secrets.mjs --history    # 连 git 历史一起扫（老提交里的残留）
  *   node tools/scan-secrets.mjs --json
  *
  * 为什么要这个：token 一旦进了仓库或会话日志，撤销之前它一直是活的凭据。
@@ -80,6 +81,37 @@ const walk = (dir, depth = 0) => {
     scanFile(full)
   }
 }
+const scanHistory = async () => {
+  const { execFileSync } = await import('node:child_process')
+  let text = ''
+  try {
+    text = execFileSync('git', ['log', '-p', '--all', '--unified=0', '--no-color', '--pretty=format:__C__%H'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: 120000 })
+  } catch (error) {
+    console.log('  ! git 历史读取失败，跳过：' + String(error && error.message || error))
+    return
+  }
+  let sha = ''
+  let file = ''
+  for (const line of text.split(/\r?\n/)) {
+    if (line.startsWith('__C__')) { sha = line.slice(5, 12); file = ''; continue }
+    if (line.startsWith('+++ b/')) { file = line.slice(6); continue }
+    if (!line.startsWith('+') || line.startsWith('+++')) continue
+    const body = line.slice(1)
+    for (const { label, re } of PATTERNS) {
+      re.lastIndex = 0
+      let m
+      while ((m = re.exec(body))) {
+        const value = m[1] || m[0]
+        if (PLACEHOLDER.test(value)) continue
+        hits.push({ file: (file || '(未知文件)') + ' @' + (sha || '(未知提交)'), label, masked: mask(value), line: 0, value, history: true })
+        if (re.lastIndex === m.index) re.lastIndex += 1
+      }
+    }
+  }
+}
+
+if (has('history')) await scanHistory()
+
 walk(ROOT)
 
 if (has('json')) {
@@ -88,7 +120,10 @@ if (has('json')) {
   console.log('✓ 没有明文密钥（扫描目录 ' + ROOT + (has('include-data') ? '，含 data/' : '') + '）')
 } else {
   console.log('✗ 发现 ' + hits.length + ' 处明文密钥：')
-  for (const h of hits) console.log('  ' + relative(ROOT, h.file).replace(/\\/g, '/') + ':' + h.line + '  ' + h.label + '  ' + h.masked)
+  for (const h of hits) {
+    const where = h.history ? h.file : relative(ROOT, h.file).replace(/\\/g, '/') + ':' + h.line
+    console.log('  ' + (h.history ? '[历史] ' : '') + where + '  ' + h.label + '  ' + h.masked)
+  }
   console.log('\n这些都不该出现在仓库里。撤销换钥之后，用 tools/rotate-key.mjs 把新钥只写进 credentials。')
 }
 process.exit(hits.length === 0 ? 0 : 1)

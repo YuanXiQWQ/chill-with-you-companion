@@ -3,6 +3,15 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 新增：密钥残留审计 `tools/audit-keys.mjs`，闸门支持 `--history`
+
+`scan-secrets --history` 把 git 全部历史也翻一遍（工作树干净 ≠ 仓库干净）。
+`audit-keys` 拿本机在用的 key 值去比对仓库 / 数据目录 / dsh 存储与会话日志 / 临时目录，
+报告同一把 key 都躺在哪；`--fix` 删凭据备份副本、就地脱敏别处命中，不动正本。
+
+首次跑就抓到 4 类真实残留：`credentials.yaml.bak-*` 旧钥复印件、会话记录里被粘贴过的
+`ARK_API_KEY`、工作区变更 capture 里的明文 token。
+
 ## 内置只剩「与对话共用」一条
 
 模型页的默认清单里现在只有 **DeepSeek · 与对话共用**。本地 llama.cpp / ollama 也从内置移除——

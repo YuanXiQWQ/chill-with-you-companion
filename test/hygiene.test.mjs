@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const files = []
@@ -69,4 +70,20 @@ check('注册的路由没有重复（meta 描述表不算注册）', () => {
   assert.deepEqual([...new Set(dupes)], [], '同一个路径注册了两次：' + dupes.join(','))
 })
 
+
+check('密钥闸门能跑，且工作树干净', () => {
+  const out = execFileSync(process.execPath, [join(ROOT, "tools/scan-secrets.mjs")], { encoding: "utf8", timeout: 120000 })
+  assert.match(out, /没有明文密钥/)
+})
+
+check('密钥闸门 --history 能读 git 历史（不是静默跳过）', () => {
+  const out = execFileSync(process.execPath, [join(ROOT, "tools/scan-secrets.mjs"), "--history"], { encoding: "utf8", timeout: 180000 })
+  assert.match(out, /没有明文密钥/)
+  assert.doesNotMatch(out, /历史读取失败/)
+})
+
+check('残留审计能跑（本机没配 key 时也应 exit 0）', () => {
+  const out = execFileSync(process.execPath, [join(ROOT, "tools/audit-keys.mjs")], { encoding: "utf8", timeout: 180000 })
+  assert.match(out, /密钥来源|意外残留/)
+})
 console.log('\nPASS ' + passed + ' hygiene checks')

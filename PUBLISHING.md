@@ -10,6 +10,21 @@ node tools/check-publish.mjs
 
 ---
 
+### 密钥的两道门
+
+```powershell
+node tools/scan-secrets.mjs --history   # 查格式：工作树 + 全部 git 历史
+node tools/audit-keys.mjs               # 查本机真值：这把 key 落在哪些文件里
+```
+
+`scan-secrets` 看的是"像不像凭据"（`sk-…` 这类格式），`--history` 会连老提交一起翻——
+工作树干净不等于仓库干净。`audit-keys` 拿本机实际在用的 key 值去比对仓库、数据目录、
+dsh 存储与会话日志、临时目录，报告"哪里躺着同一把 key"；正常存放点（`.credentials.yaml`、
+数据目录的 `llm.json`）会标成 `[正常存放]`，其余算残留。
+
+`audit-keys --fix` 会：删掉凭据文件的备份副本（`*.credentials.yaml.bak-*`），
+就地脱敏别处的命中（会话记录只改字符串、不删文件）。它**不动正本**。
+
 ## 三类红线
 
 ### 1. 密钥
