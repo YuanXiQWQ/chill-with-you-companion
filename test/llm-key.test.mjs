@@ -134,4 +134,49 @@ check('面板视角不吐出 key 本身', () => {
   assert.equal(s.includes(KEY.custom), false, 'view() 把 token 漏出去了')
 })
 
+
+console.log('# 面板要看得出 key 从哪来（keyFrom 分档）')
+check('面板自定义那条 → token', () => {
+  const out = run({ active: 'relay' }, ({ llm }) => llm.resolve().keyFrom)
+  assert.equal(out, 'token')
+})
+
+check('环境变量那条 → env', () => {
+  const out = run({ env: { DEEPSEEK_API_KEY: KEY.env } }, ({ llm }) => llm.resolve().keyFrom)
+  assert.equal(out, 'env')
+})
+
+check('凭据文件那条 → credentials', () => {
+  const out = run({ creds: { DEEPSEEK_API_KEY: KEY.file } }, ({ llm }) => llm.resolve().keyFrom)
+  assert.equal(out, 'credentials')
+})
+
+check('靠宿主借来 → dsh', () => {
+  const out = run({ env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.resolve().keyFrom)
+  assert.equal(out, 'dsh')
+})
+
+check('四档全空 → 空串', () => {
+  const out = run({}, ({ llm }) => llm.resolve().keyFrom)
+  assert.equal(out, '')
+})
+
+check('view() 每条 provider 都带 keyFrom，与 resolve 一致', () => {
+  const out = run({ env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.view())
+  const ds = out.providers.find((p) => p.id === 'dsh-deepseek')
+  const relay = out.providers.find((p) => p.id === 'relay')
+  assert.equal(ds.keyFrom, 'dsh')
+  assert.equal(relay.keyFrom, 'token')
+})
+
+check('view() 交代宿主借的是哪个 ref（面板据此显示「跟随 dsh」）', () => {
+  const out = run({ env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.view())
+  assert.deepEqual({ ref: out.dshBorrow.ref, present: out.dshBorrow.present }, { ref: 'DEEPSEEK_API_KEY', present: true })
+})
+
+check('没有借来的时候 dshBorrow 老实说没有', () => {
+  const out = run({}, ({ llm }) => llm.view())
+  assert.equal(out.dshBorrow.present, false)
+  assert.equal(out.dshBorrow.ref, '')
+})
 console.log('\nPASS ' + passed + ' llm-key checks')

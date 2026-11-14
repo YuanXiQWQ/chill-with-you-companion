@@ -2780,7 +2780,13 @@ const runTurn = async (userText, options = {}) => {
     note: '模型供应商：GET 列表 / POST 切换 · 添加 · 删除 · 测试',
     handler: async (req, res) => {
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
-      const withState = (extra) => Object.assign({ ok: true }, llm.view(), { current: llm.resolve().id }, extra || {})
+      const withState = (extra) => Object.assign(
+        { ok: true },
+        llm.view(),
+        // 「当前生效」连同 key 出处一起回，面板才不用猜
+        { current: llm.resolve().id, currentKeyFrom: llm.resolve().keyFrom },
+        extra || {},
+      )
       if (req.method === 'GET') return sendJson(res, 200, withState())
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       let body = {}
