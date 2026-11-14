@@ -3,6 +3,90 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 修复：快捷框说的话进不了控制台记录
+
+- 根因：`isAutomation()` 只认「Origin/Referer 是面板端口」的请求为真人对话，
+  而快捷浮窗的页面是**侧车自己发的**（Origin 就是 `10723`），天生不等于面板端口 `10722`，
+  于是每次说话都被判成自动化 → `sandbox` → 不进 `turns.jsonl`、只写 `cue.test.log`。
+  `health` 全绿、字幕照出，所以完全看不出来
+- 快捷页发 `/act` 时带 `x-chill-quick: 1` 认领身份；`isAutomation()` 认这个头就按真人对话处理。
+  别的裸 `fetch` / curl 仍然没有 Origin，照样按测试处理（保护不变）
+- 实测：带头请求后 `turns.jsonl` 从 82 行 → 84 行（user + assistant 一对），
+  `/chill/v1/chat` 最后两组就是快捷框那两句；不带头再发一次，行数不变（差 0）
+- `cue.log` 也回到真实演出日志，不再落 `cue.test.log`
+
+## 浮窗高度砍到三分之一（560 → 187）
+
+- `CHILL_QUICKBOX_HEIGHT` 默认 560 → **187**，`quickfloat.ps1` 的 `-Height` 默认同步
+- `MinimumSize` 高度 340 → 140，否则 187 会被最小高度顶回去
+- 实测：窗口 `645x280` 物理 = `430 x 186.7` 逻辑，圆角 region 仍在（`rgnKind=3`），
+  版面只剩标题条 / 聪音行 / 一行提示 / 输入框
+
+## 浮窗：去掉「清空」，最小化与关闭换位
+
+- `tools/quick.html` 删掉「清空」按钮及其 `clearBtn` 监听（连 `localStorage` 显示历史的那段一起）；
+  输入框的 `Esc` 清空输入保留，`Enter` / `Shift+Enter` 不变
+- 标题栏按键改成 Windows 习惯顺序：`−` 在左、`✕` 在最右
+  （Dock 是「后加的排最右」，所以调整了 `Controls.Add` 的先后）
+- 实测：`x=2386 '−'` → `x=2443 '✕'`；页面 HTML 里已无 `id="clear"`
+
+## 浮窗取消 PIN：不再强制置顶，就是个普通窗口
+
+- 去掉标题栏的 `PIN` 键与全部 `TopMost` 逻辑：不设 `WS_EX_TOPMOST`，不抢焦点，
+  可以被别的窗口盖住，Alt+Tab / 任务栏里正常出现
+- 保留 `−` 最小化、`✕` 关闭、拖拽移动、圆角、DPI 自适应、单实例、位置记忆
+- `POST /chill/v1/quickbox` 的响应不再带 `topmost` 字段
+- 实测：`topmost=False`、`rgnKind=3`（圆角 region 仍在）、子窗口只剩 `✕` / `−`
+
+## 浮窗：最小化、圆角、按 DPI 渲染
+
+- 标题栏三个键：`−` 最小化（`WindowState = Minimized`）、`PIN` 切置顶、`✕` 关闭；
+  统一走 `New-StripButton`，34px 高、无边框、hover 变 `--line` 色
+- 圆角两道：Win11 `DwmSetWindowAttribute(hwnd, 33, DWMWCP_ROUND)` 出系统圆角与阴影；
+  再叠一层 `CreateRoundRectRgn` + `SetWindowRgn` 的窗口 region——只做前者的话
+  WebView2 子窗口会方方正正盖住圆角。实测 `GetWindowRgn` 返回 3（复杂区域）、
+  `DwmGetWindowAttribute(33)` 返回 2
+- 声明 `SetProcessDPIAware` + 按 `DpiX/96` 换算实际像素：150% 屏上窗口仍是 430×560「逻辑」大小，
+  但由 WebView2 按真实像素密度渲染，不再被合成器整窗拉伸（645×840）
+- 被 `windowsHide: true` 拉起时第一次 `ShowWindow` 会继承 `SW_HIDE`，窗口起来就是最小化的；
+  `Shown` 里显式 `SW_RESTORE` 兜住
+- 位置存 `pos.json`（关窗时写），删掉即回到右下角默认位
+
+## 快捷框改成原生浮窗：WinForms + WebView2，常驻置顶，不碰浏览器
+
+浏览器 `--app` 方案的硬伤不是尺寸，是**它借用用户的浏览器**：进程和任务栏条目混在一起、
+关掉浏览器连框一起关、profile 记忆窗口边界、扩展和同步提示挤在 430 宽的窗里。
+所以默认路径换掉：
+
+- 新增 `tools/quickfloat.ps1`：WinForms 无边框窗口 + WebView2 控件，加载同一个 `/chill/quick` 页面。
+  窗口 `TopMost`，可拖、可缩、PIN 键切换置顶、X 关；位置存 `<数据目录>/quickfloat/pos.json`
+- 单实例：`Local\ChillQuickFloat` 互斥体；再点一次只把已有窗口提到前台
+- WebView2 的 user data 目录独立在 `<数据目录>/quickfloat/WebView2`，和用户浏览器完全隔离；
+  运行时/SDK 自动在 `D:\dshl`、`%LOCALAPPDATA%\DSHL`、NuGet 缓存里找，找不到可 `-SdkDir` 指定
+- `POST /chill/v1/quickbox` 默认返回 `mode: 'widget'`；老的浏览器方案保留成 `?browser=1` 兜底
+  （独立 profile + `place-window.ps1` 摆位那套照旧）
+- 进程证据：浮窗 = `powershell.exe` → `msedgewebview2.exe`，全程 0 个 `msedge.exe`；
+  窗口实测 `430x560 visible=True topmost=True`
+
+## 修复：快捷框把尺寸污染给别的浏览器窗口
+
+症状：先开快捷聊天，再开 Harness 或别的 `--app` 窗口，新窗口尺寸变成快捷框的 430×560。
+
+病因不在 CSS，在 Chromium **按 profile 记住上一次 app 窗口的边界**——快捷框原来跟默认
+profile 共用，`--window-size=430,560` 被记进了那个 profile，之后所有 app 窗口都继承它。
+
+改法（全部在插件里，用户不用装东西、不用改注册表）：
+
+- 快捷框用独立 profile：`--user-data-dir=<数据目录>/quickbox-profile`
+- 尺寸显式传，可用 `CHILL_QUICKBOX_WIDTH` / `CHILL_QUICKBOX_HEIGHT` 覆盖
+- 新增 `tools/place-window.ps1`：Chromium 会把 app 窗口建成隐藏/最小化（实测 158×26 @ -21333），
+  `--window-size` 治不了；脚本按进程命令行认出该 profile 的窗口，`MoveWindow` 到工作区右下角并
+  `ShowWindow(…,1)` 唤出，以「真的可见」为成功判据。ps1 保持纯 ASCII（PS 5.1 按 ANSI 读非 BOM 文件）
+- 摆位输出写 `<数据目录>/quickbox-place.log`；`stdio` 必须走 pipe——重定向到文件 fd 时 PS 5.1 不输出任何东西
+- 新增 `test/quickbox.test.mjs`：守住独立 profile、显式尺寸、摆位兜底、ps1 纯 ASCII 四件事
+
+实测：快捷框 430×560 @ 工作区右下角（1245,411），Harness 窗口 1400×900 @ (120,60)，互不影响。
+
 ## 新增：密钥残留审计 `tools/audit-keys.mjs`，闸门支持 `--history`
 
 `scan-secrets --history` 把 git 全部历史也翻一遍（工作树干净 ≠ 仓库干净）。

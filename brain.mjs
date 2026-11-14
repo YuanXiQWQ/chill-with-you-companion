@@ -687,6 +687,10 @@ function isAutomation(req, json) {
   }
   if (isPanel(origin)) return false
   if (isPanel(referer)) return false
+  // 快捷浮窗的页面是侧车自己发的（Origin 就是 10723），天生不等于面板端口，
+  // 会被上面判成自动化——结果就是「快捷框说的话永远进不了控制台记录」。
+  // 页面自己带 x-chill-quick: 1 认领身份；别的裸脚本照样按测试处理。
+  if (String(req?.headers?.['x-chill-quick'] || '') === '1') return false
   return true
 }
 /** 下发一条 cue 的统一入口：push 进队列 + 记一行 + 更新去重指纹。 */
@@ -2676,6 +2680,14 @@ const runTurn = async (userText, options = {}) => {
   // 自包含网页，用浏览器的 app 模式开成独立窗口——没有地址栏，观感最接近原来那个框。
   const QUICK_HTML = join(HERE, 'tools', 'quick.html')
 
+  // 快捷框必须有自己的浏览器 profile。Chromium 按 profile 记住上一次 app 窗口的边界：
+  // 和默认 profile 共用时，430×560 的小框会把尺寸留在 profile 里，之后任何 app 模式
+  // 打开的面板（包括 Harness 自己的窗口）都会继承这个小尺寸——真机表现就是「先开快捷
+  // 聊天，再开浏览器，浏览器窗口小得跟快捷框一样」，反过来大窗口也会把快捷框撑大。
+  const QUICK_PROFILE = join(cfg.dataDir, 'quickbox-profile')
+  const QUICK_W = Number(process.env.CHILL_QUICKBOX_WIDTH || 430)
+  const QUICK_H = Number(process.env.CHILL_QUICKBOX_HEIGHT || 187)
+
   // Chrome 和 Edge 都认 --app。Firefox 不认，会退成普通标签页，所以放在最后兜底。
   // 除了默认安装位置，也看一遍用户目录下的安装（有些机器只装了当前用户）。
   const browserCandidates = () => {
@@ -2726,16 +2738,119 @@ const runTurn = async (userText, options = {}) => {
         // 端口从请求头取，不要在代码里写死 10723——sidecar 也可能落在别的口上。
         const host = String(req.headers.host || '').trim() || '127.0.0.1'
         const url = 'http://' + host + '/chill/quick'
+
+        // 默认走原生浮窗（WinForms + WebView2）：不启动、也不借用用户的浏览器，
+        // 就是一个普通窗口（不强制置顶，不抢焦点）。?browser=1 保留老路径，
+        // 作为没有 WebView2 运行时 / SDK 时的退路。
+        const wantBrowser = /(?:^|[?&])browser=1(?:&|$)/.test(String(req.url || ''))
+        const floatScript = join(HERE, 'tools', 'quickfloat.ps1')
+        if (!wantBrowser && existsSync(floatScript)) {
+          const psExe = join(process.env.SystemRoot || 'C:\\Windows',
+            'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+          const floatLog = join(cfg.dataDir, 'quickfloat.log')
+          try {
+            const child = spawn(psExe, [
+              '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', floatScript,
+              '-Url', url,
+              '-UserDataDir', join(cfg.dataDir, 'quickfloat'),
+              '-Width', String(QUICK_W),
+              '-Height', String(QUICK_H),
+            ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+            // 浮窗进程活到用户关掉为止，输出攒着，close 时落盘，出问题有据可查
+            let floatOut = ''
+            const noteFloat = (chunk) => { if (floatOut.length < 4000) floatOut += chunk }
+            child.stdout.on('data', noteFloat)
+            child.stderr.on('data', noteFloat)
+            child.on('error', (err) => {
+              try {
+                appendFileSync(floatLog, '[' + new Date().toISOString() + '] spawn error: ' +
+                  (err && err.code) + ' ' + String(err && err.message || err) + '\n')
+              } catch { /* 记不下来就算了 */ }
+            })
+            child.on('close', () => {
+              try {
+                appendFileSync(floatLog, '[' + new Date().toISOString() + '] ' + floatOut.trim() + '\n')
+              } catch { /* 记不下来就算了 */ }
+            })
+            return sendJson(res, 200, {
+              ok: true,
+              mode: 'widget',
+              url,
+              size: { width: QUICK_W, height: QUICK_H },
+            })
+          } catch { /* 浮窗起不来就退回浏览器路径 */ }
+        }
+
         const browsers = browserCandidates()
         if (browsers.length > 0) {
-          const child = spawn(browsers[0], ['--app=' + url, '--window-size=430,560'], {
+          try { mkdirSync(QUICK_PROFILE, { recursive: true }) } catch { /* 建不出来就交给浏览器自己建 */ }
+          const boxArgs = [
+            '--app=' + url,
+            '--window-size=' + QUICK_W + ',' + QUICK_H,
+            '--user-data-dir=' + QUICK_PROFILE,
+            '--no-first-run',
+            '--no-default-browser-check',
+            // 关掉会挡住小框的登录同步引导 / 翻译提示 / 侧边栏，否则 430 宽的窗口里
+            // 一半面积被浮层吃掉
+            '--disable-features=msEdgeIdentityFRE,msEdgeSyncPromo,msEdgeTranslate,Translate,TranslateUI,msEdgeSidebarV2',
+            '--disable-sync',
+            '--no-service-autorun',
+          ]
+          const child = spawn(browsers[0], boxArgs, {
             detached: true,
             stdio: 'ignore',
             windowsHide: false,
           })
           child.on('error', () => { /* 开不开窗口都不该拖垮 sidecar */ })
           child.unref()
-          return sendJson(res, 200, { ok: true, mode: 'app', browser: browsers[0], url })
+
+          // Chromium 会把 app 窗口建成隐藏或最小化（真机上量到 158×26、坐标 -21333），
+          // 这时 --window-size 不管用。用 Win32 兜一次：按进程命令行认出这个 profile 的
+          // 窗口、唤出、摆到目标尺寸。ps1 保持纯 ASCII，避开 PS 5.1 读非 BOM 文件的坑。
+          const placeScript = join(HERE, 'tools', 'place-window.ps1')
+          const placeLogPath = join(cfg.dataDir, 'quickbox-place.log')
+          if (existsSync(placeScript)) {
+            try {
+              // 用绝对路径叫 powershell：sidecar 的 PATH 未必含 System32，spawn 会
+              // ENOENT 静默失败（只有 'error' 事件，看不到任何输出）
+              const psExe = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+              const placer = spawn(psExe, [
+                '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', placeScript,
+                // 用 profile 路径认窗口，不用标题：中文标题经命令行传给 powershell 会
+                // 被按 ANSI 解释，匹配不上
+                '-CommandLineMatch', 'quickbox-profile',
+                '-Width', String(QUICK_W),
+                '-Height', String(QUICK_H),
+                '-DelayMs', '900',
+              ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+              // stdio 必须走 pipe：把 stdout 直接重定向到文件 fd 时 PS 5.1 一个字都不写，
+              // 出了事完全没有线索。这里攒起来，进程 close 时落盘。
+              let placeOut = ''
+              const notePlace = (chunk) => { if (placeOut.length < 4000) placeOut += chunk }
+              placer.stdout.on('data', notePlace)
+              placer.stderr.on('data', notePlace)
+              placer.on('error', (err) => {
+                try {
+                  appendFileSync(placeLogPath,
+                    '[' + new Date().toISOString() + '] spawn error: ' + (err && err.code) + ' ' + String(err && err.message || err) + '\n')
+                } catch { /* 记不下来就算了 */ }
+              })
+              placer.on('close', () => {
+                try {
+                  appendFileSync(placeLogPath, '[' + new Date().toISOString() + '] ' + placeOut.trim() + '\n')
+                } catch { /* 记不下来就算了 */ }
+              })
+            } catch { /* 摆位失败不影响窗口已经打开 */ }
+          }
+
+          return sendJson(res, 200, {
+            ok: true,
+            mode: 'app',
+            browser: browsers[0],
+            url,
+            profile: QUICK_PROFILE,
+            size: { width: QUICK_W, height: QUICK_H },
+          })
         }
         // 一个 --app 浏览器都没有，就交给系统默认浏览器，至少还能用。
         await execFileAsync('explorer.exe', [url], { windowsHide: true, timeout: 8000 })

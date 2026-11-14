@@ -780,6 +780,18 @@ await appendTurn('', parsed, { skipUser: true })
 - **`sandbox` 只挡写，不挡读**：`withHistory: true` 让冒烟用例能验证「历史进 prompt」，又不用写记忆。
 - smoke 的固定台词全部带 `sandbox: true`，跑完整套测试 `cue.log` 和 `turns.jsonl` 行数纹丝不动。
 
+### 清理记忆时的两个坑（2026-11-14 实测）
+
+1. **先杀侧车再改文件**：`turns` 数组在进程内存里，改盘上文件不会影响正在跑的进程，
+   `/chat` 照样返回脏数据。
+2. **删完要再重启一次**：`state.json` 由进程定时回写。第一次「删完 → 宿主立刻拉起新进程」
+   的时序是「新进程读到的还是脏文件，随后又把脏状态写回盘」——看起来删了，其实被覆盖了。
+   正确顺序是：**先写干净的文件，再杀进程**，让新进程读到干净版本。
+3. 记忆分布在四处，漏一个就会「删了还能想起来」：`memory/turns.jsonl`（对话）、
+   `memory/facts.jsonl`（长期事实）、`memory/summary.json`（滚动摘要）、
+   `state.json`（`lastTopic` / `recentSubs` / `turnCount` / `lastTalkAt`）。
+4. 动手前先把这四个文件拷进 `<数据目录>/_backup_debug_<时间戳>/`，别指望撤销。
+
 ### 三段式：动作不是一条，是 start → loop → end
 
 动作割裂的真正原因不在时间点，在**我们只下了三分之一**。
@@ -1328,7 +1340,7 @@ node serve.mjs          # 浏览器开 http://127.0.0.1:10723/ 看诊断页
 | --- | --- |
 | `ChillQuickBox.exe`（18 KB 二进制） | `tools/quick.html`（8 KB 纯文本，改完刷新即生效） |
 | `csc.exe` 手动编译 | 无构建 |
-| `quickbox.pos` 存窗口坐标 | `localStorage` 存对话，窗口位置交给浏览器 |
+| `quickbox.pos` 存窗口坐标 | 快捷框自己的 profile + 摆位脚本，尺寸位置固定，不再跟别的窗口互相污染 |
 | `HttpWebRequest` 打 `127.0.0.1:10722` | 同源相对路径 `/chill/v1/act`，端口不用管 |
 | 单实例 `Mutex` | 同一 URL 再点只会聚焦已开的窗口 |
 
@@ -1336,18 +1348,64 @@ node serve.mjs          # 浏览器开 http://127.0.0.1:10723/ 看诊断页
 
 ```
 GET  /chill/quick        返回 quick.html（text/html, no-store）
-POST /chill/v1/quickbox  用浏览器 --app 开成独立窗口
+POST /chill/v1/quickbox  默认拉起原生浮窗；?browser=1 走浏览器 --app 兜底
 ```
 
-拉起时按 Chrome → Edge 的顺序找 `--app` 可用的浏览器，窗口尺寸 `--window-size=430,560`；
-一个都没有就退回 `explorer.exe <url>`，用系统默认浏览器。端口从 `req.headers.host` 取，
-不写死 10723。
+拉起时按 Chrome → Edge 的顺序找 `--app` 可用的浏览器；一个都没有就退回
+`explorer.exe <url>`，用系统默认浏览器。端口从 `req.headers.host` 取，不写死 10723。
 
-### 顺带修掉的一个行为差异
+### 默认：原生浮窗（WinForms + WebView2）
 
-老 exe 用裸 `HttpWebRequest`，**不带 `Origin` 头**，而 `isAutomation()` 正是拿这个头
-判断「这是不是真人」。也就是说快捷框里说的话以前全被当成沙箱输入，不进记忆。
-网页版是同源 `fetch`，浏览器会带 `Origin`，现在这些话会正常落进记忆——这才是该有的行为。
+`POST /chill/v1/quickbox` 现在拉起的是 `tools/quickfloat.ps1`：一个本插件自己的无边框窗口，
+里面放 WebView2 控件加载同一个 `/chill/quick` 页面。
+
+| 项 | 行为 |
+| --- | --- |
+| 和浏览器的关系 | **没有**。用的是 WebView2 运行时（`msedgewebview2.exe`），不启动也不借用 Edge/Chrome |
+| 窗框 | 无边框 + 圆角（DWM `corner preference=2` 叠窗口 region，WebView2 也被裁圆）；标题栏只有 `−` 最小化 与 `✕` 关闭（`✕` 在最右），拖标题栏移动 |
+| 清晰度 | 进程声明 DPI aware，尺寸按 `DpiX/96` 换算：150% 屏上仍是 430×187 的观感，但按真实像素渲染，字不发虚 |
+| 窗口行为 | 就是个普通窗口：不设 `TopMost`、不抢焦点，可以被别的窗口盖住，Alt+Tab 和任务栏里正常出现 |
+| 单实例 | `Local\ChillQuickFloat` 互斥体，重复点击只把已有窗口提到前台 |
+| 位置记忆 | 关窗时写 `<数据目录>/quickfloat/pos.json`，下次原地打开 |
+| 数据隔离 | WebView2 user data 目录是 `<数据目录>/quickfloat/WebView2`，和用户浏览器的 profile 无关 |
+| 日志 | `<数据目录>/quickfloat.log`（打开/聚焦/spawn 失败都记在这里） |
+
+WebView2 的 .NET 程序集自动在 `D:\dshl`、`%LOCALAPPDATA%\DSHL`、`%ProgramFiles%\DSHL`、
+NuGet 缓存里找；都没有时用 `-SdkDir <目录>` 指定。运行时缺失则需要装 WebView2 Runtime。
+
+想要浏览器 app 窗口（老方案，作为兜底）就调 `POST /chill/v1/quickbox?browser=1`。
+
+### 兜底路径：为什么那个浏览器窗口要有自己的 profile
+
+Chromium **按 profile 记住上一次 app 窗口的边界**。快捷框早先和默认 profile 共用，
+于是 430×560 这个尺寸被记进了 profile：先开快捷聊天、再开任何 `--app` 窗口（Harness 面板、
+别的面板），窗口都跟着变成 430×560；反过来把大窗口开过一次，快捷框也会被撑大。
+真机症状就是「开完快捷聊天，浏览器窗口尺寸是快捷聊天的」。
+
+现在（`brain.mjs` 的 `/chill/v1/quickbox`）：
+
+1. 独立 profile：`--user-data-dir=<数据目录>/quickbox-profile`，和默认 profile 彻底隔离
+2. 尺寸显式给：`--window-size=430,187`（可用 `CHILL_QUICKBOX_WIDTH` / `CHILL_QUICKBOX_HEIGHT` 覆盖，默认高度 187 是原 560 的三分之一）
+3. 顺带关掉会挡住 430 宽小窗的浮层：`--no-first-run`、`--no-default-browser-check`、
+   `--disable-features=…msEdgeTranslate,Translate,TranslateUI,msEdgeSidebarV2`、`--disable-sync`
+4. 打开后 `tools/place-window.ps1` 兜一次：Chromium 会把 app 窗口建成**隐藏**或最小化
+   （量到过 158×26 @ -21333），`--window-size` 治不了这种。脚本按进程命令行里的
+   profile 路径认出窗口（不用中文标题——经命令行传给 powershell 会被按 ANSI 解释）、
+   `MoveWindow` 到工作区右下角、`ShowWindow(…,1)` 唤出，最后以「真的可见」为成功判据。
+
+> 脚本保持**纯 ASCII**：PS 5.1 读非 BOM 的 `.ps1` 会按 ANSI 解释，注释里的中文也能把语法搞炸。
+> 摆位输出落在 `<数据目录>/quickbox-place.log`，一条 `placed window at X,Y WxH` 就是成功。
+
+### 快捷框的记录口径（踩过一次坑）
+
+`isAutomation()` 只把「`Origin` / `Referer` 指向面板端口」的请求当真人对话。
+老 exe 用裸 `HttpWebRequest` 不带 `Origin` → 被判成沙箱，说的话不进记忆。
+
+换成网页版**并没有自动修好**：页面是侧车自己发的，同源 `fetch` 的 `Origin` 就是 `10723`，
+不等于面板端口 `10722`，照样被判成自动化——`health` 全绿、字幕照出、`/chat` 里却永远没有快捷框说过的话。
+
+现在的做法：快捷页发 `/act` 时带 `x-chill-quick: 1` 认领身份，`isAutomation()` 认这个头就按真人对话处理。
+裸 `fetch` / curl 没有这个头、也没有面板 Origin，仍然按测试处理，保护不变。
 
 ### 配置里的绝对路径
 
