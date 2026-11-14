@@ -379,13 +379,25 @@ node tools/gen-anim-manifest.mjs
 | GET / POST | `/chill/v1/avatar/<id>` | 头像：GET 取当前图；POST 上传自定义 PNG（≤2 MB，原子替换） |
 | POST | `/chill/v1/avatar/<id>/reset` | 删掉自定义图，回落内置默认 |
 
-示例：
+**鉴权**：除 `health` / `meta` 之外的全部接口都要 token（`health` 是验收与探活用的，故意公开）。
+两种头等价：`x-chill-token: <token>` 或 `Authorization: Bearer <token>`。
+
+```powershell
+# token 在哪：配置里的 token → CHILL_TOKEN → <数据目录>/token（都没有时自动生成，64 位 hex）
+Get-Content "<数据目录>\token"
+```
+
+示例（宿主端口 10722 会自动代贴 token，直连侧车 10723 才需要自己带头）：
 
 ```powershell
 curl.exe -X POST http://127.0.0.1:10722/chill/v1/act `
   -H "content-type: application/json" `
   -d '{\"text\":\"我开始了，25 分钟\"}'
 ```
+
+> **游戏端要同步 token**：`ChillPerformer.dll` 从 BepInEx 配置的 `brain.Token` 取凭据。
+> 忘了同步的表现是「游戏里她一动不动，但 `health` 全绿」——DLL 只会安静重试被拒的请求。
+> `node tools/sync-token.mjs --apply --game "<游戏目录>"` 一次写好（写前备份，不带 BOM）。
 
 ## 配置（`cordis.patch.yml` 的 `config`）
 

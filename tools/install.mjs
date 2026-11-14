@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, readd
 import { join, resolve, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
+import { resolveToken } from '../lib/config.mjs'
 
 const stripBom = (s) => (s.charCodeAt(0) === 0xfeff ? s.slice(1) : s)
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -197,6 +198,54 @@ if (!existsSync(bep)) {
   }
   // --check 下没做就是没做，不能打 ✓
   say(same, same ? '游戏端 DLL 已是最新' : (CHECK ? '游戏端 DLL 需要更新（--check 未改动）' : '已拷入游戏端 DLL'), dllDst)
+}
+
+// ---- 3.5) 把本机 token 写进游戏端配置 ----
+// 侧车从 2026-11-14 起不放行空 token，DLL 只认 BepInEx 配置里的 brain.Token。
+// 少这一步的症状是「游戏里她一动不动，而 health 全绿」——装的时候顺手写掉。
+{
+  const cfgFile = join(bep, 'config', 'local.chill.performer.cfg')
+  // 与插件同一条优先级：cordis.patch.yml 的 dataDir → CHILL_DATA_DIR → <仓库>/data
+  const dataDir = (() => {
+    let fromCfg = ''
+    try {
+      const y = readFileSync(join(ROOT, 'cordis.patch.yml'), 'utf8')
+      const m = y.match(/^\s*dataDir:\s*['"]?([^'"\r\n]+)['"]?\s*$/m)
+      if (m) fromCfg = m[1].trim()
+    } catch { /* 配置文件不在就按环境变量走 */ }
+    return fromCfg || String(process.env.CHILL_DATA_DIR || '').trim() || join(ROOT, 'data')
+  })()
+  if (!existsSync(cfgFile)) {
+    say(false, '配置还没生成，token 未同步', '先启动一次游戏让 BepInEx 生成 ' + cfgFile)
+  } else {
+    try {
+      const token = resolveToken({ dataDir })
+      const lines = readFileSync(cfgFile, 'utf8').split(/\r?\n/)
+      let section = ''
+      let wrote = false
+      let already = false
+      for (let i = 0; i < lines.length; i += 1) {
+        const bare = lines[i].trim()
+        const head = bare.match(/^\[(.+)\]$/)
+        if (head) { section = head[1].trim(); continue }
+        if (section !== 'brain' || !/^Token\s*=/i.test(bare)) continue
+        if (bare.replace(/^Token\s*=\s*/i, '').trim() === token) { already = true; break }
+        lines[i] = 'Token = ' + token
+        wrote = true
+        break
+      }
+      if (already) say(true, '游戏端 token 已是最新', cfgFile)
+      else if (!wrote) say(false, '配置里没有 [brain] Token 行', cfgFile)
+      else if (CHECK) say(false, '游戏端 token 需要写入（--check 未改动）', cfgFile)
+      else {
+        copyFileSync(cfgFile, cfgFile + '.bak-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14))
+        writeFileSync(cfgFile, lines.join('\r\n'), 'utf8')   // 不带 BOM
+        say(true, '已把本机 token 同步进游戏端配置', cfgFile)
+      }
+    } catch (error) {
+      say(false, 'token 同步失败：' + String(error?.message || error))
+    }
+  }
 }
 
 // ---- 4) 收尾 ----

@@ -16,6 +16,7 @@ import { watch, appendFileSync, readFileSync, writeFileSync, statSync, mkdirSync
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { stat } from 'node:fs/promises'
+import { resolveToken } from './lib/config.mjs'
 
 export const name = 'dsh-chill-with-you-companion'
 export const inject = ['webServer']
@@ -28,6 +29,8 @@ const PORT = Number(process.env.CHILL_BRAIN_PORT || 10723)
 // 数据目录优先级与 brain.mjs 一致：配置 dataDir > CHILL_DATA_DIR > 插件目录下的 data/
 // 以前无条件写 HERE/data：配了 dataDir 之后日志仍留在源码树里，排查看错目录。
 let DATA_DIR = join(HERE, 'data')
+// 与侧车共用同一个 token：宿主在反代时注入 x-chill-token，浏览器/面板就不必知道它。
+let TOKEN = ''
 const sidecarLogPath = () => join(DATA_DIR, 'sidecar.log')
 
 /** 侧车诊断落盘：宿主 stdio 一崩就没了，退出码/尾部输出必须写到自己的文件里。 */
@@ -71,6 +74,8 @@ export function apply(ctx, rawConfig = {}) {
       ? join(HERE, 'data')
       : (/^[A-Za-z]:[\\/]/.test(want) || want.startsWith('/') ? want : join(HERE, want))
     try { mkdirSync(DATA_DIR, { recursive: true }) } catch { /* 已存在 */ }
+    // 空 token 不再等于放行：这里生成 / 读取，侧车那边解析到同一个值。
+    TOKEN = resolveToken({ explicit: rawConfig && rawConfig.token, dataDir: DATA_DIR })
   }
   const log = (...args) => {
     try {
@@ -251,6 +256,7 @@ export function apply(ctx, rawConfig = {}) {
   // ── 反代：游戏端与面板仍然只认 10722 ─────────────────────────────────────
   function proxy(req, res) {
     const headers = { ...req.headers, host: `127.0.0.1:${upstreamPort}` }
+    if (TOKEN) headers['x-chill-token'] = TOKEN   // 面板与浮窗都不持有 token，由宿主代贴
     const upstream = http.request({ host: '127.0.0.1', port: upstreamPort, method: req.method, path: req.url, headers }, (up) => {
       res.writeHead(up.statusCode || 502, up.headers)
       up.pipe(res)

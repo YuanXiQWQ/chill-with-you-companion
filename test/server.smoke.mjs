@@ -52,7 +52,7 @@ globalThis.fetch = async (url, init = {}) => {
 }
 
 const { apply } = await import('../brain.mjs') // 侧车化后：逻辑在 brain.mjs，index.js 只剩反代
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join as joinPath } from 'node:path'
 const sandboxData = mkdtempSync(joinPath(tmpdir(), 'chill-smoke-'))
@@ -70,6 +70,8 @@ const sandboxData = mkdtempSync(joinPath(tmpdir(), 'chill-smoke-'))
   const fakeHome = mkdtempSync(joinPath(tmpdir(), 'chill-dshhome-'))
   process.env.DSH_HOME = fakeHome
   process.env.DEEPSEEK_API_KEY = 'sk-test-not-a-real-key'
+  // 2026-11-14 起 token 不许为空：冒烟用例固定一个，别让它去写数据目录里的 token 文件。
+  process.env.CHILL_TOKEN = 'test-token-chill-smoke-0123456789abcdef'
 }
 
 apply(ctx, {
@@ -99,7 +101,9 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const base = `http://127.0.0.1:${server.address().port}`
 
 const call = async (path, init = {}) => {
-  const response = await realFetch(base + path, init)
+  // 鉴权头统一在这里贴：路由层已经不允许空 token 放行
+  const headers = { ...(init.headers || {}), 'x-chill-token': process.env.CHILL_TOKEN }
+  const response = await realFetch(base + path, { ...init, headers })
   const text = await response.text()
   let json = null
   try {
@@ -440,6 +444,28 @@ await check('focus_start 之后 state.json 真的写了 phase', async () => {
   // 回归：saveState 写过但 loadState 漏过——只测内存不测磁盘抓不到
   assert.equal(saved.phase, 'focus')
   assert.ok(saved.savedAt, 'state.json 该带 savedAt')
+  await call('/chill/v1/event', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'focus_end' }),
+  })
+})
+await check('外部改过 state.json，下一次保存不许盖回去', async () => {
+  // 2026-11-14 清理记忆时被这一下坑过：盘上清干净了，进程下一次保存把内存里的旧值
+  // 整份写回去，删了等于没删。规则：盘上被外部改过就以盘上为准。
+  const p = joinPath(sandboxData, 'state.json')
+  const edited = JSON.parse(readFileSync(p, 'utf8'))
+  edited.lastTopic = '外部改成这样'
+  edited.recentSubs = ['外部写入']
+  writeFileSync(p, JSON.stringify(edited, null, 2), 'utf8')
+  await call('/chill/v1/event', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'focus_start', minutes: 25 }),
+  })
+  const after = JSON.parse(readFileSync(p, 'utf8'))
+  assert.equal(after.lastTopic, '外部改成这样', '外部改过的 lastTopic 必须活下来')
+  assert.deepEqual(after.recentSubs, ['外部写入'], '外部改过的 recentSubs 也必须活下来')
   await call('/chill/v1/event', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
