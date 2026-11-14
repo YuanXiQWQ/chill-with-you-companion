@@ -1,0 +1,137 @@
+/**
+ * key 解析的四档优先级 —— 自定义必须永远赢过 dsh 借来的默认值。
+ *
+ *   ① provider.token（面板里填的 / /llm add 加的）
+ *   ② 环境变量（keyRef 指向的名字，用户自己设的）
+ *   ③ dsh 的 .credentials.yaml
+ *   ④ 宿主借来的 CHILL_DSH_KEY（仅当 CHILL_DSH_KEY_REF 与 keyRef 相同）
+ *
+ * 还有个硬要求：baseUrl / model / headers 是用户的配置，一个都不许被覆盖。
+ */
+import assert from 'node:assert/strict'
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createLlm } from '../lib/llm.mjs'
+
+let passed = 0
+const check = (label, fn) => { fn(); passed += 1; console.log('  ok  ' + label) }
+
+const KEY = { custom: 'sk-' + 'custom_from_panel', env: 'sk-' + 'from_user_env', file: 'sk-' + 'from_dsh_file', dsh: 'sk-' + 'borrowed_from_dsh' }
+
+const store = {
+  active: 'dsh-deepseek',
+  providers: [
+    {
+      id: 'dsh-deepseek',
+      label: 'DeepSeek · 跟 DSH 共用',
+      baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+      model: 'deepseek-flash',
+      keyRef: 'DEEPSEEK_API_KEY',
+    },
+    {
+      id: 'relay',
+      label: '我的中转',
+      baseUrl: 'https://relay.example.com/v1/chat/completions',
+      model: 'my-own-model',
+      token: KEY.custom,
+      headers: { 'x-org': 'mine' },
+    },
+    {
+      id: 'ark',
+      label: '豆包 ARK',
+      baseUrl: 'https://ark.example.com/api/v3/chat/completions',
+      model: 'doubao-pro',
+      keyRef: 'ARK_API_KEY',
+    },
+  ],
+}
+
+/** 每个用例一套干净环境：临时 dataDir + 临时 DSH_HOME，环境变量互相不串。 */
+const make = ({ active = 'dsh-deepseek', creds = null, env = {} } = {}) => {
+  const dir = mkdtempSync(join(tmpdir(), 'chill-llm-'))
+  const home = mkdtempSync(join(tmpdir(), 'chill-home-'))
+  writeFileSync(join(dir, 'llm.json'), JSON.stringify({ ...store, active }), 'utf8')
+  if (creds) {
+    // dsh 的凭据文件是两空格缩进的 refs: 段
+    writeFileSync(join(home, '.credentials.yaml'), 'refs:\n' + Object.entries(creds).map(([k, v]) => '  ' + k + ': "' + v + '"').join('\n') + '\n', 'utf8')
+  }
+  const saved = { DSH_HOME: process.env.DSH_HOME, DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY, ARK_API_KEY: process.env.ARK_API_KEY, CHILL_DSH_KEY: process.env.CHILL_DSH_KEY, CHILL_DSH_KEY_REF: process.env.CHILL_DSH_KEY_REF }
+  process.env.DSH_HOME = home
+  for (const k of ['DEEPSEEK_API_KEY', 'ARK_API_KEY', 'CHILL_DSH_KEY', 'CHILL_DSH_KEY_REF']) delete process.env[k]
+  Object.assign(process.env, env)
+  const llm = createLlm({ dataDir: dir, cfg: {}, existsSync, readFileSync, writeFileSync, mkdir: mkdirSync, join, log: () => {} })
+  const restore = () => {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v }
+  }
+  return { llm, dir, home, restore }
+}
+
+const run = (opts, pick) => { const h = make(opts); try { return pick(h) } finally { h.restore() } }
+
+console.log('# 四档优先级')
+check('① provider 自己的 token 最高——借来的 key 不参与', () => {
+  const out = run({ active: 'relay', env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, KEY.custom)
+})
+
+check('② 环境变量压过凭据文件与借来的 key', () => {
+  const out = run({ creds: { DEEPSEEK_API_KEY: KEY.file }, env: { DEEPSEEK_API_KEY: KEY.env, CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, KEY.env)
+})
+
+check('③ 环境变量没设时读 dsh 的凭据文件', () => {
+  const out = run({ creds: { DEEPSEEK_API_KEY: KEY.file }, env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, KEY.file)
+})
+
+check('④ 全都没有时才用宿主借来的', () => {
+  const out = run({ env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, KEY.dsh)
+})
+
+check('四档全空 → 空串（health 才会报 hasApiKey:false）', () => {
+  const out = run({}, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, '')
+})
+
+console.log('# 不许张冠李戴')
+check('借来的是 DeepSeek 的 key，选豆包时不使用它', () => {
+  const out = run({ active: 'ark', env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, '')
+  assert.equal(out.id, 'ark')
+})
+
+check('CHILL_DSH_KEY_REF 对上时才认（同名 keyRef 正常生效）', () => {
+  const out = run({ active: 'ark', env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'ARK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, KEY.dsh)
+})
+
+console.log('# 自定义配置不许被覆盖')
+check('baseUrl / model / headers 原样保留', () => {
+  const out = run({ active: 'relay' }, ({ llm }) => llm.resolve())
+  assert.equal(out.baseUrl, 'https://relay.example.com/v1/chat/completions')
+  assert.equal(out.model, 'my-own-model')
+  assert.deepEqual(out.headers, { 'x-org': 'mine' })
+})
+
+check('内置的 DeepSeek 那条也照旧是官方地址', () => {
+  const out = run({}, ({ llm }) => llm.resolve())
+  assert.equal(out.baseUrl, 'https://api.deepseek.com/v1/chat/completions')
+})
+
+check('面板视角的「配没配」与真解析一致（借来的也算配了）', () => {
+  const out = run({ env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'DEEPSEEK_API_KEY' } }, ({ llm }) => llm.view())
+  const ds = out.providers.find((p) => p.id === 'dsh-deepseek')
+  const ark = out.providers.find((p) => p.id === 'ark')
+  assert.equal(ds.hasKey, true)
+  assert.equal(ark.hasKey, false, 'ARK 没配却显示配了')
+})
+
+check('面板视角不吐出 key 本身', () => {
+  const out = run({ active: 'relay' }, ({ llm }) => llm.view())
+  const s = JSON.stringify(out)
+  assert.equal(s.includes(KEY.custom), false, 'view() 把 token 漏出去了')
+})
+
+console.log('\nPASS ' + passed + ' llm-key checks')

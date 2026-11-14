@@ -225,11 +225,15 @@ Select-String "$GAME\BepInEx\LogOutput.log" -Pattern 'ChillPerformer' | Select-O
 把安装机 dsh 里已经在用的那份凭据通过环境变量交给侧车。`keyRef` 默认 `DEEPSEEK_API_KEY`，
 可以在 `cordis.patch.yml` 的 `keyRef` 改。
 
-解析不到时才按下面顺序回退，**前面找到就不看后面**：
+**自定义永远优先**，借来的只是最低一档兜底。四档从高到低，前面找到就不看后面：
 
-1. 环境变量（`keyRef` 指向的变量名，默认 `DEEPSEEK_API_KEY`）
-2. `<DSH_HOME>/.credentials.yaml`
-3. `<数据目录>/llm.json` 里对应 provider 的 `token` 字段
+1. provider 自己的 `token`（面板「模型」里填的、`/llm add` 加的）
+2. 环境变量（`keyRef` 指向的变量名，默认 `DEEPSEEK_API_KEY`）
+3. `<DSH_HOME>/.credentials.yaml` 的 `refs:` 段
+4. 宿主借来的 `CHILL_DSH_KEY`（仅当 `CHILL_DSH_KEY_REF` 与 `keyRef` 相同）
+
+`baseUrl` / `model` / `headers` 同理：面板里改了就按你改的发请求。想完全不用 dsh 的 key
+（自建中转、本地模型、别家 API），面板里新增一条 provider 即可。
 
 ```powershell
 $env:DEEPSEEK_API_KEY = "sk-..."

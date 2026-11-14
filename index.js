@@ -117,7 +117,10 @@ export function apply(ctx, rawConfig = {}) {
     const cred = await pickDshCredential(ctx, (rawConfig && rawConfig.keyRef) || 'DEEPSEEK_API_KEY')
     const env = { ...process.env, CHILL_BRAIN_PORT: String(PORT), CHILL_BRAIN_CONFIG: JSON.stringify(rawConfig || {}) }
     if (cred) {
-      env[cred.keyRef] = cred.value
+      // 用独立变量名，不写 env[cred.keyRef]：用户自己设的 DEEPSEEK_API_KEY 不能被顶掉，
+      // 那份是他显式配置，优先级高于这里借来的 default。
+      env.CHILL_DSH_KEY = cred.value
+      env.CHILL_DSH_KEY_REF = cred.keyRef
       env.CHILL_KEY_SOURCE = cred.source
       log('key from dsh credentials', { ref: cred.keyRef, source: cred.source })   // 只报来源，不报值
     }

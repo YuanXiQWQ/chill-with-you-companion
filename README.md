@@ -270,7 +270,19 @@ curl.exe http://127.0.0.1:10722/chill/v1/health
 （`keyRef` 默认 `DEEPSEEK_API_KEY`），把解析到的凭据通过环境变量交给侧车——
 也就是你在 `dsh` 里配的那一份，插件的对话与记忆用的就是它。
 
-解析不到时按顺序再试：`<DSH_HOME>/.credentials.yaml` → `llm.json` 里的 `token` →
+**自定义永远优先。** dsh 借来的 key 只是最低一档兜底，四档从高到低：
+
+| # | 来源 | 怎么配 |
+| --- | --- | --- |
+| ① | provider 自己的 `token` | 面板「模型」里填，或 `/llm add --token` |
+| ② | 你自己设的环境变量 | `$env:DEEPSEEK_API_KEY = "sk-..."` |
+| ③ | `<DSH_HOME>/.credentials.yaml` 的 `refs:` 段 | dsh 自己写的那份 |
+| ④ | 安装机 dsh 借来的 | 什么都不用做，默认就有 |
+
+`baseUrl` / `model` / `headers` 同理：面板里改了就按你改的发请求，插件不覆盖。
+想完全绕开 dsh（自建中转、本地模型、别家 API），只要在面板「模型」里新增一条即可。
+
+面板上 `health.hasApiKey` 为 `false` 表示四档全空。
 面板「模型」页手填。三种都没有时 `health.hasApiKey` 为 `false`，表现是"能回话但不出声/直接报错"。
 
 `/chill/v1/health` 的 `keySource` 字段会告诉你 key 来自哪（`dsh` / 文件名 / `env` / `none`），
