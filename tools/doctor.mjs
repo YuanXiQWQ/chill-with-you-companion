@@ -19,6 +19,7 @@
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, isAbsolute } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -130,13 +131,42 @@ const token = tryRead(tokenFile).trim()
 }
 
 // ---------------------------------------------------------------- 4. 游戏本体
+// 路径一律现算，不写字面量盘符：本文件是随包分发的，写死 'C:/Program Files (x86)/Steam'
+// 会让发布体检查出"本机路径"，也会在装在非默认盘的人机器上失效。
+const steamRoots = (() => {
+  const out = []
+  const push = (p) => {
+    const v = String(p || '').trim()
+    if (v && !out.includes(v)) out.push(v)
+  }
+  push(process.env.CHILL_STEAM_ROOT)
+  // ① 注册表（Windows）：HKCU\Software\Valve\Steam 的 SteamPath 是正斜杠写法
+  try {
+    const r = spawnSync('reg', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { encoding: 'utf8', timeout: 4000 })
+    const m = /SteamPath\s+REG_SZ\s+(.+)/.exec(r.stdout || '')
+    if (m) push(m[1].trim().replace(/\//g, '\\'))
+  } catch {
+    /* 非 Windows 或没有注册表：跳过 */
+  }
+  // ② 环境变量给的安装位置
+  for (const key of ['ProgramFiles(x86)', 'ProgramFiles', 'ProgramW6432']) {
+    const base = process.env[key]
+    if (base) push(join(base, 'Steam'))
+  }
+  return out
+})()
 const gameDir = (() => {
   const given = val('--game') || process.env.CHILL_GAME_DIR
   if (given && existsSync(given)) return given
-  // Steam 库：从 libraryfolders.vdf 里读，别全盘扫（慢且吵）
-  const vdf = ['C:/Program Files (x86)/Steam/steamapps/libraryfolders.vdf', 'C:/Program Files/Steam/steamapps/libraryfolders.vdf'].map(tryRead).find(Boolean) || ''
-  const libs = [...vdf.matchAll(/"path"\s+"([^"]+)"/g)].map((m) => m[1].replace(/\\\\/g, '\\'))
-  const roots = [...new Set([...libs, 'C:/Program Files (x86)/Steam', 'C:/Program Files/Steam', 'D:/Steam', 'D:/SteamLibrary', 'E:/SteamLibrary', 'E:/Steam', 'F:/SteamLibrary'])]
+  // ③ 从每个 Steam 根的 libraryfolders.vdf 里读附加库，别全盘扫（慢且吵）
+  const roots = [...steamRoots]
+  for (const root of steamRoots) {
+    const vdf = tryRead(join(root, 'steamapps', 'libraryfolders.vdf'))
+    for (const m of vdf.matchAll(/"path"\s+"([^"]+)"/g)) {
+      const p = m[1].replace(/\\\\/g, '\\')
+      if (!roots.includes(p)) roots.push(p)
+    }
+  }
   for (const r of roots) {
     const p = join(r, 'steamapps', 'common')
     if (!existsSync(p)) continue
