@@ -3,6 +3,12 @@
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 内置只剩「与对话共用」一条
+
+模型页的默认清单里现在只有 **DeepSeek · 与对话共用**。本地 llama.cpp / ollama 也从内置移除——
+要本地模型就在「再加一条」里填 `http://127.0.0.1:8080/v1/chat/completions`（或你的端口）+ 模型名，
+key 留空即可。老 `llm.json` 里已有的 `local` / `dsh-ark` 条目照旧保留，只是不再算内置。
+
 ## 去掉内置的豆包 ARK
 
 模型页只留两条内置：**DeepSeek · 与对话共用**（默认）和本地 llama.cpp / ollama。

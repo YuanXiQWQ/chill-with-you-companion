@@ -213,11 +213,11 @@ check('自定义那条的 baseUrl / model 原样生效', () => {
 })
 
 console.log('# 内置清单')
-check('内置只有两条：与对话共用 + 本地，不包含豆包', () => {
+check('内置只有一条：与对话共用（豆包、本地都不在默认清单里）', () => {
   const dir = mkdtempSync(join(tmpdir(), 'chill-empty-'))
   const llm = createLlm({ dataDir: dir, cfg: {}, existsSync, readFileSync, writeFileSync, mkdir: mkdirSync, join, log: () => {} })
   const ids = llm.view().providers.map((x) => x.id)
-  assert.deepEqual(ids, ['dsh-deepseek', 'local'])
+  assert.deepEqual(ids, ['dsh-deepseek'])
 })
 
 check('老 llm.json 里自己留着的 dsh-ark 不会被删（那是用户的东西）', () => {
