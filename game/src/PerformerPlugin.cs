@@ -520,7 +520,7 @@ namespace ChillPerformer
               .Append(",\"remainingMs\":").Append(clipActive ? Mathf.Max(0f, (clipLen + (Plugin.ReleaseMs == null ? 300f : Plugin.ReleaseMs.Value) / 1000f - (Time.time - clipT0)) * 1000f) : 0f)
                 .Append(",\"skippedRepeat\":").Append(skippedRepeat)
               .Append(",\"active\":\"").Append(Js(clipActive && activeClip != null ? activeClip.name : ""))
-              .Append("\",\"base\":\"").Append(Js(activeBase)).Append("\"}");
+              .Append("\",\"base\":\"").Append(Js(activeBase)).Append("\",\"live\":\"").Append(Js(LiveClipName())).Append("\"}");
             sb.Append(",\"fps\":").Append(fps);
             sb.Append(",\"focus\":").Append(GameBusy.FocusMode ? "true" : "false");
             sb.Append(",\"pomTexts\":").Append(GameBusy.PomodoroCandidates);
@@ -1457,6 +1457,27 @@ namespace ChillPerformer
             return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
         }
 
+        // 游戏 Animator 当前播放的 clip（权重最大的那条）。读不到就返回空串，
+        // 上层拿到空串一律按"不知道"处理，不做拦截。
+        private string LiveClipName()
+        {
+            try
+            {
+                if (heroine == null || !heroine.isActiveAndEnabled) return "";
+                var infos = heroine.GetCurrentAnimatorClipInfo(0);
+                string best = "";
+                float bestW = -1f;
+                for (int i = 0; i < infos.Length; i++)
+                {
+                    var c = infos[i].clip;
+                    if (c == null) continue;
+                    float w = infos[i].weight;
+                    if (w > bestW) { bestW = w; best = c.name; }
+                }
+                return best ?? "";
+            }
+            catch { return ""; }
+        }
         private void ReleaseBaseGameCache()
         {
             baseGameValid = false;

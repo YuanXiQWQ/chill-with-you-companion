@@ -67,7 +67,7 @@ import {
   summarizeForPrompt,
 } from './lib/assets.js'
 
-import { planSequence, classifyClip, enforceContentClass, isOffChair, MOTION_CLASS } from './lib/motion-class.js'
+import { planSequence, classifyClip, enforceContentClass, isOffChair, offSeatIdle, seatGuard, MOTION_CLASS } from './lib/motion-class.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
@@ -1044,6 +1044,27 @@ const runTurn = async (userText, options = {}) => {
       : null
     // 闸门：内容明确指向某类动作（喝/写/累/走）而模型选的类别完全不符，就换掉。
     // 提示词只是建议，这里才是保证；只覆盖"完全不符"，不敢动模型的部分正确选择。
+    // 每轮编排动作之前先检测她此刻的待机：她要是正离座（沙发/走去拿东西那几族），
+    // 这一轮整段不排动作。身体不在椅子上时插入没有落点，把她拽回来比不演更难看。
+    if (cues && cues.length > 0) {
+      try {
+        const liveSnap = game.snapshot() || {}
+        const had = cues.filter((c) => c && c.slot === 'animations').map((c) => c.id)
+        const seat = seatGuard(cues, liveSnap)
+        if (seat.skipped) {
+          cues = seat.cues
+          log('[perf] 离座待机，本轮不编排: ' + seat.skipped + (had.length ? ' (原本要演 ' + had.join(',') + ')' : ''))
+          // 落盘一份，方便事后核对"这一轮为什么不演"（log 走宿主 logger，不进数据目录）
+          try {
+            appendFileSync(((cfg && cfg.dataDir) || ".") + "/gate.log", JSON.stringify({
+              at: new Date().toISOString(), seat: seat.skipped, text: String(userText || "").slice(0, 40), dropped: had
+            }) + "\n")
+          } catch { /* 诊断失败不影响演出 */ }
+        }
+      } catch (error) {
+        log('[perf] 待机检测失败，按坐姿照常编排: ' + (error && error.message))
+      }
+    }
     if (cues && cues.length > 0) {
       try {
         const snap = game.snapshot() || {}
