@@ -21,6 +21,63 @@ namespace ChillPerformer
     [BepInPlugin(Guid, "ChillPerformer", "0.1.0")]
     public class Plugin : BaseUnityPlugin
     {
+
+    private static WatchRecorder watcher;
+
+    private static Animator FindHeroineForWatch()
+    {
+        try
+        {
+            foreach (var an in Resources.FindObjectsOfTypeAll<Animator>())
+            {
+                if (an == null || an.runtimeAnimatorController == null) continue;
+                if (!an.gameObject.scene.IsValid() || !an.gameObject.activeInHierarchy) continue;
+                if (an.runtimeAnimatorController.name.IndexOf("Character", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                return an;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    private static float watchNextAt;
+    private static string watchLast = "";
+
+    // 旁观记录：游戏自己演的时候，人往哪走、哪台相机在拍
+    public static void WatchTick()
+    {
+        if (Time.unscaledTime < watchNextAt) return;
+        watchNextAt = Time.unscaledTime + 0.4f;
+        try
+        {
+            string live = "?";
+            Vector3 rootPos = Vector3.zero;
+            string camName = "-";
+            var heroine = FindHeroineForWatch();
+            if (heroine != null)
+            {
+                rootPos = heroine.transform.position;
+                var infos = heroine.GetCurrentAnimatorClipInfo(0);
+                if (infos != null && infos.Length > 0 && infos[0].clip != null) live = infos[0].clip.name;
+            }
+            var cam = Camera.main;
+            if (cam != null) camName = cam.gameObject.name;
+            string sig = live + "|" + camName + "|" + rootPos.ToString("F2");
+            if (sig == watchLast) return;
+            watchLast = sig;
+            Log.LogInfo("watch: clip=" + live + " cam=" + camName + " root=" + rootPos.ToString("F2"));
+        }
+        catch (Exception ex) { Log.LogError("watch failed: " + ex); }
+    }
+
+    public static void EnsureWatcher()
+    {
+        if (watcher != null) return;
+        var go = new GameObject("ChillPerformerWatch");
+        DontDestroyOnLoad(go);
+        watcher = go.AddComponent<WatchRecorder>();
+    Log.LogInfo("watcher up");
+    }
         public const string Guid = "local.chill.performer";
 
         internal static ManualLogSource Log;
@@ -70,6 +127,7 @@ namespace ChillPerformer
         internal static ConfigEntry<bool> FollowGameMixer;
         public static ConfigEntry<bool> Props;
         public static ConfigEntry<bool> TripWalk;
+        public static ConfigEntry<bool> RoomView;
         internal static ConfigEntry<string> MixerGroupMatch;
         internal static ConfigEntry<string> MixerGroupFallback;
         internal static ConfigEntry<bool> QueueEnabled;
@@ -81,7 +139,7 @@ namespace ChillPerformer
 
         private void Awake()
         {
-            Log = Logger;
+                    Log = Logger;
             BrainBaseUrl = Config.Bind("brain", "BaseUrl", "http://127.0.0.1:10722/chill/v1",
                 "chill-brain base url (DSH plugin). Keep the /chill/v1 prefix.");
             ApiToken = Config.Bind("brain", "Token", "",
@@ -96,6 +154,9 @@ namespace ChillPerformer
             // 手动走位：离座时把角色根送到沙发/床边。默认关——
             // 这些 clip 是原地动画（rootΔ=0），游戏是在别处摆好位置再播的，硬塞位移会把人放到镜头外。
             TripWalk = Config.Bind("acting", "TripWalk", false, "Move the character root during leave-chair clips. Off by default.");
+            // 离座时切房间相机（Camera_Sofa / Camera_Bed）。默认关：游戏的视野本来不变，
+            // 人是自己走到沙发坐下的。
+            RoomView = Config.Bind("acting", "RoomView", false, "Switch room camera during leave-chair. Off by default.");
             MixerGroupMatch = Config.Bind("audio", "MixerGroupMatch", "voice", "Keyword(s) that pick the mixer group, comma separated, case-insensitive. First match wins.");
             MixerGroupFallback = Config.Bind("audio", "MixerGroupFallback", "master", "Fallback keyword(s) when nothing matches MixerGroupMatch. Empty = leave the source unmixed (old behaviour).");
             QueueEnabled = Config.Bind("queue", "Enabled", true, "Queue incoming cues locally and play them one after another. False = old behaviour, only the newest item is performed.");
@@ -156,6 +217,7 @@ namespace ChillPerformer
             DontDestroyOnLoad(host);
             host.hideFlags = HideFlags.HideAndDontSave;
             host.AddComponent<PerformerUI>();
+    EnsureWatcher();
 
             Log.LogInfo("ChillPerformer awake. brain=" + BrainBaseUrl.Value);
             Uri parsedBase;
@@ -260,6 +322,40 @@ namespace ChillPerformer
         public string model;
         public bool hasApiKey;
         public int memoryTurns;
+    }
+
+    // 纯旁观：游戏自己演的时候，人往哪走、哪台相机在拍。
+    internal class WatchRecorder : MonoBehaviour
+    {
+        private float nextAt;
+        private string last = "";
+        private void Update()
+        {
+if (Time.unscaledTime < nextAt) return;
+            nextAt = Time.unscaledTime + 0.4f;
+            try
+            {
+                string live = "?";
+                Vector3 rootPos = Vector3.zero;
+                string camName = "-";
+                Animator heroine = null;
+                var chGo = GameObject.Find("Character");
+                if (chGo != null) heroine = chGo.GetComponent<Animator>();
+                if (heroine != null)
+                {
+                    rootPos = heroine.transform.position;
+                    var infos = heroine.GetCurrentAnimatorClipInfo(0);
+                    if (infos != null && infos.Length > 0 && infos[0].clip != null) live = infos[0].clip.name;
+                }
+                var cam = Camera.main;
+                if (cam != null) camName = cam.gameObject.name;
+                string sig = live + "|" + camName + "|" + rootPos.ToString("F2");
+                if (sig == last) return;
+                last = sig;
+                Plugin.Log.LogInfo("watch: clip=" + live + " cam=" + camName + " root=" + rootPos.ToString("F2"));
+            }
+            catch { }
+        }
     }
 
     internal class PerformerUI : MonoBehaviour
@@ -955,7 +1051,7 @@ namespace ChillPerformer
                         clipActive = false; ReleaseBaseGameCache(); exitValid = false;
                         exitSmooth = null;
                         lastFamilyEnd = Time.time;
-                        Plugin.Log.LogInfo("rootΔ=" + (rootStartValid && bones != null && bones.Length > 0 ? (bones[0].localPosition - rootAtClipStart).magnitude.ToString("F2") : "-") + "m " + "clip done: " + activeClip.name + " frames=" + dbgFrames
+                        Plugin.Log.LogInfo("hipsΔ=" + (hipsIdx >= 0 && bones != null && hipsIdx < bones.Length ? (bones[hipsIdx].localPosition - hipsAtStart).magnitude.ToString("F2") : "-") + "m " + "rootΔ=" + (rootStartValid && bones != null && bones.Length > 0 ? (bones[0].localPosition - rootAtClipStart).magnitude.ToString("F2") : "-") + "m " + "clip done: " + activeClip.name + " frames=" + dbgFrames
                             + " peakHead=" + headSpeedMax.ToString("F0") + "dps@t" + dbgPeakAt.ToString("F2") + "s/dt" + (dbgPeakDt * 1000f).ToString("F1") + "ms dev=" + headDevDeg.ToString("F1") + "deg"
                 + " amp=head" + dbgAmpHead.ToString("F1") + "/body" + dbgAmpBody.ToString("F1") + "deg"
                 + " clamp=" + dbgClamped + "\u00b0t" + dbgClampFirst.ToString("F2") + "/" + dbgClampAt.ToString("F2") + "s/" + dbgClampBone + "\u00b0" + dbgClampMax.ToString("F0") + "d"
@@ -1075,6 +1171,7 @@ namespace ChillPerformer
 
         private void Update()
         {
+            Plugin.WatchTick();
             GameBusy.Tick();
             // 换场景后旧的 heroine / Animator / SkinnedMesh 全部失效，不重建就会永久静默
             string sc = GameBusy.SceneName;
@@ -1243,6 +1340,9 @@ namespace ChillPerformer
         // 根位移：离座/行走类 clip 必须放行，否则"走到沙发"这件事被写回逻辑抹掉，
         // 人只在画面里原地做动作。按住段则把根冻在走到的位置。
         private bool posFree;
+        // 诊断：髋骨位移有多大（她到底有没有走开）
+        private int hipsIdx = -1;
+        private Vector3 hipsAtStart;
         // 沙发锚点：按名字现找（离座动画是原地动画，位移得我们自己给）
         private Transform tripAnchor;
         // 房间相机：游戏靠切换它们换视角（Camera_Desk / Camera_Sofa / Camera_Bed）
@@ -1888,28 +1988,7 @@ namespace ChillPerformer
                 float d = Quaternion.Angle(lastRot[i], q);
                 lastRot[i] = q;
                 tr.localRotation = q;
-                if (i == 0)
-                {
-                    if (posFree)
-                    {
-                        // 放行：采样已经把根移到该去的地方，记下来给按住段用
-                        heldPos = tr.localPosition;
-                        heldPosValid = true;
-                    }
-                    else if (heldPosValid && segHoldTotal > 0f)
-                    {
-                        // 在沙发上"待着"：根冻在走到的位置，不然她会被拽回椅子
-                        tr.localPosition = heldPos;
-                    }
-                    else
-                    {
-                        tr.localPosition = gamePos[i];
-                    }
-                }
-                else
-                {
-                    tr.localPosition = gamePos[i];
-                }
+                // 位置不再写回：采样给的绝对值就是答案。写回会把髋骨/根的位移整条抹掉。
                 dbgMaxDeg = Mathf.Max(dbgMaxDeg, d);
                 if (isHead)
                 {
@@ -2055,6 +2134,12 @@ private void EnsureBones()
                 }
             }
             catch (Exception ex) { Plugin.Log.LogInfo("cam scan failed: " + ex.Message); }
+            for (int hi = 0; hi < list.Length; hi++)
+            {
+                var hn = list[hi].name ?? "";
+                if (hn.IndexOf("hips", StringComparison.OrdinalIgnoreCase) >= 0) { hipsIdx = hi; break; }
+            }
+            Plugin.Log.LogInfo("hips idx=" + hipsIdx);
             Plugin.Log.LogInfo("bones cached: " + list.Length + " under " + root.name);
             // 离座动画是原地动画（根位移 0）：想真到沙发上去，得先知道沙发在哪。
             try
@@ -2188,6 +2273,7 @@ private void EnsureBones()
             // 量完才知道该多快、多重：这是唯一决定"动作多大、多快"的地方
             planFamily = StripSuffix(clipName);
             // 需要走位的那几族：离座、行走。它们不改写根位移就没有意义。
+            if (hipsIdx >= 0 && bones != null && hipsIdx < bones.Length) hipsAtStart = bones[hipsIdx].localPosition;
             posFree = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
                 || clipName.IndexOf("_walk", StringComparison.OrdinalIgnoreCase) >= 0
                 || clipName.IndexOf("_run", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -2208,15 +2294,15 @@ private void EnsureBones()
             // 换房间视角：游戏自己就是靠 Camera_Sofa / Camera_Bed 切的
             bool isSofa = clipName.IndexOf("_sofa", StringComparison.OrdinalIgnoreCase) >= 0;
             bool isBed = clipName.IndexOf("_bed", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (isGo && (isSofa || isBed)) SetRoomView(isSofa ? "sofa" : "bed");
-            if (isBack) SetRoomView("desk");
+            if (Plugin.RoomView != null && Plugin.RoomView.Value && isGo && (isSofa || isBed)) SetRoomView(isSofa ? "sofa" : "bed");
+            if (Plugin.RoomView != null && Plugin.RoomView.Value && isBack) SetRoomView("desk");
             if ((isGo || isBack) && bones != null && bones.Length > 0)
             {
                 var anchor = FindTripAnchor();
                 if (anchor != null)
                 {
                     // 有对应的房间相机时，位置必须跟上——否则镜头切过去拍到的是空沙发
-                tripWalking = (isSofa || isBed) || (Plugin.TripWalk != null && Plugin.TripWalk.Value);
+                tripWalking = (Plugin.TripWalk != null && Plugin.TripWalk.Value);
                     tripFromWorld = bones[0].position;
                     if (isGo)
                     {
