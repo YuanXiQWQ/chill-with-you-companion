@@ -1,8 +1,207 @@
+## [Unreleased]
+
+### 重构：动作管道改为「预算 + 乘法」
+
+- **删除**整条截断链：`MaxDegPerSec`、`HeadMaxDegPerSec`、`HeadLowPassHz`、`HeadFollowHz`、`HeadReversalHz`、`HeadDeadZoneDeg`、`HeadMaxDevDeg`、`HeadNodMaxDevDeg`
+- **新增**播前测量 `MeasureAndPlan()`：沿时间轴采样整段 clip，量出身体/头部的峰值幅度与峰值角速度，结果同步到 `/game` 的 `motion` 块
+- **新增**预算式缩放：幅度超预算按比例降权重，速度超预算按比例放慢时间轴（`BodyDegBudget` / `HeadDegBudget` / `BodySpeedBudget` / `HeadSpeedBudget` / `MaxSlowdown`）
+- 保留：`SpeedCap`（不为塞进 `d` 无上限加速）、`RepeatWindowMs`、`FamilyGraceMs`、`MaxClipSec`、`ReleaseMs`、`HeadFadeMs`
+- 新增宽松 clip 名查找 `LookupLoose()`：`X_loop` 能命中 `anim_X_loop`，不再退化成整组重演
+
+> 起因：「鬼畜点头 / 连点好几下」反复调不好，根因是截断型限制器在削平的峰处产生谐波。
+> 改成乘法缩放后，动作只可能变小变慢，不会变多。
+
 # 变更记录
 
 本文件记录每个版本的可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 编排收敛：一个展开点（2026-11-15）
+
+`planSequence` 与 `chainStartToLoop` 原来**都能决定下发内容**：前者把一条动作摊成
+start→loop→end，后者再摊一次。于是同一段同 `at` 会下发两遍（第二句曾出现两条
+`movie_sub_laugh_start@160`），而且规则加在前者会被后者覆盖 —— 改了没效果。
+
+现在只有一条通路：
+
+| 阶段 | 谁 | 只做什么 |
+| --- | --- | --- |
+| 排序 | `planSequence` | 定顺序、避开层切换、给过渡时间；**一条动作就是一条** |
+| 展开 | `chainStartToLoop` | 定形态（手势单段 / 道具姿态位移整族）、延续（20s 内接 loop）、接队（queueAhead>0 时不出 `_start`） |
+| 出口 | `dedupe` | 同 `slot|id|at` 只留一条 |
+
+顺带修的分类 bug：`anim_break_tea_base_loop` 这类**场景 base 循环**被 token 里的 `tea`
+判成 prop，编排会去"演她正在做的待机"。现在 `_(base|subbase\d*|idle|breath)(_loop)?$` 一律 idle，
+`_single`（单段版）后缀判类前先剥掉。
+
+回归：`run-tests` 21/21、`verify-motion` 36/36、`eval-motion 3` 18/18、`test-live` **14/14**。
+`verify-motion` 新增两条钉子：「planSequence 只排不展开」「planSequence 不产出 loop 段」。
+## 排队衔接：上一段收尾直接当下一段的起步（2026-11-15）
+
+排队原来是「演完 → 归还待机 → 等 250ms → 下一套重新起手」，句与句之间必然有一个回待机的空档。
+现在两头都做了检测：
+
+| 端 | 检测 | 行为 |
+| --- | --- | --- |
+| 插件 | `HasAnimPending()`（逐帧） | 归还途中一来新动作，归还窗口压到 **50ms**；句间空档归零 |
+| 插件 | 释放瞬间 | 她的最后姿势存进 `prevPose`，下一套以它起步（短淡入 120ms），`chainEntry` 标记 → 日志 `chain:` |
+| 编排 | `queueAheadNow()` = 队列深度 + 是否正在演 | >0 时不发自己的 `_start`，直接给身体段（`_loop`/裸名），会话入队 |
+
+顺带修掉一个老 bug：`planSequence` 与 `chainStartToLoop` 各自会补进入段，同一段同 `at`
+会出现两次（第二句曾下发两条 `movie_sub_laugh_start@160`）。现在出口统一去重。
+
+实测（两句同时发，第二句必然排在第一句后面）：
+
+```
+queue: play seq=…354 depth=0 waited=0.2s
+handoff dev=0.00deg rel=50ms pending=1     ← 归还被压到 50ms
+chain: 下一套接上（起点=当前姿势）
+queue: play seq=…355 depth=0 waited=3.1s   ← 上一套真的演完了才放
+handoff dev=0.00deg rel=713ms pending=0    ← 队里空了，恢复按距离伸缩的归还
+```
+
+`waited=3.1s` 就是"动作完整播完之后再放下一套"的证据：第二条从入队到起手等了整整一个动作时长。
+`rel=50ms` 与 `rel=713ms` 的对比说明归还窗口是跟着队列状态走的，不是固定值。
+
+回归：`run-tests` 21/21、`verify-motion` 36/36、`eval-motion 3` 18/18、`test-live` 13/13。
+## 编排按内容定形态，动作不再"每句话做一个完整动作"（2026-11-15）
+
+解绑之后还剩下三处不自然，都用游戏自己的行为校正：
+
+| 问题 | 之前 | 现在 |
+| --- | --- | --- |
+| 手势被摊成整族 | 点头也走 `start→loop→end`，2327→5160ms | 手势只演自己那一段（2167ms） |
+| 同一件事重复起手 | 刚喝完茶，下一句又 `start→loop→end` 重来一遍 | 同族 20s 内延续：只 hold 它的 `loop`（1167ms，带 `continued` 标记） |
+| 动作规模与内容无关 | 短应答与长叙述一样铺满 5 秒 | 形态由类别决定：手势=单段，道具/姿态/位移=整族 |
+
+实现落在真正执行编排的函数 `chainStartToLoop`（`planSequence` 只做排序与冲突串行化，
+之前改在它上面会被后面的展开覆盖掉——这也是"改了没效果"的老坑）。
+`perfMemo` 记住上一段的家族与时间，跨句延续；超过 20s 视为冷了，重新起手。
+
+实测：
+
+```
+喝茶        4327ms  drink@160+1833  drink_loop@1993+1167  drink_end@3160+1167
+接着喝      1327ms  drink_loop@160+1167 (续)
+点头        2327ms  sub_nod@160+2167
+打哈欠      5793ms  yawn_1_start@160+2333  loop@2493+300  end@2793+3000
+```
+
+回归：`run-tests` 21/21、`verify-motion` 36/36、`eval-motion 3` 18/18。
+## 表演与语音解绑，只有口型跟音频（2026-11-15）
+
+之前身体是"追着语音走"的：静音时长短就压缩、长就重复循环，同一句话说快说慢她会演得不一样。
+现在**表演按游戏自己的节奏**，口型仍然严格跟音频。
+
+四处耦合逐一解开：
+
+| 位置 | 之前 | 现在 |
+| --- | --- | --- |
+| `planSequence` 三段展开 | `loop` 按说话长度重复 `ceil(speech/loop)` 次 | `loop` 只走**一拍**（夹到 300–2600ms） |
+| `brain.chainStartToLoop` | `end` 挂在"语音结束前"，`loop` 填满空隙 | `end` 紧接 `loop`；整组 >9s 才不插循环 |
+| `brain.normalizeCueTiming` | 起手时刻按语音窗口归一化压缩 | 只保证组内顺序 + 相邻动作 ≥160ms 间隔 |
+| 插件 `clipLen` | 指令 `durationMs` 可把 clip 撑到 **1.35 倍** | 取 clip 自然时长（`natural`） |
+
+留下的 `durationMs` 只有两个用途，都与表演无关：语音播放（`hold = 语音时长 + 1.2s`）与口型帧表。
+
+离线证明（同一条动作，语音 1.5s / 4s / 12s）：
+
+```
+语音  1500ms → 表演 4767ms  start@0+1167  loop@1167+2600  end@3767+1000
+语音  4000ms → 表演 4767ms  start@0+1167  loop@1167+2600  end@3767+1000
+语音 12000ms → 表演 4767ms  start@0+1167  loop@1167+2600  end@3767+1000
+```
+
+游戏内实测时间线（全部只由游戏的段时长决定）：
+
+```
+break_movie_sub_laugh  start@160+1500 loop@1660+2500 end@4160+1000  = 5160ms
+break_tea_sub_drink    start@160+1833 loop@1993+1167 end@3160+1167  = 4327ms
+break_yawn_1           start@160+2333 loop@2493+300  end@2793+3000  = 5793ms
+```
+
+顺带把 `verify-motion` 的旧断言（"三段覆盖说话长度"）改成两条新不变量：
+**同一条表演在 1.5s 与 12s 语音下时间线完全一致**、**loop 只走一拍**。现在 36/36。
+## 起手与回归：按「插入」来做（2026-11-15）
+
+我们是插进游戏里的表演，不是接管的动画机。两头都要自己负责：
+
+- **起手**：`CaptureGamePose()` 让 Animator 当场求值再读，从她此刻的姿势进（之前用的是可能过期的缓存）。
+- **回归**：目标改成**游戏正在跑的那段待机，每帧重取**，淡出追着移动的目标走，最后一帧精确落位。
+  固定快照 + 固定 300ms 收回 = 交回一个死姿势，实测交接差 22.58°。
+- 归还时长按真实距离给：`clamp(0.30 + maxDeg/180, 0.30, 0.90)`。
+
+实测交接差：`drink 0.00°` / `yawn 0.71°` / `nod 0.00°`，归还 747–898ms。
+
+被证伪并记录的做法：**直接改游戏正在跑的待机**（`Animator.CrossFadeInFixedTime`）——
+它认的是状态名，我们只有 clip 名，8/8 次 `held=False`，且游戏自己的待机状态机会继续推进。
+详见 `docs/起手与回归.md`。
+## 参考游戏完整动画（2026-11-15）
+
+之前编排只认识 389 条子集。现在把游戏运行时能被驱动的**全部动作**导出来当依据：
+
+- `clipdump`（VerboseCues 时输出，纯只读）→ `tools/collect-clips.mjs` → `game/clips.full.json`
+  **477 段动作 / 243 个家族**（另有 71 段椅子、笔、环境物、UI 的 clip）。
+- `tools/gen-anime-table.mjs` → `docs/动画全表.md`（人看）+ `lib/game-grammar.json`（编排用）。
+- 看清的三件事：
+  1. 家族形态：`start+loop+end` 48、`single` 154、纯 `loop` 20、其它 21 —— 三段式是游戏自己的"进入→保持→退出"。
+  2. **坐姿由椅子给**：`m_Chair_mobile` 上 71 段 clip 负责把她带到座位上，演坐着的事不用再补坐姿。
+  3. 非表演类必须排除：`ui_*`（`ui_levelup_none` 60 秒）、`env_*`（摩天轮 600 秒）、`start*` 开场运镜、
+     `item_*` 翻页 —— 当动作发下去她会"消失"或定格一分钟。已加 `isPerformanceClip()`，清单与候选都过滤。
+
+分类同时补齐：揉眼睛/听歌/转笔 → 手势，翻页/转笔 → 道具，`X_base` 段 → 待机
+（注意 `base001` 是子动作名，不是基础姿态，按 token 匹配会把整族判错，已改成按**段名后缀**判）。
+
+全量语法表落地后回归：`node tools/verify-motion.mjs` 35/35、`node tools/run-tests.mjs` 21/21、
+`node tools/eval-motion.mjs 2` 12/12（类别与内容全对）。
+## 游戏内实测修的四条（2026-11-15，开着游戏量出来的）
+
+判据只有一条：**规划侧预测的幅度，等于落地后的幅度**。都带日志证据。
+
+1. **叠加基底自乘**（首段点头 `peakHead=10519dps dev=119.6°`）
+   叠加路径每帧把 `bones[i].localRotation` 抓进 `gameRot`，而那个值上一帧刚被我们写回。
+   于是 `delta` 每帧乘自己，越滚越大。修法：缓存"游戏自己的待机姿势"，演出期间只读不抓。
+   → 实测 `18dps / 0.0°`，规划侧预测 6°。
+
+2. **交叉淡化起点错**（整场第一段从 identity 淡入）
+   `prevPose` 抄的是 `lastRot`（我们自己写的），首段时它是恒等式，淡入等于把骨架从
+   identity 拉到待机。修法：当场读 rig 的真实 `localRotation`，并用 `prevPoseValid` 把关。
+   → 骨架不再被"搬"一次。
+
+3. **`upper` 的语义错了**（喝水只剩歪头 3~10°）
+   两处叠加出这个结果：`scopeFor` 按**名字**判范围（不是 `_base`/`wild_` 就 `upper`），
+   而 `upper` 的实现是**硬锁非头骨**——抬手动作被吞掉。
+   修法：范围跟着**类别**走（道具/姿态/位移 → `full`，手势 → `upper`）；
+   `upper` 语义改为"只叠加、不搬身体"，删掉硬锁。
+   → 喝水 `push body=78.7°`，与规划侧 78.7° 一致，前臂 `Character_LeftForeArm` 真的抬起来了。
+
+4. **绝对过渡在专注态没有意义**
+   专注时身体锁着，够不到 clip 的目标姿势，却把它的绝对姿态套到头上（10.5° 的动作推成 20.2° 偏移）。
+   修法：`useAdditive = profile.Additive || upperOnly`。
+
+验收口径同时改了：`dps` 用真实帧间隔算，帧一抖就失真（同一段能读到 13 和 32），
+所以新增 `push=head/body` 幅度字段与 `plan=` 并排打印，用**幅度**对账。
+叠加类现在逐条对得上（0.4° 内），绝对类的峰值 dps 落在 13–74（修复前 10519）。
+## 编排层：照游戏自己的语法演（2026-11-15）
+
+**分类**（`game/src/MotionClass.cs` + `lib/motion-class.js`，两端同口径）
+- 五类：手势 / 道具 / 姿态 / 位移 / 待机。分类决定**合成方式**：手势走叠加（游戏待机永远做底，身体不会被搬走），道具与姿态走绝对过渡（手要真的够到杯子），位移独占且不变速。
+- 分类改为 **token 匹配**：`anim_*_lookpenguin` 不再因为里面有 `pen` 被判成道具。
+
+**过渡**（`MotionRules.TransitionMs`）
+- (当前类别 → 目标类别) 的过渡时长矩阵；她此刻在演什么，决定了下一段怎么接进来。
+
+**编排**（`lib/game-grammar.js` + `brain.mjs`）
+- 从 `assets.seed.json` 反向还原游戏自己的语法并存成 `lib/game-grammar.json`：5 个场景层（剧情动作/站立动作/休息/工作/表情）、46 个三段式家族、单段动作中位 4.0s、loop 段中位 1.9s。
+- 编排按这套语法走：层锁定（不在同一层就记 `layer-switch` 并留过渡）、三段展开（start → loop 按说话长度重复 → end）、**用游戏自己的时长**，不再为塞进 cue 的 `d` 而加速。
+
+**内容闸门**（`enforceContentClass`）
+- 内容明确指向某类（喝/写/累/走）而模型选的类别完全不符时，按类别 + 话题 + 动词 token 从动作库里换一条；只换"完全不符"，模型的部分正确选择不动。
+- 闸门返回的必须是清单里真实存在的 id（家族名 `anim_x` 往往不在清单里，下发过去游戏端找不到 clip）。
+
+**联调修复**
+- 编排先前接在 `spark()` 里且用了未定义的 `text`，异常被 catch 吞掉 → 编排与闸门从未真正执行。现在接在 `runTurn` 的 cue 组装之后、沙箱分支之外，`/act` 的 `sandbox:true` 轮次也能验证。
+- 游戏端首次拉取不再无条件丢弃 backlog：改按 `interop.BacklogTtlMs`（默认 20s）只丢旧账，刚推的指令照演——测试不用再重推两三次。
 ## [0.10.1] - 2026-11-15
 
 游戏端：合成语音接进游戏自己的混音器。
@@ -13,6 +212,21 @@
 - 回退链 `voice → master → 不挂`：组名对不上时自动降级，最坏情况退回原来的独立输出，**不会因此没声**
 - `[audio]` 三个新配置：`FollowGameMixer`（默认开）、`MixerGroupMatch`（默认 `voice`）、`MixerGroupFallback`（默认 `master`）
 - `/chill/v1/game` 增加 `mixer` 字段，报出实际挂到哪一组；首次解析把候选组写一行日志，便于核对
+
+### 修复：鬼畜点头
+
+- 头部单独限速 `motion.HeadMaxDegPerSec`（默认 110°/s，身体仍 300°/s）+ 单独淡入淡出 `HeadFadeMs`
+- `motion.SpeedCap`（默认 1.25）堵住"为塞进 cue 时长把动作加速到 6×"的路径
+- 同一组 `start/loop/end` 改成**接着演**：`FamilyGraceMs` 内到达就沿用同一条时间线，淡入从 0.45s 压到 0.12s（组内三次起手是点头的主因）
+- 同一条动作在演时又被点名 → 跳过（`RepeatWindowMs`），不再从第 0 帧重来
+- 演完不立刻交还骨骼，改用 `ReleaseMs` 平滑收尾
+- `motion.MaxClipSec`（默认 8）防整组拖尾二十秒
+- 头部驱动换成一阶低通 → **临界阻尼弹簧**（`motion.HeadSpringHz` 默认 1.0Hz）：旧做法对“快而小”的信号只削幅度、跟得很紧，观感就是高频抽动；弹簧有质量，快信号推不动它
+- `motion.HeadWeight`（默认 1.0）：头/颈完全交给 clip，游戏自身待机摆动不再以 28% 权重漏进来变成"几乎没位移的抽动"
+- 幅度上限从硬钳位改 `tanh` 软饱和（边界不再抖）；换段处 180ms 交叉淡化，段与段之间不再跳一下
+- 点头频率再做一层：`motion.HeadLowPassHz`（默认 1.2Hz 一阶低通）+ `HeadMaxDevDeg`（14°，nod/shake 族 8°），并把循环段重放从最多 5 遍收到最多 2 遍、短于 0.45s 的循环只演一遍
+- 短 id（无 `anim_` 前缀）自动补全；分段名查不到时不再退化成一整组
+- `[motion]` 现场走 `/chill/v1/game` 的 `motion` 字段（`played` / `skippedRepeat` / `speedCapped`）
 
 ### 新增：表演排队
 

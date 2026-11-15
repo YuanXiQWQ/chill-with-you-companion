@@ -91,3 +91,9 @@ tokens.json
 UnityPlayer.dll
 *_Data/
 Chill with You*/
+
+data/brain.mjs.bak
+
+# 部署备份（本机产物，不进仓库）
+game/*.dll.prev
+game/*.prev
