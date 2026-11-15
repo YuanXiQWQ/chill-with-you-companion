@@ -1594,7 +1594,13 @@ namespace ChillPerformer
                     exitRelSec = Mathf.Clamp(0.30f + maxDeg / 180f, 0.30f, 0.90f);
                     // 后面还排着动作：不用等满归还窗口，但也不许为了"快"切一刀 ——
                     // 上限 0.25s 是按"这段距离最多走 0.25s"算的，下一段自己的进入过渡会接着把它走完。
-                    if (HasAnimPending() && exitRelSec > 0.25f) exitRelSec = 0.25f;
+                    // 带队列时压缩归还，但压缩不能违背速度预算：165° 的位移压到 0.25s 就是 663dps。
+                    // 取 min(按距离, max(0.18s, 距离/400dps))：近距离仍然很快，远距离停在 400dps 以内。
+                    if (HasAnimPending())
+                    {
+                        float chained = Mathf.Max(0.18f, maxDeg / 400f);
+                        if (exitRelSec > chained) exitRelSec = chained;
+                    }
                     dbgExitDeg = maxDeg;
                     dbgExitSec = exitRelSec;
                     if (Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
