@@ -69,6 +69,7 @@ import {
 
 import { planSequence, classifyClip, enforceContentClass, isOffChair, offSeatIdle, seatGuard, MOTION_CLASS } from './lib/motion-class.js'
 import { buildSuite } from './lib/core-action.js'
+import { decideTrip, awayWindow } from './lib/seat-trip.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
@@ -1047,9 +1048,56 @@ const runTurn = async (userText, options = {}) => {
     // 提示词只是建议，这里才是保证；只覆盖"完全不符"，不敢动模型的部分正确选择。
     // 每轮编排动作之前先检测她此刻的待机：她要是正离座（沙发/走去拿东西那几族），
     // 这一轮整段不排动作。身体不在椅子上时插入没有落点，把她拽回来比不演更难看。
+    // ── 离座长途 ────────────────────────────────────────────────
+    // 有些事必须离开椅子才能做（去拿杯子、去沙发躺）。这不是"插入一个动作"，
+    // 而是接管十几到三十秒：起身 → 走开 → 做那件事 → 回来坐下。
+    // 接管期内她不在椅子上，这段时间的对话一律不排动作，只出字幕与语音。
+    let tripLocked = false
+    {
+      const nowMs = Date.now()
+      if (state.away && Number(state.away.until) <= nowMs) {
+        state.away = null
+        try { saveState() } catch { /* 清理失败不影响演出 */ }
+      }
+      const away = state.away && Number(state.away.until) > nowMs ? state.away : null
+      if (away) {
+        tripLocked = true
+        const had = (cues || []).filter((c) => c && c.slot === 'animations').map((c) => c.id)
+        cues = (cues || []).filter((c) => c && c.slot !== 'animations')
+        log('[perf] 离座中(' + away.trip + '，剩余 ' + Math.max(0, Math.round((Number(away.until) - nowMs) / 1000)) + 's)，本轮不编排'
+          + (had.length ? ' (原本要演 ' + had.join(',') + ')' : ''))
+      } else {
+        const trip = decideTrip(userText)
+        // 启动门槛：冷却时间够、她手上没活在演、不在专注模式。
+        // 每次启动都是十几秒起步的接管，不能因为一句话里出现"沙发"就演。
+        const lastTripAt = Number(state.lastTripAt) || 0
+        const cooling = nowMs - lastTripAt < 12 * 60 * 1000
+        let idleNow = true
+        try {
+          const s0 = game.snapshot() || {}
+          const q0 = s0.queue || {}
+          const m0 = s0.motion || {}
+          idleNow = !(Number(m0.remainingMs) > 0) && !(Number(q0.depth) > 0) && !q0.performing
+        } catch { /* 拿不到快照就按"她空闲"处理，下面还有冷却挡着 */ }
+        const allowed = trip && !cooling && idleNow && state.phase !== 'focus'
+        if (trip && !allowed) {
+          log('[perf] trip dropped: ' + trip.key + (cooling ? ' (冷却中)' : '') + (idleNow ? '' : ' (她还在演)') + (state.phase === 'focus' ? ' (专注模式)' : ''))
+        }
+        if (allowed) {
+          tripLocked = true
+          const others = (cues || []).filter((c) => c && c.slot !== 'animations')
+          cues = [...trip.steps, ...others]
+          state.away = awayWindow(trip, nowMs)
+          state.lastTripAt = nowMs
+          try { saveState() } catch { /* 存盘失败不影响这次演出 */ }
+          log('[perf] 离座长途启动: ' + trip.key + ' 共 ' + Math.round(trip.totalMs / 1000) + 's → '
+            + trip.steps.map((s) => String(s.id).replace(/^anim_/, '') + '@' + s.at).join(' → '))
+        }
+      }
+    }
     // 核心动作机制（先于闸门与编排）：这句话的核心行为由语句决定，跟模型给没给动作无关。
     // 模型那两次一条动作都没给（cues 空），如果放在后面的块里就永远轮不到它。
-    try {
+    if (!tripLocked) try {
       // 注意：cues 可能是 null（模型没给动作），别把它改成 []——下游用 null 区分
       // "走情绪兜底" 与 "真的没有动作"，改了就丢兜底动作（smoke 测试就是这么挂的）。
       const suite = buildSuite(Array.isArray(cues) ? cues : [], userText)
@@ -1086,6 +1134,7 @@ const runTurn = async (userText, options = {}) => {
         const cur = snap.motion || {}
         const curLeft = Number(cur.remainingMs)
         const curLayer = cur.active ? layerOf(cur.active) : ""
+        if (!tripLocked) {
         const gate = enforceContentClass(cues, {
           text: userText,
           headOnly: state.phase === "focus",
@@ -1119,6 +1168,7 @@ const runTurn = async (userText, options = {}) => {
         } catch (error) {
           log('[perf] core re-apply failed: ' + (error && error.message))
         }
+        }
         // 编排：排序 + 冲突串行化 + 按"她正在做的事"算过渡。
         // 表演与语音解绑后这里不再传说话时长做"铺满"，只传延续信息。
         const planned = planSequence(cues, {
@@ -1134,9 +1184,9 @@ const runTurn = async (userText, options = {}) => {
         // 她始终坐在椅子上：离座类动作一律不排（内容闸门也可能引入，所以在这里兜一道）。
         // 不是"少演一个动作"的问题——离座那几秒她不在画面里，归还时姿势还对不上。
         {
-          const off = cues.filter((c) => c && c.slot === 'animations' && isOffChair(c.id))
+          const off = cues.filter((c) => c && c.slot === 'animations' && !c.trip && isOffChair(c.id))
           if (off.length) {
-            cues = cues.filter((c) => !(c && c.slot === 'animations' && isOffChair(c.id)))
+            cues = cues.filter((c) => !(c && c.slot === 'animations' && !c.trip && isOffChair(c.id)))
             log('[perf] off-chair dropped: ' + JSON.stringify(off.map((c) => c.id)))
           }
         }
