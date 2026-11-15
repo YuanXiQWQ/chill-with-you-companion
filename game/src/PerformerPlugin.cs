@@ -43,6 +43,29 @@ namespace ChillPerformer
         internal static ConfigEntry<bool> Heartbeat;
         internal static ConfigEntry<int> HeartbeatMs;
         internal static ConfigEntry<float> MotionMaxDegPerSec;
+        internal static ConfigEntry<float> BodyBurstScale;
+        internal static ConfigEntry<float> HeadBurstScale;
+        internal static ConfigEntry<float> SwitchBlendMs;
+        internal static ConfigEntry<int> BacklogTtlMs;
+        internal static ConfigEntry<float> SpeedCap;
+        internal static ConfigEntry<float> BodyDegBudget;
+        internal static ConfigEntry<float> HeadDegBudget;
+        internal static ConfigEntry<float> BodySpeedBudget;
+        internal static ConfigEntry<float> HeadSpeedBudget;
+        internal static ConfigEntry<float> MaxSlowdown;
+        internal static ConfigEntry<float> HeadWeight;
+        internal static ConfigEntry<int> HeadFadeMs;
+        internal static ConfigEntry<int> ReleaseMs;
+        internal static ConfigEntry<bool> IdleSwap;
+        internal static ConfigEntry<string> IdleSwapClip;
+        internal static ConfigEntry<int> IdleSwapFadeMs;
+        internal static ConfigEntry<string> IdleSwapStory;
+        internal static ConfigEntry<string> IdleSwapBreak;
+        internal static ConfigEntry<string> IdleSwapWild;
+        internal static ConfigEntry<float> MaxClipSec;
+        internal static ConfigEntry<int> RepeatWindowMs;
+        internal static ConfigEntry<int> FamilyGraceMs;
+        internal static ConfigEntry<float> MotionWeightCeil;
         internal static ConfigEntry<float> VoiceVolume;
         internal static ConfigEntry<bool> FollowGameMixer;
         internal static ConfigEntry<string> MixerGroupMatch;
@@ -88,7 +111,38 @@ namespace ChillPerformer
             ForceBusy = Config.Bind("interop", "ForceBusy", false, "Test switch: pretend the game is on stage, so pushes are held.");
             Heartbeat = Config.Bind("interop", "Heartbeat", true, "POST live game state to /chill/v1/game so the console status tab is truthful.");
             HeartbeatMs = Config.Bind("interop", "HeartbeatMs", 2000, "Heartbeat interval in milliseconds.");
-            MotionMaxDegPerSec = Config.Bind("motion", "MaxDegPerSec", 300f, "Cap on how fast a bone may rotate while blending in/out (deg per second).");
+            MotionMaxDegPerSec = Config.Bind("motion", "MaxDegPerSec", 300f, "Deprecated and unused since 0.10.1: bones are no longer rate-limited. Kept only so old cfg files still load.");
+            BodyBurstScale = Config.Bind("motion", "BodyBurstScale", 3f, "Big gestures (yawn, stretch, standing up) may reach this many times the body budget before being scaled down. Without it a 150-degree stretch is squashed to 17 percent and stops reading as a stretch.");
+            HeadBurstScale = Config.Bind("motion", "HeadBurstScale", 1.5f, "Same as BodyBurstScale for the head.");
+            SwitchBlendMs = Config.Bind("motion", "SwitchBlendMs", 200f, "Cross-fade length when a new cue starts, measured from the pose actually on screen. Without it the previous cue's pose vanishes in a single frame (measured 186 deg/s head spike).");
+            BacklogTtlMs = Config.Bind("interop", "BacklogTtlMs", 20000, "On the first pull after startup, cues older than this many ms are last session leftovers and get dropped; newer ones still play, so a push made just before startup is not swallowed.");
+            SpeedCap = Config.Bind("motion", "SpeedCap", 1.25f, "Upper bound on speeding a clip up to fit a cue's d. Slowing down is handled by the speed budget.");
+            // —— 演出预算（0.10.1 重构的核心）——
+            // 旧做法：先按 clip 演，再用限速/限幅/低通把"过头"的部分砍掉。砍掉的是曲线形状，
+            // 被削平的峰会在频域里长出谐波，肉眼看到的就是"点一下变成连点好几下"。
+            // 新做法：播之前量出这段 clip 的峰值幅度与峰值角速度，再乘一个系数把整体缩进预算。
+            // 乘法只改大小不改形状 —— 既不会抽，也不会凭空多出动作。
+            BodyDegBudget = Config.Bind("motion", "BodyDegBudget", 26f, "Peak deviation budget (deg) for the body. Clip poses beyond it are scaled down via blend weight.");
+            HeadDegBudget = Config.Bind("motion", "HeadDegBudget", 15f, "Peak deviation budget (deg) for Head/Neck. Smaller than the body because the head is what reads as twitchy.");
+            BodySpeedBudget = Config.Bind("motion", "BodySpeedBudget", 320f, "Peak angular speed budget (deg/s) for the body. Excess is removed by slowing the clip, never by clipping bones.");
+            HeadSpeedBudget = Config.Bind("motion", "HeadSpeedBudget", 160f, "Peak angular speed budget (deg/s) for Head/Neck.");
+            MaxSlowdown = Config.Bind("motion", "MaxSlowdown", 1.6f, "How far a clip may be slowed to respect the speed budget (1.6 = at most 1/1.6 of its own pace).");
+            HeadWeight = Config.Bind("motion", "HeadWeight", 1f, "Extra multiplier on the head's budget weight.");
+            HeadFadeMs = Config.Bind("motion", "HeadFadeMs", 320, "Head/Neck fade length in ms; longer than the body so a nod eases in instead of jerking.");
+            ReleaseMs = Config.Bind("motion", "ReleaseMs", 300, "Blend back to the game pose over this many ms after the clip ends.");
+            IdleSwap = Config.Bind("motion", "IdleSwap", false, "On clip end, cross-fade the game animator to IdleSwapClip instead of blending back to a stale pose: the game keeps owning the skeleton, we just stop writing.");
+            IdleSwapClip = Config.Bind("motion", "IdleSwapClip", "anim_story_subbase_002_base_loop", "Clip/state the game animator is cross-faded to when a performance ends.");
+            IdleSwapFadeMs = Config.Bind("motion", "IdleSwapFadeMs", 300, "Cross-fade length for the idle swap, in ms.");
+            // 收尾待机按层选：演完让游戏切回她"这一层本来就该有的待机"，只是换成与结束姿势最接近的那一个。
+            // 实测游戏自己的待机状态机会一直往下切（tea_sub_unique001_* → tea_base_loop），
+            // 所以持久接管 idle 不成立；能做的只是把收尾那一次切换指到更合适的待机。
+            IdleSwapStory = Config.Bind("motion", "IdleSwapStory", "anim_story_subbase_002_base_loop", "Closing idle for story-layer performances.");
+            IdleSwapBreak = Config.Bind("motion", "IdleSwapBreak", "anim_break_tea_base_loop", "Closing idle for break-layer performances.");
+            IdleSwapWild = Config.Bind("motion", "IdleSwapWild", "anim_wild_tired2_loop", "Closing idle for wild-layer performances.");
+            MaxClipSec = Config.Bind("motion", "MaxClipSec", 8f, "Hard ceiling on how long one cue may own the skeleton.");
+            RepeatWindowMs = Config.Bind("motion", "RepeatWindowMs", 1500, "Asking for the same clip again inside this window keeps the running performance instead of restarting it.");
+            FamilyGraceMs = Config.Bind("motion", "FamilyGraceMs", 1500, "A follow-up cue of the SAME family (X_start -> X_loop -> X_end) inside this window continues the timeline.");
+            MotionWeightCeil = MotionWeight;
 
             var host = new GameObject("chill-performer");
             DontDestroyOnLoad(host);
@@ -252,6 +306,75 @@ namespace ChillPerformer
         private float clipFadeIn = 0.45f;
         private Quaternion[] lastRot;
         private float dbgMaxDeg;
+        // —— 演出计划（播之前量出来，播的时候只做乘法）——
+        private float planWBody = 1f;
+        private float planWHead = 1f;
+        private float planSpeed = 1f;
+        // clip 第一帧的姿势：把"姿势偏移"与"动作摆动"分开处理要用到
+        private Quaternion[] clipBaseRot;
+        private bool keepClipBase;
+        // 族级增益：一条动作常被拆成 _start / _loop / _end 三段分别下发。
+        // 若每段各按自己的峰值算增益，loop 段（几乎不动）会算出 1.0，而 start 段被压到 0.33，
+        // 于是循环点上身体突然放大三倍。整族必须用同一个增益，段与段之间才不会跳。
+        private readonly Dictionary<string, float> familyGainBody = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, float> familyGainHead = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, float> familyPeakBody = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, float> familyPeakHead = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        private string planFamily = "";
+        // 当前 clip 的分类策略：决定叠加式还是绝对过渡、预算多少、能否变速
+        private MotionProfile profile = MotionProfile.For(ClipClass.Unknown);
+        private ClipClass currentClass = ClipClass.Idle;
+        private float switchMsFromClass = 260f;
+        private bool inAbsolute;
+        private float absRampT0 = -999f;
+        // 换段/换族时的交叉淡化起点：新动作从"当前可见姿势"混过去，
+        // 而不是从游戏姿势重新起算——否则上一段的偏移会在一帧内消失（实测 186°/s 尖峰）。
+        // 游戏自身待机姿势的缓存：演出期间不许重抓，否则会把我们自己的输出当基底
+        private Quaternion[] baseGameRot;
+        private Vector3[] baseGamePos;
+        private bool baseGameValid;
+        // 演出期间相对"游戏待机姿势"的最大推离角度：验收用这个，不用 dps
+        private float dbgPushHead;
+        private float dbgPushBody;
+        private string dbgPushName = "";
+        private string dbgPushHeadName = "";
+        private float dbgPushW;
+        // 段内幅度：相对本段第一帧采样的角差。与 plan（段内峰值）同量纲，才能比较。
+        // 旧的 push 量的是离待机多远，跟 plan 不是一个东西，放在一起比只会误导。
+        private Quaternion[] ampStart;
+        private bool ampStartValid;
+        private float dbgAmpHead;
+        private float dbgAmpBody;
+        private string dbgAmpHeadName = "";
+        private string dbgAmpName = "";
+        private float dbgAmpW;
+        // 归还过渡的目标：演完时"游戏此刻会把她摆成什么样"，现场求值后读出
+        private Quaternion[] exitRot;
+        private Quaternion[] exitFrom;    // 放手前我们的输出，用来量离待机还有多远
+        private float exitRelSec = 0.30f;   // 归还时长：按离游戏姿势的距离算，不是固定 300ms
+        private float exitEndT;             // clipLen + exitRelSec
+        private bool exitValid;
+        // 排队衔接：上一套演完时后面还有动作，就用她的最后姿势当下一套的起点，
+        // 省掉「归还待机 → 再起手」这一整段。
+        private bool chainEntry;
+        private Quaternion[] prevPose;
+        // prevPose 是否真的装着"上一次可见姿势"；没装着就不许淡化
+        private bool prevPoseValid;
+        private float switchT0 = -999f;
+        private float planBodyPeakDeg;
+        private float planHeadPeakDeg;
+        private float planBodyPeakSpd;
+        private float planHeadPeakSpd;
+        private int planSamples;
+        // —— 实时遥测（只观察，不参与运算）——
+        private float headDevDeg;
+        private float headSpeedMax;
+        private int headIdx = -1;
+        // —— 同族续演 / 重复跳过 ——
+        private string activeBase = "";
+        private float lastFamilyEnd = -999f;
+        private float clipStartWall;
+        private int skippedRepeat;
         private int dbgFrames;
         private float clipFadeOut = 0.40f;
         private static readonly string[] MOUTH_KEYS = new string[] { "mouth_a", "mouth_i", "mouth_u", "mouth_e", "mouth_o", "mouth_n" };
@@ -308,6 +431,8 @@ namespace ChillPerformer
 
         private int feedSeq;
         private bool bootSynced;
+        // 首次拉取的年龄门槛：比它旧的条目算上次会话旧账，不重播；新的照演
+        private long bootSkipAtMs;
         private int pullPolls;
         private int heartbeatFails;
         private bool heartbeatOk = true;
@@ -368,6 +493,21 @@ namespace ChillPerformer
               .Append(",\"maxDepth\":").Append(qMaxDepth)
               .Append(",\"enabled\":").Append((Plugin.QueueEnabled != null && Plugin.QueueEnabled.Value) ? "true" : "false")
               .Append('}');
+            sb.Append(",\"motion\":{\"class\":\"").Append(MotionRules.Label(profile.Class))
+              .Append("\",\"mode\":\"").Append(profile.Additive ? "additive" : "absolute")
+              .Append("\",\"wBody\":").Append(planWBody.ToString("F2"))
+              .Append(",\"wHead\":").Append(planWHead.ToString("F2"))
+              .Append(",\"speedFactor\":").Append(planSpeed.ToString("F2"))
+              .Append(",\"bodyPeakDeg\":").Append(planBodyPeakDeg.ToString("F1"))
+              .Append(",\"headPeakDeg\":").Append(planHeadPeakDeg.ToString("F1"))
+              .Append(",\"bodyPeakSpd\":").Append(planBodyPeakSpd.ToString("F0"))
+              .Append(",\"headPeakSpd\":").Append(planHeadPeakSpd.ToString("F0"))
+              .Append(",\"headDevDeg\":").Append(headDevDeg.ToString("F1"))
+              .Append(",\"headSpeed\":").Append(headSpeedMax.ToString("F0"))
+              .Append(",\"remainingMs\":").Append(clipActive ? Mathf.Max(0f, (clipLen + (Plugin.ReleaseMs == null ? 300f : Plugin.ReleaseMs.Value) / 1000f - (Time.time - clipT0)) * 1000f) : 0f)
+                .Append(",\"skippedRepeat\":").Append(skippedRepeat)
+              .Append(",\"active\":\"").Append(Js(clipActive && activeClip != null ? activeClip.name : ""))
+              .Append("\",\"base\":\"").Append(Js(activeBase)).Append("\"}");
             sb.Append(",\"fps\":").Append(fps);
             sb.Append(",\"focus\":").Append(GameBusy.FocusMode ? "true" : "false");
             sb.Append(",\"pomTexts\":").Append(GameBusy.PomodoroCandidates);
@@ -513,16 +653,15 @@ namespace ChillPerformer
                 {
                     if (!probed) { probed = true; SceneProbe.Dump(Plugin.Log, false); }
                     int headSeq = JsonLite.Int(JsonLite.Get(root, "seq"));
-                    // 开机自检：大脑里可能还留着上次会话的条目，这里只对齐游标，不重播
+                    // 开机自检：大脑里可能留着上次会话的旧条目，也可能有刚推来的指令。
+                    // 一律丢弃会把"刚推的那条"一起吞掉（测试时要重推两三次就是这么来的），
+                    // 所以只按年龄丢：超过 BacklogTtlMs 的算旧账，新的照演。
                     if (!bootSynced)
                     {
                         bootSynced = true;
-                        if (headSeq > 0)
-                        {
-                            Plugin.Log.LogInfo("pull: startup sync, skip backlog up to seq=" + headSeq);
-                            feedSeq = headSeq;
-                            continue;
-                        }
+                        int ttlMs = Plugin.BacklogTtlMs == null ? 20000 : Mathf.Clamp(Plugin.BacklogTtlMs.Value, 0, 600000);
+                        bootSkipAtMs = NowUnixMs() - ttlMs;
+                        if (headSeq > 0) Plugin.Log.LogInfo("pull: startup sync, drop backlog older than " + ttlMs + "ms (seq=" + headSeq + ", local=" + feedSeq + ")");
                     }
                     // 大脑重启后 seq 从 1 重新计数，本地游标比它大就会永久空转，这里自动复位
                     if (headSeq > 0 && headSeq < feedSeq)
@@ -544,6 +683,15 @@ namespace ChillPerformer
                     {
                         var d = JsonLite.AsDict(items[i]);
                         if (d == null) continue;
+                        if (bootSkipAtMs > 0)
+                        {
+                            long atMs = JsonLite.Int(JsonLite.Get(d, "at"));
+                            if (atMs > 0 && atMs < bootSkipAtMs)
+                            {
+                                if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("pull: drop stale cue at=" + atMs);
+                                continue;
+                            }
+                        }
                         int s = JsonLite.Int(JsonLite.Get(d, "seq"));
                         if (s != 0 && s <= feedSeq) continue; // 已经排过或演过
                         ActDto parsed = null;
@@ -729,15 +877,62 @@ namespace ChillPerformer
             if (clipActive && activeClip != null && clipTarget != null)
             {
                 float ct = Time.time - clipT0;
-                if (ct > clipLen)
+                float relForEnd = (Plugin.ReleaseMs == null ? 300f : Mathf.Max(30f, Plugin.ReleaseMs.Value)) / 1000f;
+                // 多留一个归还窗口：这段时间里 StepClip 把姿势淡回游戏状态，之后才真正放手
+                float endAt = exitValid ? exitEndT : clipLen + relForEnd;
+                if (ct > (clipLoop ? clipLen : endAt))
                 {
                     if (clipLoop) ct = clipLen > 0.01f ? ct % clipLen : 0f;
-                    else { clipActive = false; Plugin.Log.LogInfo("clip done: " + activeClip.name + " frames=" + dbgFrames + " maxDeg/frame=" + dbgMaxDeg.ToString("F2") + " (cap " + ((Plugin.MotionMaxDegPerSec == null ? 300f : Plugin.MotionMaxDegPerSec.Value) * Time.deltaTime).ToString("F2") + ")"); }
+                    else
+                    {
+                        // 交接差 = 放手瞬间我们的输出与游戏姿势的最大角差。
+                        // 这是回归过渡有没有做好的硬指标：接近 0 就是无缝交回。
+                        float handoff = -1f;
+                        if (exitValid && exitRot != null && bones != null)
+                        {
+                            handoff = 0f;
+                            for (int b = 0; b < bones.Length && b < exitRot.Length; b++)
+                            {
+                                if (bones[b] == null) continue;
+                                float d = Quaternion.Angle(bones[b].localRotation, exitRot[b]);
+                                if (d > handoff) handoff = d;
+                            }
+                        }
+                        // 回归：直接改她正在跑的待机，然后放手。不回写姿势 —— 那会踩掉游戏自己的淡入。
+                        if (Plugin.IdleSwap.Value && activeClip != null)
+                        {
+                            string closeIdle = PickClosingIdle(activeClip.name);
+                            if (!string.IsNullOrEmpty(closeIdle)) ProbeIdleSwap(closeIdle);
+                        }
+                        if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("handoff dev=" + handoff.ToString("F2") + "deg rel=" + (exitRelSec * 1000f).ToString("F0") + "ms pending=" + pending.Count);
+                        // 衔接：下一套从她"此刻的姿势"起步，而不是从待机重新起手
+                        if (HasAnimPending())
+                        {
+                            if (prevPose != null && bones != null)
+                                for (int b = 0; b < bones.Length && b < prevPose.Length; b++)
+                                    if (bones[b] != null) prevPose[b] = bones[b].localRotation;
+                            prevPoseValid = true;
+                            chainEntry = true;
+                            if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("chain: 下一套接上（起点=当前姿势）");
+                        }
+                        clipActive = false; ReleaseBaseGameCache(); exitValid = false;
+                        lastFamilyEnd = Time.time;
+                        Plugin.Log.LogInfo("clip done: " + activeClip.name + " frames=" + dbgFrames
+                            + " peakHead=" + headSpeedMax.ToString("F0") + "dps dev=" + headDevDeg.ToString("F1") + "deg"
+                + " amp=head" + dbgAmpHead.ToString("F1") + "/body" + dbgAmpBody.ToString("F1") + "deg"
+                + " moved=head:" + ((dbgAmpHead >= Mathf.Max(1f, planHeadPeakDeg * 0.32f)) ? 1 : 0)
+                + "/body:" + ((dbgAmpBody >= Mathf.Max(1f, planBodyPeakDeg * 0.32f)) ? 1 : 0)
+                + ((planHeadPeakDeg > 2f && dbgAmpHead < 1f) || (planBodyPeakDeg > 2f && dbgAmpBody < 1f) ? " MISS" : "")
+                + " plan=head" + planHeadPeakDeg.ToString("F1") + "/body" + planBodyPeakDeg.ToString("F1") + "deg"
+                + " bones[" + dbgAmpHeadName + "@w" + dbgAmpW.ToString("F2") + " | " + dbgAmpName + "] max=" + dbgAmpW.ToString("F2")
+                + " ramp=" + (profile.RampMs).ToString("F0") + "ms abs=" + inAbsolute + " upperOnly=" + upperOnly
+                            + " plan(wBody=" + planWBody.ToString("F2") + " wHead=" + planWHead.ToString("F2") + " x" + planSpeed.ToString("F2") + ")");
+                    }
                 }
                 if (clipActive)
                 {
                     try { StepClip(ct); }
-                    catch (Exception e) { clipActive = false; Plugin.Log.LogWarning("sample failed: " + e.Message); }
+                    catch (Exception e) { clipActive = false; ReleaseBaseGameCache(); Plugin.Log.LogWarning("sample failed: " + e.Message); }
                 }
             }
             if (faceSmr == null || mouthIdx[0] < 0) return;
@@ -857,7 +1052,7 @@ namespace ChillPerformer
                     clipAssets.Clear();
                     bones = null;
                     faceSmr = null;
-                    clipActive = false;
+                    clipActive = false; ReleaseBaseGameCache();
                     mouthActive = false;
                     mouthW = new float[0];
                     StartCoroutine(RebindAll());
@@ -865,7 +1060,7 @@ namespace ChillPerformer
             }
             if (clipActive && (Plugin.RespectGame == null || Plugin.RespectGame.Value) && GameBusy.IsHard)
             {
-                clipActive = false;
+                clipActive = false; ReleaseBaseGameCache();
                 mouthActive = false;
                 ClearMouth();
                 if (audioSource != null && audioSource.isPlaying) audioSource.Stop();
@@ -977,6 +1172,25 @@ namespace ChillPerformer
                 }
             }
             Plugin.Log.LogInfo("clip assets indexed: " + clipAssets.Count);
+            // clipdump：把完整动作集打到日志（含所属控制器与时长），供离线生成动作全表。
+            // 纯输出，不碰任何游戏资源。
+            if (Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
+            {
+                var seenDump = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var animators2 = Resources.FindObjectsOfTypeAll<Animator>();
+                foreach (var a2 in animators2)
+                {
+                    if (a2 == null || a2.runtimeAnimatorController == null) continue;
+                    string owner = a2.gameObject != null ? a2.gameObject.name : "-";
+                    string ctrl = a2.runtimeAnimatorController.name ?? "-";
+                    foreach (var c2 in a2.runtimeAnimatorController.animationClips)
+                    {
+                        if (c2 == null || string.IsNullOrEmpty(c2.name)) continue;
+                        if (!seenDump.Add(owner + "/" + c2.name)) continue;
+                        Plugin.Log.LogInfo("clipdump " + owner + " " + ctrl + " " + c2.name + " " + c2.length.ToString("F3"));
+                    }
+                }
+            }
         }
 
         // 序列播放：把 start → loop×k → end 串成一条时间线（这就是游戏自己播故事动作的结构）
@@ -997,6 +1211,36 @@ namespace ChillPerformer
         {
             AnimationClip c;
             return clipAssets.TryGetValue(name, out c) ? c : null;
+        }
+
+        // 宽松查找：精确 → 忽略大小写 → 最短后缀命中 → 最短前缀命中。
+        // 大脑点名的可能是 `X_loop` 这种分段，而资产里的名字可能带前缀或大小写差异；
+        // 查不到就会退化成"拼整组"，一条 cue 演成整段，是以前动作反复的主因。
+        private AnimationClip LookupLoose(string name, out string found)
+        {
+            found = null;
+            if (string.IsNullOrEmpty(name)) return null;
+            AnimationClip c = Lookup(name);
+            if (c != null) { found = name; return c; }
+            string best = null;
+            foreach (var kv in clipAssets)
+            {
+                if (kv.Value == null) continue;
+                if (string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase)) { found = kv.Key; return kv.Value; }
+            }
+            foreach (var kv in clipAssets)
+            {
+                if (kv.Value == null) continue;
+                if (kv.Key.EndsWith(name, StringComparison.OrdinalIgnoreCase) && (best == null || kv.Key.Length < best.Length)) { best = kv.Key; c = kv.Value; }
+            }
+            if (c != null) { found = best; return c; }
+            foreach (var kv in clipAssets)
+            {
+                if (kv.Value == null) continue;
+                if (kv.Key.StartsWith(name, StringComparison.OrdinalIgnoreCase) && (best == null || kv.Key.Length < best.Length)) { best = kv.Key; c = kv.Value; }
+            }
+            if (c != null) { found = best; return c; }
+            return null;
         }
 
         private void BuildSequence(string clipName)
@@ -1054,57 +1298,403 @@ namespace ChillPerformer
             c.SampleAnimation(target, Mathf.Clamp(t, 0f, Mathf.Max(0f, c.length - 0.001f)));
         }
 
-        // 每帧：先记下游戏这一帧的姿势 → 沿时间线采样 → 旋转按包络混回去，位置保持游戏值
-        private void StepClip(float ct)
+        // 播之前把这段 clip 走一遍，量出"峰值幅度"和"峰值角速度"。
+        // 之后所有"别太猛"的需求都用**乘法**满足：幅度超预算就降权重，速度超预算就放慢时间轴。
+        // 乘法保形，截断（限速/限幅/低通）不保形——不保形就会在削平处生出额外折返，
+        // 那正是"点一下看起来像连点好几下"的根源。
+        private static bool clipSpeedAllowed(MotionProfile p)
         {
-            if (segClips == null || segClips.Length == 0) { clipActive = false; return; }
+            // 位移类动作不许变速：走路的步频一改就滑步
+            return p.SpeedWarp;
+        }
+
+        private void MeasureAndPlan(float baseSpeed)
+        {
             int n = bones.Length;
+            planSamples = 0;
+            planWBody = 1f; planWHead = 1f; planSpeed = 1f;
+            planBodyPeakDeg = 0f; planHeadPeakDeg = 0f; planBodyPeakSpd = 0f; planHeadPeakSpd = 0f;
+            if (n == 0 || segClips == null || segClips.Length == 0 || segTotal < 0.05f) return;
+            int samples = Mathf.Clamp(Mathf.CeilToInt(segTotal / 0.033f), 6, 90);
+            float step = segTotal / Mathf.Max(1, samples - 1);
+            var snap = new Quaternion[n];
+            var baseRot = new Quaternion[n];
+            var prevRot = new Quaternion[n];
+            for (int i = 0; i < n; i++) snap[i] = bones[i].localRotation;
+            float bodyDeg = 0f, headDeg = 0f, bodySpd = 0f, headSpd = 0f;
+            for (int k = 0; k < samples; k++)
+            {
+                float tt = Mathf.Min(segTotal - 0.001f, k * step);
+                int idx = 0;
+                while (idx < segClips.Length - 1 && tt >= segStarts[idx + 1]) idx++;
+                SampleChainClip(segClips[idx], clipTarget, tt - segStarts[idx], 0);
+                for (int i = 0; i < n; i++)
+                {
+                    Quaternion q = bones[i].localRotation;
+                    if (k == 0) { baseRot[i] = q; prevRot[i] = q; continue; }
+                    float dev = Quaternion.Angle(baseRot[i], q);
+                    float sp = step > 0.0001f ? Quaternion.Angle(prevRot[i], q) / step : 0f;
+                    bool isHead = upperAllowed != null && i < upperAllowed.Length && upperAllowed[i];
+                    if (isHead) { if (dev > headDeg) headDeg = dev; if (sp > headSpd) headSpd = sp; }
+                    else { if (dev > bodyDeg) bodyDeg = dev; if (sp > bodySpd) bodySpd = sp; }
+                    prevRot[i] = q;
+                }
+            }
+            for (int i = 0; i < n; i++) bones[i].localRotation = snap[i];
+            if (clipBaseRot == null || clipBaseRot.Length != n) clipBaseRot = new Quaternion[n];
+            // 同族续演（X_start > X_loop > X_end）时必须沿用上一条的起始姿势：
+            // 每段都拿自己的首帧当基准，offset 目标会在段边界跳一次，
+            // 那一下就是实测到的 635°/s 单帧尖峰（头会"弹"一下）。
+            if (!keepClipBase || clipBaseRot == null || clipBaseRot.Length != n) System.Array.Copy(baseRot, clipBaseRot, n);
+            // 头骨不能靠名字挑（Character 下同时存在一根静态的 "Head" 和真正被驱动的 "Character_Head"）。
+            // 直接用刚刚量到的峰值：名字带 Head 且真的在动的骨里取最大者，否则退到 upper 里最大者。
+            int pickHead = -1; float pickHeadDev = 0f;
+            int pickAny = -1; float pickAnyDev = 0f;
             for (int i = 0; i < n; i++)
             {
-                var tr = bones[i];
-                gamePos[i] = tr.localPosition;
-                gameRot[i] = tr.localRotation;
+                if (upperAllowed == null || i >= upperAllowed.Length || !upperAllowed[i]) continue;
+                float d = Quaternion.Angle(baseRot[i], bones[i].localRotation);
+                string nm = bones[i].name ?? "";
+                bool namedHead = nm.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (namedHead && d > pickHeadDev) { pickHeadDev = d; pickHead = i; }
+                if (d > pickAnyDev) { pickAnyDev = d; pickAny = i; }
+            }
+            if (pickHead >= 0 && pickHeadDev >= 1f) headIdx = pickHead;
+            else if (pickAny >= 0) headIdx = pickAny;
+            planSamples = samples;
+            planBodyPeakDeg = bodyDeg; planHeadPeakDeg = headDeg;
+            planBodyPeakSpd = bodySpd; planHeadPeakSpd = headSpd;
+            float degBudgetBody = profile.BodyDeg;
+            float degBudgetHead = profile.HeadDeg;
+            float spdBudgetBody = Plugin.BodySpeedBudget == null ? 320f : Mathf.Max(30f, Plugin.BodySpeedBudget.Value);
+            float spdBudgetHead = Plugin.HeadSpeedBudget == null ? 160f : Mathf.Max(20f, Plugin.HeadSpeedBudget.Value);
+            if (!profile.Additive)
+            {
+                // 绝对过渡本身就慢（ramp 600~900ms），速度账已经记在过渡上，不再另设上限
+                spdBudgetBody = Mathf.Max(spdBudgetBody, 900f);
+                spdBudgetHead = Mathf.Max(spdBudgetHead, 420f);
+            }
+            float slowMax = Plugin.MaxSlowdown == null ? 1.6f : Mathf.Clamp(Plugin.MaxSlowdown.Value, 1f, 6f);
+            float gainBodyCap = Plugin.MotionWeight == null ? 1f : Mathf.Clamp(Plugin.MotionWeight.Value, 0.1f, 3f);
+            float gainHeadCap = Plugin.HeadWeight == null ? 2.2f : Mathf.Clamp(Plugin.HeadWeight.Value, 0.1f, 4f);
+            if (segClips[0] != null && segClips[0].name.StartsWith("anim_wild_", StringComparison.OrdinalIgnoreCase))
+            {
+                gainBodyCap *= 0.7f;
+                gainHeadCap *= 0.7f;
+            }
+            // 大动作（哈欠、伸懒腰、起身）不该被当成"过头"压掉，burst 给它们更高的预算线
+            float burstBody = Mathf.Max(1f, profile.BodyBurst);
+            float burstHead = Mathf.Max(1f, profile.HeadBurst);
+            // 增益按族定：同一条动作的 _start/_loop/_end 必须共用一个数，否则循环点会突然放大
+            float peakBodyFam;
+            float peakHeadFam;
+            if (!familyPeakBody.TryGetValue(planFamily, out peakBodyFam)) peakBodyFam = bodyDeg;
+            if (!familyPeakHead.TryGetValue(planFamily, out peakHeadFam)) peakHeadFam = headDeg;
+            peakBodyFam = Mathf.Max(peakBodyFam, bodyDeg);
+            peakHeadFam = Mathf.Max(peakHeadFam, headDeg);
+            familyPeakBody[planFamily] = peakBodyFam;
+            familyPeakHead[planFamily] = peakHeadFam;
+            float limitBody = Mathf.Min(peakBodyFam, degBudgetBody * burstBody);
+            float limitHead = Mathf.Min(peakHeadFam, degBudgetHead * burstHead);
+            float gainBody;
+            if (!familyGainBody.TryGetValue(planFamily, out gainBody))
+            {
+                gainBody = peakBodyFam > 0.05f ? Mathf.Clamp(limitBody / peakBodyFam, 0f, gainBodyCap) : gainBodyCap;
+                familyGainBody[planFamily] = gainBody;
+            }
+            float gainHead;
+            if (!familyGainHead.TryGetValue(planFamily, out gainHead))
+            {
+                gainHead = peakHeadFam > 0.05f ? Mathf.Clamp(limitHead / peakHeadFam, 0f, gainHeadCap) : gainHeadCap;
+                familyGainHead[planFamily] = gainHead;
+            }
+            planWBody = gainBody;
+            planWHead = gainHead;
+            float factor = 1f;
+            if (clipSpeedAllowed(profile) && bodySpd > spdBudgetBody) factor = Mathf.Min(factor, spdBudgetBody / bodySpd);
+            if (clipSpeedAllowed(profile) && headSpd > spdBudgetHead) factor = Mathf.Min(factor, spdBudgetHead / headSpd);
+            if (factor < 1f) factor = Mathf.Max(factor, 1f / slowMax);
+            planSpeed = Mathf.Clamp(factor, 0.2f, 1f);
+        }
+        // 每帧：记下游戏此刻的姿势 → 采样 clip → 只取 clip 相对自己首帧的"运动增量"，
+        // 按权重叠在游戏姿势上。位置一律用游戏值。
+        private float EnvelopeAt(float ct, bool head)
+        {
+            float fade = head
+                ? (Plugin.HeadFadeMs == null ? 0.32f : Mathf.Max(0.02f, Plugin.HeadFadeMs.Value / 1000f))
+                : clipFadeIn;
+            float rel = Plugin.ReleaseMs == null ? 0.3f : Mathf.Max(0.02f, Plugin.ReleaseMs.Value / 1000f);
+            float e = 1f;
+            if (ct < fade) e = Mathf.Min(e, Mathf.SmoothStep(0f, 1f, ct / fade));
+            float tailFrom = clipLen + (head ? rel : 0f);
+            float left = tailFrom - ct;
+            if (left < fade) e = Mathf.Min(e, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(Mathf.Max(0f, left) / fade)));
+            if (ct > clipLen)
+            {
+                float k = Mathf.Clamp01(1f - (ct - clipLen) / rel);
+                e = Mathf.Min(e, Mathf.SmoothStep(0f, 1f, k));
+            }
+            return Mathf.Clamp01(e);
+        }
+
+        private static long NowUnixMs()
+        {
+            return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+        }
+
+        private void ReleaseBaseGameCache()
+        {
+            baseGameValid = false;
+        }
+
+        /**
+         * 读出"游戏自己此刻的姿势"。
+         * 不能在 LateUpdate 里直接抓 bones.localRotation —— 那上面是我们上一帧写回去的值，
+         * 叠加路径会因此每帧自乘（实测 dev=119°）。让 Animator 当场重算一帧再读。
+         * 起手与归还都用它。
+         */
+        private bool CaptureGamePose(Quaternion[] dst)
+        {
+            if (heroine == null || bones == null || bones.Length == 0 || dst == null) return false;
+            bool was = heroine.enabled;
+            if (!was) heroine.enabled = true;
+            try { heroine.Update(0f); } catch { }
+            for (int i = 0; i < bones.Length && i < dst.Length; i++)
+            {
+                if (bones[i] != null) dst[i] = bones[i].localRotation;
+            }
+            if (!was) heroine.enabled = was;
+            return true;
+        }
+
+        /**
+         * 按动作所在的层挑"收尾待机"。层不是猜的：clip 名自带场景前缀（story_/break_/wild_），
+         * 那正是游戏自己的分层。回到本层待机，才不会出现"坐着演完却切到站立待机"。
+         */
+        private string PickClosingIdle(string finished)
+        {
+            string n = finished == null ? "" : finished;
+            if (n.StartsWith("anim_wild_", StringComparison.Ordinal)) return Plugin.IdleSwapWild.Value;
+            if (n.StartsWith("anim_break_", StringComparison.Ordinal)) return Plugin.IdleSwapBreak.Value;
+            if (n.StartsWith("anim_story_", StringComparison.Ordinal)) return Plugin.IdleSwapStory.Value;
+            return Plugin.IdleSwapClip.Value;
+        }
+
+        private Coroutine swapProbe;
+        /**
+         * 回归的新做法：不去"校准"游戏此刻的姿势，而是直接把她正在跑的待机改成另一段 idle，
+         * 然后彻底放手 —— 骨架归游戏，交接差按构造为 0。
+         * 唯一要验的是：游戏的状态机不会下一帧就把待机切回去。这个探针就是读它。
+         */
+        private void ProbeIdleSwap(string wantOverride)
+        {
+            if (swapProbe != null) StopCoroutine(swapProbe);
+            swapProbe = StartCoroutine(ProbeIdleSwapCo(wantOverride));
+        }
+
+        private System.Collections.IEnumerator ProbeIdleSwapCo(string wantOverride)
+        {
+            string want = wantOverride ?? Plugin.IdleSwapClip.Value;
+            if (heroine == null || string.IsNullOrEmpty(want)) yield break;
+            float fade = Mathf.Max(0f, Plugin.IdleSwapFadeMs.Value) / 1000f;
+            bool before = heroine.enabled;
+            if (!before) heroine.enabled = true;
+            try { heroine.CrossFadeInFixedTime(want, fade); } catch (Exception e) { Plugin.Log.LogWarning("idle swap failed: " + e.Message); }
+            Plugin.Log.LogInfo("idle swap: -> " + want + " fade=" + (fade * 1000f).ToString("F0") + "ms");
+            float[] marks = new float[] { 0.05f, 0.15f, 0.3f, 0.6f, 1.0f, 2.5f, 5.0f };
+            float waited = 0f;
+            for (int i = 0; i < marks.Length; i++)
+            {
+                yield return new WaitForSecondsRealtime(marks[i] - waited);
+                waited = marks[i];
+                var st = heroine.GetCurrentAnimatorStateInfo(0);
+                string playing = "?";
+                var infos = heroine.GetCurrentAnimatorClipInfo(0);
+                if (infos != null && infos.Length > 0 && infos[0].clip != null) playing = infos[0].clip.name;
+                Plugin.Log.LogInfo("idle swap @" + ((i + 1) * 1.5f).ToString("F1") + "s: state=" + st.shortNameHash + " normalized=" + st.normalizedTime.ToString("F2") + " clip=" + playing + " want=" + want + " held=" + (playing == want));
+            }
+        }
+
+        private void StepClip(float ct)
+        {
+            if (segClips == null || segClips.Length == 0) { clipActive = false; ReleaseBaseGameCache(); return; }
+            int n = bones.Length;
+            // 只有没在演的时候才认为 rig 上是"游戏自己的姿势"。
+            // 演出期间 rig 上是我们的输出，拿它当基底会让 delta 自乘放大。
+            if (!clipActive || !baseGameValid)
+            {
+                if (baseGameRot == null || baseGameRot.Length != n)
+                {
+                    baseGameRot = new Quaternion[n];
+                    baseGamePos = new Vector3[n];
+                }
+                // 起手：让她此刻的样子成为插入的起点（现场求值），而不是我们缓存的旧样子
+                if (!CaptureGamePose(baseGameRot))
+                {
+                    for (int i = 0; i < n; i++) baseGameRot[i] = bones[i].localRotation;
+                }
+                for (int i = 0; i < n; i++) baseGamePos[i] = bones[i].localPosition;
+                baseGameValid = true;
+            }
+            if (baseGameRot != null && baseGameRot.Length == n)
+            {
+                for (int i = 0; i < n; i++)
+                {
+                    gameRot[i] = baseGameRot[i];
+                    gamePos[i] = baseGamePos[i];
+                }
             }
             float speed = clipSpeed > 0.01f ? clipSpeed : 0.62f;
-            float wMax = Plugin.MotionWeight == null ? 0.72f : Mathf.Clamp01(Plugin.MotionWeight.Value);
-            string firstName = segClips[0].name;
-            if (firstName.StartsWith("anim_wild_", StringComparison.OrdinalIgnoreCase)) wMax *= 0.55f;
             float ts = Mathf.Clamp(ct * speed, 0f, Mathf.Max(0f, segTotal - 0.001f));
             int idx = 0;
             while (idx < segClips.Length - 1 && ts >= segStarts[idx + 1]) idx++;
-            float local = ts - segStarts[idx];
-            SampleChainClip(segClips[idx], clipTarget, local, 0);
-            float w = wMax;
-            if (ct < clipFadeIn) w = Mathf.Min(w, wMax * Mathf.SmoothStep(0f, 1f, ct / Mathf.Max(0.01f, clipFadeIn)));
-            float left = clipLen - ct;
-            if (left < clipFadeOut) w = Mathf.Min(w, wMax * Mathf.SmoothStep(0f, 1f, Mathf.Max(0f, left) / Mathf.Max(0.01f, clipFadeOut)));
-            // 衔接：每个骨骼的旋转变化量设上限，避免切入/退出时肢体「啪」地甩过去
+            SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
+            // 归还阶段：我们是插入，演完必须把身体还回去。
+            // 目标要现场问游戏"你现在会把她摆成什么样"；用开演前的旧姿势 = 交回去一个过期姿势。
+            float relMs = Plugin.ReleaseMs == null ? 300f : Mathf.Max(30f, Plugin.ReleaseMs.Value);
+            float relSec = relMs / 1000f;
+            bool exiting = !clipLoop && ct > clipLen;
+            if (exiting)
+            {
+                bool firstExit = !exitValid;
+                // 逐帧检查：归还途中又来了新动作，就把归还压到 50ms —— 她不用先回待机再起手。
+                // 只缩不伸：已经在更短的窗口里了就保持。
+                if (HasAnimPending())
+                {
+                    exitRelSec = 0.05f;
+                    float chainEnd = ct + 0.05f;
+                    if (chainEnd < exitEndT || exitEndT <= 0f) exitEndT = chainEnd;
+                }
+                if (exitRot == null || exitRot.Length != n) exitRot = new Quaternion[n];
+                if (exitFrom == null || exitFrom.Length != n) exitFrom = new Quaternion[n];
+                if (firstExit)
+                // 后面还排着动作：这段不用慢慢归还待机，100ms 内交接，下一套直接接上
+                if (HasAnimPending()) exitRelSec = 0.10f;
+                {
+                    // 首帧先记下"我们的输出"，再让游戏求值；顺序反了就是拿游戏刚写下的值跟自己比，距离恒 0。
+                    for (int bb = 0; bb < n; bb++)
+                    {
+                        exitFrom[bb] = bones[bb] == null ? Quaternion.identity : bones[bb].localRotation;
+                    }
+                }
+                // 每帧重取归还目标：交回"正在跑的那段待机"，而不是开演前的静止快照。
+                // 快照是死的——她的待机一直在推进，淡出落到死姿势上，放手时照样跳。
+                exitValid = CaptureGamePose(exitRot);
+                if (firstExit)
+                {
+                    float maxDeg = 0f;
+                    if (exitValid)
+                    {
+                        for (int bb = 0; bb < n; bb++)
+                        {
+                            if (bones[bb] == null) continue;
+                            float dd = Quaternion.Angle(exitFrom[bb], exitRot[bb]);
+                            if (dd > maxDeg) maxDeg = dd;
+                        }
+                    }
+                    // 距离决定归还时长：坐着点头差 5°，0.3s 够；站起来差 100°，还用 0.3s 就是被扫回去。
+                    exitRelSec = Mathf.Clamp(0.30f + maxDeg / 180f, 0.30f, 0.90f);
+                    // 衔接：不用等归还走完——后面还排着动作，她在收尾的最后一瞬就接上下一套。
+                    if (HasAnimPending()) exitRelSec = 0.12f;
+                    exitEndT = clipLen + exitRelSec;
+                    if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("return: " + (exitValid ? "live idle" : "fallback") + " dist=" + maxDeg.ToString("F1") + "deg rel=" + (exitRelSec * 1000f).ToString("F0") + "ms");
+                }
+            }
+            float kOut = 1f;
+            if (exiting)
+            {
+                float kk = exitRelSec <= 0.001f ? 1f : Mathf.Clamp01((ct - clipLen) / exitRelSec);
+                kOut = Mathf.SmoothStep(0f, 1f, 1f - kk);
+            }
+            if (ampStart == null || ampStart.Length != n)
+            {
+                ampStart = new Quaternion[n];
+                ampStartValid = false;
+            }
+            // 基线取第一帧。注意 amp 含"进入过渡"的混合量，plan 只量 clip 自身幅度：
+            // 两者不同量纲 —— 校验以 plan 为准，amp 只用来看"这一下有没有真的动"（moved）。
+            bool capAmp = !ampStartValid;
+            if (capAmp) ampStartValid = true;
+            headDevDeg = 0f;
+            float wBody = planWBody * EnvelopeAt(ct, false);
+            float wHead = planWHead * EnvelopeAt(ct, true);
+            float switchMs = Mathf.Clamp(switchMsFromClass, 80f, 900f);
+            float kSwitch = switchMs <= 1f ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Time.time - switchT0) / (switchMs / 1000f)));
             float dt = Mathf.Max(0.0001f, Time.deltaTime);
-            float maxDeg = (Plugin.MotionMaxDegPerSec == null ? 300f : Mathf.Max(30f, Plugin.MotionMaxDegPerSec.Value)) * dt;
-            float worst = 0f;
             for (int i = 0; i < n; i++)
             {
                 var tr = bones[i];
-                // 专注/番茄钟：只让头和颈动，身体保持游戏自己的姿态
-                if (upperOnly && (upperAllowed == null || !upperAllowed[i]))
+                bool isHead = upperAllowed != null && i < upperAllowed.Length && upperAllowed[i];
+                // 说明：这里不再"只放行头骨"。upper 的正确语义是"只叠加、不搬身体"，
+                // 由下方 useAdditive 实现 —— 硬锁非头骨会把抬手/前倾这些手臂动作一起吞掉，
+                // 喝水的动作就退化成"歪一下头"（实测只剩 3~10°）。
+                // 叠加式：base 是 clip 自己的首帧，delta 是它自己的运动量。
+                // 游戏待机姿势（gameRot）始终是基底，所以不会把她"搬"到别处 ——
+                // 位移式点头的根因就是拿 clip 的绝对姿势去覆盖待机姿势。
+                Quaternion baseQ = (clipBaseRot != null && i < clipBaseRot.Length) ? clipBaseRot[i] : Quaternion.identity;
+                Quaternion delta = Quaternion.Inverse(baseQ) * tr.localRotation;
+                Quaternion q;
+                // 专注态只让头和颈动，身体被锁在游戏姿势 —— 这时追求"绝对姿势"是自欺：
+                // 够不到目标，却把 clip 的绝对姿态套到头上（10.5° 的动作推成 20.2° 偏移）。
+                bool useAdditive = profile.Additive || upperOnly;
+                if (useAdditive)
                 {
-                    tr.localRotation = gameRot[i];
-                    tr.localPosition = gamePos[i];
-                    continue;
+                    // 手势类：叠在游戏姿态上，她不会位移
+                    Quaternion baseNow = (exiting && exitValid && i < exitRot.Length) ? exitRot[i] : gameRot[i];
+                    q = baseNow * ScaleDelta(delta, isHead ? wHead : wBody);
                 }
-                Quaternion want = Quaternion.Slerp(gameRot[i], tr.localRotation, w);
-                Quaternion q = Quaternion.RotateTowards(lastRot[i], want, maxDeg);
+                else
+                {
+                    // 道具/姿态/位移类：必须真的到她该去的位置，所以向绝对姿势过渡，
+                    // 过渡时长由分类决定（600~900ms），不是瞬间覆盖。
+                    float rampW = profile.RampMs <= 1f ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Time.time - absRampT0) / (profile.RampMs / 1000f)));
+                    Quaternion baseNow = (exiting && exitValid && i < exitRot.Length) ? exitRot[i] : gameRot[i];
+                    q = Quaternion.Slerp(baseNow, tr.localRotation, Mathf.Clamp01((isHead ? wHead : wBody) * rampW));
+                }
+                // 起手：从"插入那一刻的姿势"过渡进来
+                if (kSwitch < 1f && prevPoseValid && prevPose != null && i < prevPose.Length)
+                    q = Quaternion.Slerp(prevPose[i], q, kSwitch);
+                // 归还：交回游戏此刻的姿势，而不是硬切
+                if (exiting && exitValid && i < exitRot.Length)
+                    q = Quaternion.Slerp(exitRot[i], q, kOut);
+                // 段内幅度：这一段里，当前采样离本段第一帧最远多少度 —— 与 plan 同量纲。
+                if (ampStart != null && ampStart.Length == n)
+                {
+                    if (capAmp) ampStart[i] = tr.localRotation;
+                    else
+                    {
+                        float amp = Quaternion.Angle(ampStart[i], tr.localRotation);
+                        if (isHead) { if (amp > dbgAmpHead) { dbgAmpHead = amp; dbgAmpHeadName = tr.name ?? ""; dbgAmpW = wHead; } }
+                        else if (amp > dbgAmpBody) { dbgAmpBody = amp; dbgAmpName = tr.name ?? ""; dbgAmpW = wBody; }
+                    }
+                }
                 float d = Quaternion.Angle(lastRot[i], q);
-                if (d > worst) worst = d;
                 lastRot[i] = q;
                 tr.localRotation = q;
                 tr.localPosition = gamePos[i];
+                dbgMaxDeg = Mathf.Max(dbgMaxDeg, d);
+                if (isHead)
+                {
+                    headDevDeg = Mathf.Max(headDevDeg, Quaternion.Angle(gameRot[i], q));
+                    headSpeedMax = Mathf.Max(headSpeedMax, d / dt);
+                }
             }
-            if (worst > dbgMaxDeg) dbgMaxDeg = worst;
             dbgFrames++;
         }
 
-        private void EnsureBones()
+        // 增量按角度轴缩放：w>1 放大手势，w<1 收敛。Slerp 权重被夹在 0..1，
+        // 想"点得明显"必须自己在轴上放大，否则只能靠搬姿势。
+        private static Quaternion ScaleDelta(Quaternion delta, float w)
+        {
+            if (Mathf.Abs(w - 1f) < 0.001f) return delta;
+            float ang; Vector3 axis;
+            delta.ToAngleAxis(out ang, out axis);
+            if (ang > 180f) ang -= 360f;
+            if (float.IsNaN(axis.x) || (axis.x == 0f && axis.y == 0f && axis.z == 0f)) return Quaternion.identity;
+            return Quaternion.AngleAxis(ang * w, axis);
+        }
+
+private void EnsureBones()
         {
             if (bones != null && bones.Length > 0) return;
             var root = clipTarget != null ? clipTarget.transform : (heroine != null ? heroine.transform : null);
@@ -1116,50 +1706,154 @@ namespace ChillPerformer
             lastRot = new Quaternion[list.Length];
             for (int i = 0; i < list.Length; i++) lastRot[i] = list[i].localRotation;
             upperAllowed = new bool[list.Length];
+            headIdx = -1;
             for (int i = 0; i < list.Length; i++)
             {
                 string nm = list[i].name ?? "";
                 upperAllowed[i] = nm.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0
                     || nm.IndexOf("Neck", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (nm.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0
+                    && (headIdx < 0 || nm.Length < (list[headIdx].name ?? "").Length)) headIdx = i;
             }
+            if (headIdx < 0) for (int i = 0; i < list.Length; i++) if (upperAllowed[i]) { headIdx = i; break; }
+            Plugin.Log.LogInfo("head bone: idx=" + headIdx + " name=" + (headIdx >= 0 ? list[headIdx].name : "(none)") + " upper=" + System.Array.FindAll(upperAllowed, b => b).Length);
             Plugin.Log.LogInfo("bones cached: " + list.Length + " under " + root.name);
+        }
+
+        // 队里还排着动画吗？（只看槽位，不看时间：时间由排队消费端控制）
+        private bool HasAnimPending()
+        {
+            for (int i = 0; i < pending.Count; i++)
+            {
+                var dto = pending[i].dto;
+                if (dto == null || dto.performance == null) continue;
+                for (int k = 0; k < dto.performance.Length; k++)
+                {
+                    var c = dto.performance[k];
+                    if (c != null && string.Equals(c.slot, "animations", StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            return false;
         }
 
         private void StartClip(string clipName, bool loop, int durationMs)
         {
             EnsureBones();
             if (clipAssets.Count == 0) return;
-            bool known = clipAssets.ContainsKey(clipName) || Lookup(StripSuffix(clipName) + "_loop") != null || Lookup(StripSuffix(clipName) + "_start") != null;
+            // 名字归一：大脑点名 `X_loop`，资产里可能是 `anim_X_loop` 或大小写不同
+            string normName;
+            AnimationClip normClip = LookupLoose(clipName, out normName);
+            if (normClip != null && !string.Equals(normName, clipName, StringComparison.Ordinal))
+            {
+                if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("clip name normalized: " + clipName + " -> " + normName);
+                clipName = normName;
+            }
+            bool known = normClip != null
+                || LookupLoose(StripSuffix(clipName) + "_loop", out normName) != null
+                || LookupLoose(StripSuffix(clipName) + "_start", out normName) != null
+                || LookupLoose(StripSuffix(clipName) + "_end", out normName) != null;
             if (!known) { Plugin.Log.LogWarning("clip missing: " + clipName); return; }
             Animator owner = null;
             if (!clipOwners.TryGetValue(clipName, out owner) || owner == null) owner = heroine;
             if (owner == null) return;
             clipTarget = owner.gameObject;
             if (Plugin.MotionEnabled != null && !Plugin.MotionEnabled.Value) { Plugin.Log.LogInfo("motion disabled, cue ignored: " + clipName); return; }
+            // 重复跳过：同一段还在演（或刚演完 1.5s 内）就不再从第 0 帧重来。
+            // 一条 cue 被上游重复下发时，这里就是"点了好几下"的最后一处闸门。
+            float nowWall = Time.time;
+            float repWin = Plugin.RepeatWindowMs == null ? 1.5f : Mathf.Max(0f, Plugin.RepeatWindowMs.Value / 1000f);
+            bool stillPlaying = clipActive && (nowWall - clipStartWall) < clipLen + (Plugin.ReleaseMs == null ? 0.3f : Plugin.ReleaseMs.Value / 1000f);
+            if (stillPlaying && string.Equals(clipName, activeClip == null ? "" : activeClip.name, StringComparison.OrdinalIgnoreCase) && (nowWall - clipStartWall) < repWin)
+            {
+                skippedRepeat++;
+                if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("anim skip: repeat " + clipName + " within " + Mathf.RoundToInt((nowWall - clipStartWall) * 1000f) + "ms");
+                return;
+            }
+            // 同族续演：X_start -> X_loop -> X_end 是同一条动作，不该每段都重新淡入
+            string fam = StripSuffix(clipName);
+            bool inFamily = clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase)
+                || (fam == activeBase && (nowWall - lastFamilyEnd) < (Plugin.FamilyGraceMs == null ? 1.5f : Plugin.FamilyGraceMs.Value / 1000f));
+            bool continueFamily = chainEntry || clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase)
+                || (!clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase) && (nowWall - lastFamilyEnd) < (Plugin.FamilyGraceMs == null ? 1.5f : Plugin.FamilyGraceMs.Value / 1000f));
             if (bones != null) for (int i = 0; i < bones.Length; i++) lastRot[i] = bones[i].localRotation;
+            chainEntry = false;
             dbgMaxDeg = 0f; dbgFrames = 0;
             BuildSequence(clipName);
             if (segClips.Length == 0) return;
             activeClip = segClips[0];
+            activeBase = fam;
             float spd = Plugin.MotionSpeed == null ? 0.62f : Mathf.Clamp(Plugin.MotionSpeed.Value, 0.2f, 2f);
-            // 时间线归 brain：cue 的 d 是这一段该占多久。放慢只在不影响播完时才生效，
-            // 否则按 d 加速，保证这一段在下一条 cue 到来前演完，不会半途被切断。
+            // cue 的 d 是建议时长：允许加速到 SpeedCap 去塞进 d，但不许为了塞而把动作压成鬼畜。
+            float capSpeed = Plugin.SpeedCap == null ? 1.25f : Mathf.Clamp(Plugin.SpeedCap.Value, 0.5f, 6f);
             float want = durationMs > 0 ? durationMs / 1000f : 0f;
-            if (want > 0.05f)
+            if (want > 0.05f && clipSpeedAllowed(profile))
             {
                 float need = segTotal / want;
-                if (need > spd) spd = Mathf.Clamp(need, 0.2f, 6f);
-                clipLen = want;
+                if (need > spd) spd = Mathf.Min(need, capSpeed);
+            }
+            // 量完才知道该多快、多重：这是唯一决定"动作多大、多快"的地方
+            planFamily = StripSuffix(clipName);
+            // 分类：决定这一段的合成方式（叠加 / 绝对过渡）、预算与是否独占
+            ClipClass cls = MotionRules.Classify(clipName);
+            float transMs = MotionRules.TransitionMs(currentClass, cls);
+            profile = MotionProfile.For(cls);
+            if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("class " + MotionRules.Label(currentClass) + " > " + MotionRules.Label(cls) + " trans=" + transMs.ToString("F0") + "ms");
+            currentClass = cls;
+            switchMsFromClass = transMs;
+            if (profile.Exclusive && clipActive && !continueFamily)
+            {
+                skippedRepeat++;
+                if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("anim deferred: " + MotionRules.Label(cls) + " is exclusive, still performing " + (activeClip != null ? activeClip.name : "?"));
+                return;
+            }
+            keepClipBase = continueFamily;
+            // 从 rig 上真实的当前姿势起步：这才是"以上一个动作为初始状态"。
+            // 不能抄 lastRot —— 那是我们自己上次写进去的值，首次演出时它是恒等式，
+            // 淡入就等于把整个骨架从 identity 拉到待机（实测 119° 跳变）。
+            if (bones != null && bones.Length > 0)
+            {
+                if (prevPose == null || prevPose.Length != bones.Length) prevPose = new Quaternion[bones.Length];
+                for (int b = 0; b < bones.Length; b++)
+                {
+                    if (bones[b] != null) prevPose[b] = bones[b].localRotation;
+                }
+                prevPoseValid = true;
+            exitValid = false;
+            dbgPushHead = 0f; dbgPushBody = 0f;
+            dbgAmpHead = 0f; dbgAmpBody = 0f; dbgAmpHeadName = ""; dbgAmpName = ""; ampStartValid = false;
+            // 新的一段：允许下一帧重新确认游戏待机姿势（场景/坐姿可能换了）
+            baseGameValid = false;
             }
             else
             {
-                clipLen = Mathf.Clamp(segTotal / spd, 0.2f, 30f);
+                prevPoseValid = false;
             }
-            clipSpeed = spd;
+            switchT0 = Time.time;
+            MeasureAndPlan(spd);
+            spd *= planSpeed;
+            clipSpeed = Mathf.Max(0.05f, spd);
+            float natural = segTotal / clipSpeed;
+            // 表演和语音解绑：一段动作就按它自己的自然时长演完。
+            // 以前允许指令里的 durationMs 把它撑到 1.35 倍——那是让身体去填语音的空白。
+            // 口型不在这里，走 mouthFlat/音频时间轴。
+            clipLen = natural;
+            float maxClipSec = Mathf.Clamp(profile.MaxSec > 0f ? profile.MaxSec : 8f, 0.5f, 40f);
+            inAbsolute = !profile.Additive;
+            absRampT0 = Time.time;
+            clipLen = Mathf.Clamp(Mathf.Min(clipLen, maxClipSec), 0.2f, 30f);
+            clipFadeIn = continueFamily ? 0.12f : 0.45f;
+            headDevDeg = 0f; headSpeedMax = 0f;
             clipT0 = Time.time;
+            clipStartWall = nowWall;
             clipLoop = loop;
             clipActive = true;
-            if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("sample play " + clipName + " segs=" + segClips.Length + " total=" + segTotal.ToString("F2") + " wall=" + clipLen.ToString("F2") + " on " + clipTarget.name);
+            if (inFamily) lastFamilyEnd = nowWall;
+            if (Plugin.VerboseCues.Value)
+                Plugin.Log.LogInfo("plan " + clipName + " speed=" + clipSpeed.ToString("F2") + " (x" + planSpeed.ToString("F2") + ")"
+                    + " wBody=" + planWBody.ToString("F2") + " wHead=" + planWHead.ToString("F2")
+                    + " peakBody=" + planBodyPeakDeg.ToString("F0") + "deg/" + planBodyPeakSpd.ToString("F0") + "dps"
+                    + " peakHead=" + planHeadPeakDeg.ToString("F0") + "deg/" + planHeadPeakSpd.ToString("F0") + "dps"
+                    + " wall=" + clipLen.ToString("F2") + (continueFamily ? " (family)" : ""));
         }
 
         private void PlayAnim(string idOrName, int durationMs)
@@ -1377,7 +2071,8 @@ namespace ChillPerformer
                 float until = Time.unscaledTime + 30f;
                 while (Time.unscaledTime < until && ((audioSource != null && audioSource.isPlaying) || clipActive))
                     yield return null;
-                int gap = Plugin.QueueGapMs == null ? 250 : Mathf.Max(0, Plugin.QueueGapMs.Value);
+                // 队里还有动作就不插空档：上一套刚接完，下一套立刻起手
+                int gap = pending.Count > 0 ? 0 : (Plugin.QueueGapMs == null ? 250 : Mathf.Max(0, Plugin.QueueGapMs.Value));
                 if (gap > 0) yield return new WaitForSecondsRealtime(gap / 1000f);
                 performing = false;
             }

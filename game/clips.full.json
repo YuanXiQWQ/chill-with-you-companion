@@ -1,0 +1,3580 @@
+{
+  "generatedAt": "2026-11-15T10:12:30.042Z",
+  "source": "game LogOutput.log clipdump",
+  "totalClips": 516,
+  "animationClips": 477,
+  "nonAnimationClips": 39,
+  "families": 243,
+  "shapes": {
+    "end+loop+start": 48,
+    "loop": 20,
+    "single": 154,
+    "start+loop": 3,
+    "loop+end": 6,
+    "end+start": 7,
+    "start": 3,
+    "end": 2
+  },
+  "scenes": {
+    "-": 5,
+    "break": 30,
+    "env": 3,
+    "face": 19,
+    "item": 5,
+    "lookplayer": 1,
+    "start": 4,
+    "startcamera": 1,
+    "story": 78,
+    "ui": 15,
+    "wild": 67,
+    "work": 15
+  },
+  "owners": {
+    "Character": 337,
+    "m_Chair_mobile": 71,
+    "m_pencil_ForSpin": 4,
+    "m_env_ferriswheel": 1,
+    "m_env_jet": 1,
+    "m_env_whale": 1,
+    "Env_FurinObject": 1,
+    "m_novel": 3,
+    "m_textbook": 2,
+    "RoomCameraManager": 2,
+    "StartSceneVolume": 1,
+    "m_kumares_book": 6,
+    "CallIcon": 3,
+    "Parent": 7,
+    "GameDemoViewPlayEndCanvas": 7,
+    "Normal_LevelBaseImage": 2,
+    "BearsRestaurant_LevelUI": 2,
+    "StatisticsDev_LevelUI": 2,
+    "NearSpring2026_LevelUI": 2,
+    "Valentine2026_LevelUI": 2,
+    "MagicalPrincess_LevelUI": 2,
+    "LunaNewYear2026_LevelUI": 2,
+    "ScreenSharing": 3,
+    "WorkspaceLayout": 8,
+    "m_memorie": 3,
+    "m_window": 2
+  },
+  "controllers": {
+    "Character_Animator_ForScript": 337,
+    "ChairAnimationCtr": 71,
+    "PenAnimationCtr": 4,
+    "m_env_ferriswheel": 1,
+    "m_env_jet": 1,
+    "m_env_whale": 1,
+    "Env_FurinObject": 1,
+    "m_novel": 3,
+    "m_textbook": 2,
+    "Cameras_Animator": 2,
+    "StartSceneVolume_Animator": 1,
+    "BearsRestaurantBookAnimCtr": 6,
+    "Call": 3,
+    "Loading": 14,
+    "LevelBaseImage": 14,
+    "ScreenSharing": 3,
+    "WorkspaceLayout": 8,
+    "MemorieAnimationCtr": 3,
+    "WindowAnimationCtr": 2
+  },
+  "byFamily": [
+    {
+      "family": "anim_base001_sub_lookaround001",
+      "scene": "",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.417,
+        "loop": 10,
+        "start": 0.417
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_dryeye",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.7,
+        "loop": 0.633,
+        "start": 2.033
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_forward_base",
+      "scene": "break",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.333,
+        "loop": 6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_forward_sub_interest",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_forward_sub_keyboard",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_movie_base",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 17.833,
+        "start": 1.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_movie_base_loop2",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 4,
+        "start": 1
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_break_movie_sub_laugh",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2.5,
+        "start": 1.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_movie_sub_suspense",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 1.5,
+        "start": 2.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_movie_sub_trash",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_music_base",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_music_loop_high",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_music_low",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.333,
+        "loop": 5,
+        "start": 1.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_novel_base",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 2.233,
+        "loop": 5,
+        "start": 2.333
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_break_novel_sub_action",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.5,
+        "loop": 1.5,
+        "start": 3.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_novel_sub_pageflip_back",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_novel_sub_pageflip_next",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_playingwithapen",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 3.4,
+        "loop": 1.467,
+        "start": 0.867
+      },
+      "owners": [
+        "Character",
+        "m_pencil_ForSpin"
+      ]
+    },
+    {
+      "family": "anim_break_playingwithapen_drop",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 7.733
+      },
+      "owners": [
+        "Character",
+        "m_pencil_ForSpin"
+      ]
+    },
+    {
+      "family": "anim_break_playingwithapen_drop.0002",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 7.633
+      },
+      "owners": [
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_break_sleep_base",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_sleep_sub_fall",
+      "scene": "break",
+      "segs": [
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "loop": 4,
+        "start": 2.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_sleep_sub_wakeup",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "single",
+        "start"
+      ],
+      "segSeconds": {
+        "single": 4.333,
+        "end": 1,
+        "loop": 1,
+        "start": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_tea_base",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.667,
+        "loop": 9,
+        "start": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_tea_sub",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 8.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_tea_sub_drink",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.833,
+        "end": 1.167,
+        "loop": 1.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_tea_sub_hot",
+      "scene": "break",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_tea_sub_maker",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 8.667,
+        "loop": 9.333,
+        "start": 8.533
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_break_tea_sub_unique001",
+      "scene": "break",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 1.667,
+        "start": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_yawn_1",
+      "scene": "break",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 3,
+        "start": 2.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_break_yawn_2",
+      "scene": "break",
+      "segs": [
+        "start"
+      ],
+      "segSeconds": {
+        "start": 4
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_env_ferriswheel",
+      "scene": "env",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 600
+      },
+      "owners": [
+        "m_env_ferriswheel"
+      ]
+    },
+    {
+      "family": "anim_env_jet",
+      "scene": "env",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 100
+      },
+      "owners": [
+        "m_env_jet"
+      ]
+    },
+    {
+      "family": "anim_env_whale",
+      "scene": "env",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 120
+      },
+      "owners": [
+        "m_env_whale"
+      ]
+    },
+    {
+      "family": "anim_face_shy_anger",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_deep",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_ehehe",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_fun",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_joy",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_monologue",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_monologue2",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_rest",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_rough",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_sad",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_sad2",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_shy",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_sleepy",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_smile",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_surprise",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_thinking",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_wink",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_shy_zito",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_face_talk",
+      "scene": "face",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_furin",
+      "scene": "",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 12
+      },
+      "owners": [
+        "Env_FurinObject"
+      ]
+    },
+    {
+      "family": "anim_item_novel",
+      "scene": "item",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 0.167
+      },
+      "owners": [
+        "m_novel"
+      ]
+    },
+    {
+      "family": "anim_item_novel_back",
+      "scene": "item",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.5
+      },
+      "owners": [
+        "m_novel"
+      ]
+    },
+    {
+      "family": "anim_item_novel_next",
+      "scene": "item",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.5
+      },
+      "owners": [
+        "m_novel"
+      ]
+    },
+    {
+      "family": "anim_item_textbook_idle",
+      "scene": "item",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.083
+      },
+      "owners": [
+        "m_textbook"
+      ]
+    },
+    {
+      "family": "anim_item_textbook_pageflip",
+      "scene": "item",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.65
+      },
+      "owners": [
+        "m_textbook"
+      ]
+    },
+    {
+      "family": "anim_lookplayer",
+      "scene": "lookplayer",
+      "segs": [
+        "start"
+      ],
+      "segSeconds": {
+        "start": 0.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_plankshake",
+      "scene": "",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_start_christmas_001",
+      "scene": "start",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 8
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_start_fromoutside_001",
+      "scene": "start",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 10.667
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_start_haircheck",
+      "scene": "start",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_start_v3_full",
+      "scene": "start",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.983
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_startcamera",
+      "scene": "",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "RoomCameraManager"
+      ]
+    },
+    {
+      "family": "anim_startcamera_mobile",
+      "scene": "startcamera",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.5
+      },
+      "owners": [
+        "RoomCameraManager"
+      ]
+    },
+    {
+      "family": "anim_startvolume",
+      "scene": "",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "StartSceneVolume"
+      ]
+    },
+    {
+      "family": "anim_story_base001_base",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_12_1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_125_1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_125_2",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_20",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_2",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_3",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.5,
+        "loop": 3.583,
+        "start": 0.917
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_4",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_5",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_6",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_7",
+      "scene": "story",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2,
+        "loop": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_27_8",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5,
+        "end": 1,
+        "loop": 2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_0",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 12.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_2",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_3",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_3loop",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_4",
+      "scene": "story",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.167,
+        "loop": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_5",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1,
+        "end": 1.333,
+        "loop": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_28_6",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 18.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_confidence",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.583,
+        "loop": 0.05,
+        "start": 0.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_copycat",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_deep",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2,
+        "start": 1.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_distress",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_dropshoulders",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2,
+        "start": 1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_eieio",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_frustration1",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.667,
+        "loop": 2.667,
+        "start": 1.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_frustration2",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.667,
+        "loop": 3,
+        "start": 1.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_introduce",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.167,
+        "loop": 2,
+        "start": 1.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_jump",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.583,
+        "loop": 0.017,
+        "start": 0.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_look_and_regrect",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 14
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_lookpenguin",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.167,
+        "loop": 2,
+        "start": 1.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_magicalprincess_1",
+      "scene": "story",
+      "segs": [
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "loop": 2.667,
+        "start": 4
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_magicalprincess_2",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop2",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.667,
+        "loop2": 3.667,
+        "start": 1.867
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_magicalprincess_2_loop1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.133
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_magicalprincess_2_middle",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_newyear_countdown_1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_newyear_countdown_2",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_newyear_countdown_3",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_newyear_countdown_4",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_nod",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_openbook",
+      "scene": "story",
+      "segs": [
+        "end"
+      ],
+      "segSeconds": {
+        "end": 3.5
+      },
+      "owners": [
+        "Character",
+        "m_kumares_book"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_openbook_endloop",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character",
+        "m_kumares_book"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_openbook_loopchange1",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.667
+      },
+      "owners": [
+        "Character",
+        "m_kumares_book"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_openbook_loopchange2",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.833
+      },
+      "owners": [
+        "Character",
+        "m_kumares_book"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_openbook_middleloop",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character",
+        "m_kumares_book"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_openbook_startloop",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character",
+        "m_kumares_book"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_pattern1",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2.833,
+        "start": 1.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_presshands",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.5,
+        "loop": 2.5,
+        "start": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_shakehead",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_shy",
+      "scene": "story",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.417,
+        "start": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_thinking1",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.833,
+        "loop": 0.05,
+        "start": 0.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_thinking1_sub_agree",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.75
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_thinking1_sub_frustration",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base001_sub_touch_glasses",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.833,
+        "loop": 3.333,
+        "start": 0.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess",
+      "scene": "story",
+      "segs": [
+        "start"
+      ],
+      "segSeconds": {
+        "start": 6.6
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_eat_1",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.7,
+        "loop": 1.9,
+        "start": 2.767
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_eat_2",
+      "scene": "story",
+      "segs": [
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "loop": 1.933,
+        "start": 2.5
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_idle",
+      "scene": "story",
+      "segs": [
+        "end"
+      ],
+      "segSeconds": {
+        "end": 0.767
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_idle_1",
+      "scene": "story",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 1.167
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_idle_2",
+      "scene": "story",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 2.833
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_idle_3",
+      "scene": "story",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 2.833
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_look",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop"
+      ],
+      "segSeconds": {
+        "end": 2.167,
+        "loop": 2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_base002_sub_magicalprincess_thinking",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.633,
+        "loop": 3,
+        "start": 1.233
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_story_subbase_002_base",
+      "scene": "story",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase001_base",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2.667,
+        "start": 1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase001_sub_fun",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase001_sub_guts",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase001_sub_joy",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase001_sub_sad",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.9
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase002_base",
+      "scene": "story",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.5,
+        "start": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase002_sub_fun",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase002_sub_joy",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase002_sub_sad",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase003_base",
+      "scene": "story",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.167,
+        "loop": 1.5,
+        "start": 1.833
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase003_sub_fun",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_story_subbase003sub_sad",
+      "scene": "story",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_ui_call",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.683
+      },
+      "owners": [
+        "CallIcon"
+      ]
+    },
+    {
+      "family": "anim_ui_call_Idle",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1
+      },
+      "owners": [
+        "CallIcon"
+      ]
+    },
+    {
+      "family": "anim_ui_call2",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.683
+      },
+      "owners": [
+        "CallIcon"
+      ]
+    },
+    {
+      "family": "anim_ui_finish_endcredits_fadein",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.5
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_levelup",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.133
+      },
+      "owners": [
+        "Normal_LevelBaseImage",
+        "BearsRestaurant_LevelUI",
+        "StatisticsDev_LevelUI",
+        "NearSpring2026_LevelUI",
+        "Valentine2026_LevelUI",
+        "MagicalPrincess_LevelUI",
+        "LunaNewYear2026_LevelUI"
+      ]
+    },
+    {
+      "family": "anim_ui_levelup_none",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 60.033
+      },
+      "owners": [
+        "Normal_LevelBaseImage",
+        "BearsRestaurant_LevelUI",
+        "StatisticsDev_LevelUI",
+        "NearSpring2026_LevelUI",
+        "Valentine2026_LevelUI",
+        "MagicalPrincess_LevelUI",
+        "LunaNewYear2026_LevelUI"
+      ]
+    },
+    {
+      "family": "anim_ui_loading",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.5
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_loading_fadein",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.567
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_loading_fadein_error",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0.567
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_loading_finish",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.333
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_loading_finish_error",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.333
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_loading_gameend",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.5
+      },
+      "owners": [
+        "Parent",
+        "GameDemoViewPlayEndCanvas"
+      ]
+    },
+    {
+      "family": "anim_ui_screensharing",
+      "scene": "ui",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 1
+      },
+      "owners": [
+        "ScreenSharing"
+      ]
+    },
+    {
+      "family": "anim_ui_screensharing_In",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.333
+      },
+      "owners": [
+        "ScreenSharing"
+      ]
+    },
+    {
+      "family": "anim_ui_screensharing_Out",
+      "scene": "ui",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.167
+      },
+      "owners": [
+        "ScreenSharing"
+      ]
+    },
+    {
+      "family": "anim_wild_banzai",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_breath",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_cheer",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_completetask",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_deep_breath",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_eieio",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_feellarge",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 1.6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_fidget",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_good",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_goodbye",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 7
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_greeting_wavehand",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.667
+      },
+      "owners": [
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_guts",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_guts_2",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.167,
+        "end": 1.167,
+        "loop": 1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_guts_3",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_gymnastics",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_bookfrompc",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5
+      },
+      "owners": [
+        "WorkspaceLayout",
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_bookfromreport",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.667
+      },
+      "owners": [
+        "WorkspaceLayout",
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_pc",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 0
+      },
+      "owners": [
+        "WorkspaceLayout"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_pcfrombook",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.333
+      },
+      "owners": [
+        "WorkspaceLayout",
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_pcfromreport",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.667
+      },
+      "owners": [
+        "WorkspaceLayout",
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_reportfrombook",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 5.333
+      },
+      "owners": [
+        "WorkspaceLayout",
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_layout_reportfrompc",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.667
+      },
+      "owners": [
+        "WorkspaceLayout",
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_A_comeback",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 7.333,
+        "start": 6.6
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_A_comeback_camera",
+      "scene": "wild",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_A_comeback_eat_1",
+      "scene": "wild",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.267,
+        "loop": 1.9
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_A_comeback_eat_2",
+      "scene": "wild",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3,
+        "loop": 1.933
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_A_comeback_eat_3",
+      "scene": "wild",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.167,
+        "loop": 1.767
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_B_comeback",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 7.333,
+        "start": 6.6
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_B_comeback_camera",
+      "scene": "wild",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_B_comeback_eat_1",
+      "scene": "wild",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.267,
+        "loop": 1.9
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_B_comeback_eat_2",
+      "scene": "wild",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3,
+        "loop": 1.933
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_bread_B_comeback_eat_3",
+      "scene": "wild",
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3.167,
+        "loop": 1.767
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cookie_comeback",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 8.567,
+        "start": 6.567
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cookie_comeback_camera",
+      "scene": "wild",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 2.033
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cookie_comeback_eat_1",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.5
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cookie_comeback_eat_2",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cookie_comeback_eat_loop_1",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.367
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cookie_comeback_eat_loop_2",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cup_comeback",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 9
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cup_go",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 7.3
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cupcake_comeback",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 8.567,
+        "start": 6.567
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cupcake_comeback_camera",
+      "scene": "wild",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 2.033
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cupcake_comeback_eat_1",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.5
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cupcake_comeback_eat_2",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.1
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cupcake_comeback_eat_loop_1",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.367
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_cupcake_comeback_eat_loop_2",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.3
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_normal_comeback",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_normal_comeback_0001",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6.667
+      },
+      "owners": [
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_normal_go",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.2
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_sofa",
+      "scene": "wild",
+      "segs": [
+        "loop"
+      ],
+      "segSeconds": {
+        "loop": 3.767
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_sofa_comeback",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 8.667
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_sofa_deepthink",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 3,
+        "loop": 5.667,
+        "start": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_sofa_go",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 9.833
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_sofa_headphone",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_leavechair_sofa_lookoutside",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 2.667,
+        "loop": 8.667,
+        "start": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_memorie",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "segSeconds": {
+        "single": 11.667,
+        "end": 3.333,
+        "loop": 1
+      },
+      "owners": [
+        "Character",
+        "m_Chair_mobile",
+        "m_memorie"
+      ]
+    },
+    {
+      "family": "anim_wild_stretch_1",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_stretch_2",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 8.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_stretchfullbody",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_stretchshoulder",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_tea_base",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 7.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_tired",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 7
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_tired2",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.517,
+        "loop": 3.233,
+        "start": 6.083
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_wanttotalk2",
+      "scene": "wild",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.667,
+        "loop": 10,
+        "start": 1.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_wet",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 3
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_wild_window",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 9.233
+      },
+      "owners": [
+        "m_window",
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_wild_window_close",
+      "scene": "wild",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 9.233
+      },
+      "owners": [
+        "m_window",
+        "Character",
+        "m_Chair_mobile"
+      ]
+    },
+    {
+      "family": "anim_work_book_base",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "loop2",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 2.25,
+        "loop": 10,
+        "loop2": 2.667,
+        "start": 1.75
+      },
+      "owners": [
+        "Character",
+        "WorkspaceLayout"
+      ]
+    },
+    {
+      "family": "anim_work_book_base_loop2",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 2,
+        "loop": 6,
+        "start": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_book_base_loop2_pageflip",
+      "scene": "work",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_book_sub_keytype",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 4,
+        "start": 1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_book_sub_pageflip",
+      "scene": "work",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 2.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_book_sub_thinking",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2.667,
+        "start": 1
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_pc_base",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1.1,
+        "loop": 10,
+        "start": 1.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_pc_base_loop2",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 2,
+        "loop": 4.333,
+        "start": 2.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_pc_sub_stop",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.5,
+        "loop": 2.833,
+        "start": 0.667
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_pc_sub_thinking",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 1.667,
+        "start": 1.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_report_base",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 2.4,
+        "loop": 10.667,
+        "start": 3.6
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_report_base_loop2",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 7.667,
+        "start": 4.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_report_base_loop3",
+      "scene": "work",
+      "segs": [
+        "single"
+      ],
+      "segSeconds": {
+        "single": 4.167
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_report_sub_stop",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 0.833,
+        "loop": 2.833,
+        "start": 1.333
+      },
+      "owners": [
+        "Character"
+      ]
+    },
+    {
+      "family": "anim_work_report_sub_thinking",
+      "scene": "work",
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "segSeconds": {
+        "end": 1,
+        "loop": 2.333,
+        "start": 2
+      },
+      "owners": [
+        "Character"
+      ]
+    }
+  ]
+}
