@@ -2,7 +2,7 @@
 // 接管期内她不在椅子上，这段时间的对话不排表演，只出字幕与语音。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { decideTrip, tripPlan, awayWindow, stepMs, cooldownMs, TRIPS, AWAY_TAIL_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS } from '../lib/seat-trip.js'
+import { decideTrip, tripPlan, awayWindow, stepMs, cooldownMs, tripItems, tripWindow, stayMs, TRIPS, AWAY_TAIL_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS, STAY_MIN_MS, STAY_MAX_MS } from '../lib/seat-trip.js'
 import { isOffChair } from '../lib/motion-class.js'
 
 test('认得出要离座的说法，普通闲聊不启动', () => {
@@ -67,4 +67,30 @@ test('冷却 3~5 分钟：不长到"这句话她一直没接"，也不短到一�
   // 随机会真的变，不是常数
   const many = new Set(Array.from({ length: 50 }, () => cooldownMs()))
   assert.ok(many.size > 10, '冷却算出来几乎一样，等于固定值')
+})
+test('沙发上"待着"是独立一条，带 holdMs，落在 3~5 分钟', () => {
+  const w = tripWindow(tripPlan('sofa'), () => 0.5)
+  assert.equal(w.items.length, 3, '出去 / 待着 / 回来')
+  const stay = w.items[1]
+  assert.ok(stay.holdMs >= STAY_MIN_MS && stay.holdMs <= STAY_MAX_MS, 'hold=' + stay.holdMs)
+  assert.match(stay.id, /_loop$/, '按住的是循环段：' + stay.id)
+  // 出去和回来都不按住
+  assert.equal(w.items[0].holdMs, 0)
+  assert.equal(w.items[2].holdMs, 0)
+  // 整趟接管 = 出去 + 待着 + 回来 + 余量
+  const sum = w.items.reduce((n, it) => n + (it.holdMs || it.spanMs), 0)
+  assert.ok(w.awayMs > sum, '窗口要把回来也算进去')
+  assert.ok(w.awayMs / 60000 >= 3, '整趟接管至少三分钟，实际 ' + Math.round(w.awayMs / 1000) + 's')
+})
+
+test('短行程（拿杯子）不按住：它没有"待着"这一段', () => {
+  const w = tripWindow(tripPlan('cup'), () => 0.5)
+  assert.equal(w.items.length, 2)
+  assert.ok(w.items.every((it) => it.holdMs === 0))
+  assert.ok(w.awayMs < 30000, '拿个杯子不该拖成几分钟')
+})
+
+test('holdMs 每次都不同（不是写死的常数）', () => {
+  const many = new Set(Array.from({ length: 30 }, () => stayMs()))
+  assert.ok(many.size > 5, '待着的时长几乎一样，等于固定值')
 })

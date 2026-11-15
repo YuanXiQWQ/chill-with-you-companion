@@ -166,6 +166,9 @@ namespace ChillPerformer
         public string id;
         public int at;
         public int durationMs;
+        // holdMs：把这一族的循环段按住这么久（毫秒）。0 = 按自然长度演完。
+        // 离座长途用它把"在沙发上待着"变成长时间接管的一个 cue，而不是几分钟的重复 cue。
+        public int holdMs;
         public string text;
     }
 
@@ -219,6 +222,9 @@ namespace ChillPerformer
         public string motionScope = "full";
         // 这一句的语音时长（毫秒）。<=0 表示没拿到，回退到按字数估。
         public double durationMs;
+        // 这一条在队列里最多能等多久（毫秒）。0 = 用全局 queue.TtlMs。
+        // 离座长途要预排"回来"那一条，它得在沙发上等三五分钟，全局 45s 会把它当过期丢掉。
+        public int ttlMs;
     }
 
     // 控制台推送（chill-brain GET /pull 的返回）
@@ -270,6 +276,7 @@ namespace ChillPerformer
             public int seq;
             public float at;      // 入队时刻（unscaled）
             public string src;
+            public int ttlMs;     // 0 = 用全局 queue.TtlMs
         }
         private readonly List<PendingAct> pending = new List<PendingAct>();
         private bool performing;
@@ -781,6 +788,7 @@ namespace ChillPerformer
                     // 两套差着 1.6 倍，每条多段 cue 都在播到六成时被下一条打断（2026-11-14 修）。
                     // 线上字段名是 durationMs（cue.log 里缩写成 d 只是日志格式）
                     cue.durationMs = JsonLite.Int(JsonLite.Get(d, "durationMs"));
+                    cue.holdMs = JsonLite.Int(JsonLite.Get(d, "holdMs"));
                     cues.Add(cue);
                 }
             }
@@ -799,11 +807,16 @@ namespace ChillPerformer
                         cue.at = (ats != null && k < ats.Count) ? JsonLite.Int(ats[k]) : 0;
                         var durs = JsonLite.AsList(JsonLite.Get(root, "durations"));
                         cue.durationMs = (durs != null && k < durs.Count) ? JsonLite.Int(durs[k]) : 0;
+                        var holds = JsonLite.AsList(JsonLite.Get(root, "holds"));
+                        cue.holdMs = (holds != null && k < holds.Count) ? JsonLite.Int(holds[k]) : 0;
                         cues.Add(cue);
                     }
                 }
             }
             dto.performance = cues.ToArray();
+            // 条目级 TTL：离座长途预排的「回来」那一条要在队里等几分钟，
+            // 全局 queue.TtlMs（45s）会把它当过期丢掉。
+            dto.ttlMs = JsonLite.Int(JsonLite.Get(root, "ttlMs"));
             return dto;
         }
         private IEnumerator ProbeHealth()
@@ -855,6 +868,9 @@ namespace ChillPerformer
                 foreach (var c in clips)
                 {
                     if (c == null || string.IsNullOrEmpty(c.name)) continue;
+                    List<Animator> holders;
+                    if (clipExtraOwners.TryGetValue(c.name, out holders)) { if (!holders.Contains(a) && usable) holders.Add(a); }
+                    else clipExtraOwners[c.name] = new List<Animator> { a };
                     Animator owner;
                     if (clipOwners.TryGetValue(c.name, out owner))
                     {
@@ -1166,7 +1182,7 @@ namespace ChillPerformer
                 // 必须用真实时间：timeScale=0（暂停/菜单）时 WaitForSeconds 永不返回，整条 pull 链会永久卡死
                 float wait = cue.at / 1000f - (Time.unscaledTime - t0);
                 if (wait > 0f) yield return new WaitForSecondsRealtime(wait);
-                if (cue.slot == "animations") PlayAnim(cue.id, cue.durationMs);
+                if (cue.slot == "animations") PlayAnim(cue.id, cue.durationMs, cue.holdMs);
                 else if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("cue skipped: " + cue.slot + ":" + cue.id);
             }
             // 语音已在开头起播，这里不再重复
@@ -1209,9 +1225,24 @@ namespace ChillPerformer
         }
 
         // 序列播放：把 start → loop×k → end 串成一条时间线（这就是游戏自己播故事动作的结构）
+        // 同一 clip 名可能同时存在于角色和道具（m_Chair_mobile 的 ChairAnimationCtr 就有 136 条同名），
+        // 只演角色 = 人走了椅子不动。这里记下所有 owner，演出时按同一进度逐个采样。
+        private readonly Dictionary<string, List<Animator>> clipExtraOwners = new Dictionary<string, List<Animator>>();
+        private readonly List<GameObject> propTargets = new List<GameObject>();
+        private readonly List<AnimationClip> propClips = new List<AnimationClip>();
+        // 道具没有"身体预算"那套，进度按归一化走：角色走到几成，道具也走到几成。
+        private float propProgress;
+        // 这一条没有同名道具 clip 时沿用上一条的最后姿势（否则椅子会弹回原位）
+        private readonly List<GameObject> lastPropTargets = new List<GameObject>();
+        private readonly List<AnimationClip> lastPropClips = new List<AnimationClip>();
+
         private AnimationClip[] segClips;
         private float[] segStarts;
         private float segTotal;
+        // segHold[i] > 0 表示这一段被按住这么久（秒），采样时对它取模 → 原地循环。
+        // 只有 holdMs 的 cue 才会出现，普通 cue 全是 0，行为不变。
+        private float[] segHold;
+        private float segHoldTotal;
 
         private static string StripSuffix(string name)
         {
@@ -1258,10 +1289,12 @@ namespace ChillPerformer
             return null;
         }
 
-        private void BuildSequence(string clipName)
+        private void BuildSequence(string clipName, int holdMs = 0)
         {
             var names = new List<string>();
             var clips = new List<AnimationClip>();
+            int holdClipIndex = -1;
+            float holdSpanSec = 0f;
             string baseName = StripSuffix(clipName);
             AnimationClip self = Lookup(clipName);
             // 大脑已经把一组动作拆成 start / loop / end 三条独立 cue 分别下发，
@@ -1275,6 +1308,12 @@ namespace ChillPerformer
             {
                 names.Add(clipName);
                 clips.Add(self);
+                // 分段形式（X_loop）被按住：这一段就是它自己，循环 holdMs
+                if (holdMs > 0 && clipName.EndsWith("_loop", StringComparison.OrdinalIgnoreCase))
+                {
+                    holdClipIndex = clips.Count - 1;
+                    holdSpanSec = Mathf.Max(0.5f, holdMs / 1000f);
+                }
             }
             else if (self == null)
             {
@@ -1285,8 +1324,19 @@ namespace ChillPerformer
                 if (start != null) { names.Add(baseName + "_start"); clips.Add(start); }
                 if (loop != null)
                 {
-                    int reps = Mathf.Clamp(Mathf.RoundToInt(1.4f / Mathf.Max(0.2f, loop.length)), 1, 5);
-                    for (int i = 0; i < reps; i++) { names.Add(baseName + "_loop"); clips.Add(loop); }
+                    if (holdMs > 0)
+                    {
+                        // 按住：循环段只放一条，时长由 segHold 撑开（采样时取模）
+                        names.Add(baseName + "_loop");
+                        clips.Add(loop);
+                        holdClipIndex = clips.Count - 1;
+                        holdSpanSec = Mathf.Max(0.5f, holdMs / 1000f);
+                    }
+                    else
+                    {
+                        int reps = Mathf.Clamp(Mathf.RoundToInt(1.4f / Mathf.Max(0.2f, loop.length)), 1, 5);
+                        for (int i = 0; i < reps; i++) { names.Add(baseName + "_loop"); clips.Add(loop); }
+                    }
                 }
                 if (end != null) { names.Add(baseName + "_end"); clips.Add(end); }
             }
@@ -1295,14 +1345,24 @@ namespace ChillPerformer
                 names.Add(clipName);
                 clips.Add(self);
             }
-            if (clips.Count == 0) { segClips = new AnimationClip[0]; segStarts = new float[1]; segTotal = 0f; return; }
+            if (clips.Count == 0) { segClips = new AnimationClip[0]; segStarts = new float[1]; segHold = new float[0]; segTotal = 0f; segHoldTotal = 0f; return; }
             segClips = clips.ToArray();
             segStarts = new float[segClips.Length + 1];
+            segHold = new float[segClips.Length];
             segTotal = 0f;
+            segHoldTotal = 0f;
             for (int i = 0; i < segClips.Length; i++)
             {
+                float natural = Mathf.Max(0.05f, segClips[i].length);
+                float span = natural;
+                if (holdClipIndex == i && holdSpanSec > 0f)
+                {
+                    segHold[i] = holdSpanSec;
+                    segHoldTotal = holdSpanSec;
+                    span = holdSpanSec;
+                }
                 segStarts[i] = segTotal;
-                segTotal += Mathf.Max(0.05f, segClips[i].length);
+                segTotal += span;
             }
             segStarts[segClips.Length] = segTotal;
             if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("sequence: " + string.Join(" > ", names.ToArray()) + " total=" + segTotal.ToString("F2"));
@@ -1342,7 +1402,9 @@ namespace ChillPerformer
                 float tt = Mathf.Min(segTotal - 0.001f, k * step);
                 int idx = 0;
                 while (idx < segClips.Length - 1 && tt >= segStarts[idx + 1]) idx++;
-                SampleChainClip(segClips[idx], clipTarget, tt - segStarts[idx], 0);
+                float lt = tt - segStarts[idx];
+                if (segHold != null && idx < segHold.Length && segHold[idx] > 0f) lt = Mathf.Repeat(lt, Mathf.Max(0.05f, segClips[idx].length));
+                SampleChainClip(segClips[idx], clipTarget, lt, 0);
                 for (int i = 0; i < n; i++)
                 {
                     Quaternion q = bones[i].localRotation;
@@ -1588,7 +1650,33 @@ namespace ChillPerformer
             // 姿势在那一帧跳一下（实测颈部 24°），随后全交给限速器去抹。
             // 归还的本质是"停止表演、把身体还回去"，姿势就停在最后一帧。
             bool exiting0 = !clipLoop && ct > clipLen;
-            if (!exiting0) SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
+            if (!exiting0) SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
+            if (!exiting0 && (propClips.Count > 0 || lastPropClips.Count > 0))
+            {
+                if (propClips.Count > 0)
+                {
+                    propProgress = segTotal > 0.01f ? Mathf.Clamp01(ts / segTotal) : 0f;
+                    lastPropTargets.Clear(); lastPropClips.Clear();
+                    lastPropTargets.AddRange(propTargets); lastPropClips.AddRange(propClips);
+                    for (int pi = 0; pi < propClips.Count; pi++)
+                    {
+                        var pc = propClips[pi];
+                        if (pc == null) continue;
+                        float pl = Mathf.Repeat(propProgress * pc.length, Mathf.Max(0.05f, pc.length - 0.001f));
+                        pc.SampleAnimation(propTargets[pi], pl);
+                    }
+                }
+                else
+                {
+                    // 这一条没有道具版本（沙发上"待着"）：冻在上一条的最后一帧，别让椅子自己弹回去
+                    for (int pi = 0; pi < lastPropClips.Count; pi++)
+                    {
+                        var pc = lastPropClips[pi];
+                        if (pc == null) continue;
+                        pc.SampleAnimation(lastPropTargets[pi], Mathf.Max(0f, pc.length - 0.001f));
+                    }
+                }
+            }
             // 归还阶段：我们是插入，演完必须把身体还回去。
             // 目标要现场问游戏"你现在会把她摆成什么样"；用开演前的旧姿势 = 交回去一个过期姿势。
             float relMs = Plugin.ReleaseMs == null ? 300f : Mathf.Max(30f, Plugin.ReleaseMs.Value);
@@ -1825,7 +1913,7 @@ private void EnsureBones()
             return false;
         }
 
-        private void StartClip(string clipName, bool loop, int durationMs)
+        private void StartClip(string clipName, bool loop, int durationMs, int holdMs = 0)
         {
             EnsureBones();
             if (clipAssets.Count == 0) return;
@@ -1871,7 +1959,37 @@ private void EnsureBones()
             dbgMaxDeg = 0f; dbgFrames = 0;
             dbgClamped = 0; dbgClampMax = 0f;
             dbgClampFirst = -1f; dbgClampAt = -1f; dbgClampBone = "";
-            BuildSequence(clipName);
+            // 这一条有哪些道具要一起动
+            propTargets.Clear();
+            propClips.Clear();
+            {
+                List<Animator> holders;
+                if (clipExtraOwners.TryGetValue(clipName, out holders))
+                {
+                    for (int hi = 0; hi < holders.Count; hi++)
+                    {
+                        var an = holders[hi];
+                        if (an == null || an.gameObject == owner.gameObject) continue;
+                        if (!an.gameObject.activeInHierarchy) continue;
+                        var ctrl = an.runtimeAnimatorController;
+                        if (ctrl == null) continue;
+                        var cl = ctrl.animationClips;
+                        if (cl == null) continue;
+                        for (int ci = 0; ci < cl.Length; ci++)
+                        {
+                            if (cl[ci] != null && string.Equals(cl[ci].name, clipName, StringComparison.Ordinal))
+                            {
+                                propTargets.Add(an.gameObject);
+                                propClips.Add(cl[ci]);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (propTargets.Count > 0 && Plugin.VerboseCues.Value)
+                    Plugin.Log.LogInfo("props follow: " + clipName + " → " + propTargets.Count + " 个道具");
+            }
+            BuildSequence(clipName, holdMs);
             if (segClips.Length == 0) return;
             activeClip = segClips[0];
             activeBase = fam;
@@ -1925,7 +2043,8 @@ private void EnsureBones()
             MeasureAndPlan(spd);
             spd *= planSpeed;
             clipSpeed = Mathf.Max(0.05f, spd);
-            float natural = segTotal / clipSpeed;
+            // 按住段按真实时长待着：速度缩放只该作用于"演"，不该作用于"等"
+            float natural = segHoldTotal > 0f ? segTotal : segTotal / clipSpeed;
             // 表演和语音解绑：一段动作就按它自己的自然时长演完。
             // 以前允许指令里的 durationMs 把它撑到 1.35 倍——那是让身体去填语音的空白。
             // 口型不在这里，走 mouthFlat/音频时间轴。
@@ -1933,7 +2052,8 @@ private void EnsureBones()
             float maxClipSec = Mathf.Clamp(profile.MaxSec > 0f ? profile.MaxSec : 8f, 0.5f, 40f);
             inAbsolute = !profile.Additive;
             absRampT0 = Time.time;
-            clipLen = Mathf.Clamp(Mathf.Min(clipLen, maxClipSec), 0.2f, 30f);
+            // 按住段例外：它天生就比 MaxClipSec 长，按秒截断会让"沙发上待着"变成 8 秒
+            clipLen = segHoldTotal > 0f ? Mathf.Clamp(Mathf.Min(clipLen, segTotal), 0.2f, 900f) : Mathf.Clamp(Mathf.Min(clipLen, maxClipSec), 0.2f, 30f);
             // 进入过渡不能是固定值：她此刻在什么姿势、这条 clip 第一帧是什么姿势，
             // 差多少度就得给多久。固定 0.45s 对 10° 的点头够用，对 100° 的起身/离座就是硬切；
             // 衔接时用 0.12s 更是一定切。所以按角差算，同族且几乎没位移时才走利落档。
@@ -1959,7 +2079,7 @@ private void EnsureBones()
                     + " fade=" + Mathf.RoundToInt(clipFadeIn * 1000f) + "ms/" + Mathf.RoundToInt(dbgEntryDeg) + "deg wall=" + clipLen.ToString("F2") + (continueFamily ? " (family)" : ""));
         }
 
-        private void PlayAnim(string idOrName, int durationMs)
+        private void PlayAnim(string idOrName, int durationMs, int holdMs = 0)
         {
             if (clipOwners.Count == 0) return;
             string name = AnimIdMap.Resolve(idOrName);
@@ -1999,7 +2119,7 @@ private void EnsureBones()
             }
             // 不调 CrossFade：那会跟游戏自己的状态机抢，且它要 state 名不是 clip 名，
             // 大多数情况静默无效，还会让 SampleAnimation 的双驱动产生抖动
-            StartClip(playName, false, durationMs);
+            StartClip(playName, false, durationMs, holdMs);
             if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("play " + playName + " (" + idOrName + ") d=" + durationMs + " on " + target.gameObject.name);
         }
         // 大脑给的是 /chill/v1/audio/xxx.wav（相对站点根），BaseUrl 已经带 /chill/v1，
@@ -2112,7 +2232,7 @@ private void EnsureBones()
             {
                 // 回滚路径：只留最新一条（0.10.1 及以前的行为）
                 pending.Clear();
-                pending.Add(new PendingAct { dto = dto, seq = seq, at = Time.unscaledTime, src = src });
+                pending.Add(new PendingAct { dto = dto, seq = seq, at = Time.unscaledTime, src = src, ttlMs = dto == null ? 0 : dto.ttlMs });
                 return;
             }
             for (int i = 0; i < pending.Count; i++) if (pending[i].seq == seq) return;
@@ -2124,17 +2244,20 @@ private void EnsureBones()
                 qDropped++;
                 Plugin.Log.LogInfo("queue: dropped oldest seq=" + oldest + " (full)");
             }
-            pending.Add(new PendingAct { dto = dto, seq = seq, at = Time.unscaledTime, src = src });
+            pending.Add(new PendingAct { dto = dto, seq = seq, at = Time.unscaledTime, src = src, ttlMs = dto == null ? 0 : dto.ttlMs });
             if (pending.Count > qMaxDepth) qMaxDepth = pending.Count;
         }
 
         private void PruneExpired()
         {
-            int ttl = Plugin.QueueTtlMs == null ? 20000 : Mathf.Max(0, Plugin.QueueTtlMs.Value);
-            if (ttl <= 0) return;
+            // 条目级 TTL：离座长途预排的"回来"那一条要在队里等三五分钟，
+            // 全局 45s 会把正常的等待当成过期。0 仍走全局。
+            int globalTtl = Plugin.QueueTtlMs == null ? 20000 : Mathf.Max(0, Plugin.QueueTtlMs.Value);
             float now = Time.unscaledTime;
             for (int i = pending.Count - 1; i >= 0; i--)
             {
+                int ttl = pending[i].ttlMs > 0 ? pending[i].ttlMs : globalTtl;
+                if (ttl <= 0) continue;
                 float age = now - pending[i].at;
                 if (age > ttl / 1000f)
                 {

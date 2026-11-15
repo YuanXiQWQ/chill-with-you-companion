@@ -69,7 +69,7 @@ import {
 
 import { planSequence, classifyClip, enforceContentClass, isOffChair, offSeatIdle, seatGuard, MOTION_CLASS } from './lib/motion-class.js'
 import { buildSuite } from './lib/core-action.js'
-import { decideTrip, awayWindow, cooldownMs } from './lib/seat-trip.js'
+import { decideTrip, tripWindow, cooldownMs } from './lib/seat-trip.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
@@ -625,6 +625,17 @@ function isAutomation(req, json) {
   if (String(req?.headers?.['x-chill-quick'] || '') === '1') return false
   return true
 }
+// 离座长途排在这一句之后的几条（出去 / 按住 / 回来）。pushCue 推完这一轮就接着排它们。
+let pendingTripCues = []
+
+/** 离座决策落盘。log() 只进宿主控制台，翻不到，排查时得有个文件。 */
+function tripLog(obj) {
+  try {
+    const line = JSON.stringify(Object.assign({ t: localClock() }, obj)) + '\n'
+    appendFileSync(((cfg && cfg.dataDir) || '.') + '/trip.log', line, 'utf8')
+  } catch { /* 记不了也不影响演出 */ }
+}
+
 /** 下发一条 cue 的统一入口：push 进队列 + 记一行 + 更新去重指纹。 */
 function pushCue(item) {
   const seq = feed.push(item)
@@ -651,6 +662,25 @@ function pushCue(item) {
   } catch { /* 记动作失败不影响演出 */ }
   cuePushes += 1
   if (cuePushes % 50 === 0) pruneCueLog()
+  // 离座长途：这一句排完了，把行程条目按顺序接上。
+  if (pendingTripCues.length) {
+    const queue = pendingTripCues
+    pendingTripCues = []
+    for (const t of queue) {
+      const tripItem = buildCueItem({
+        raw: true,
+        subtitle: '',
+        audioUrl: '',
+        performance: [{ slot: 'animations', id: t.id, at: 0, holdMs: t.holdMs }],
+        durationMs: t.holdMs > 0 ? t.holdMs : t.spanMs,
+        ttlMs: t.ttlMs,
+        source: 'trip',
+      })
+      const tseq = feed.push(tripItem)
+      logCue(tripItem, tseq)
+      log('[perf] trip item: ' + String(t.id).replace(/^anim_/, '') + (t.holdMs ? ' hold=' + Math.round(t.holdMs / 1000) + 's' : '') + ' ttl=' + Math.round(t.ttlMs / 1000) + 's')
+    }
+  }
   return seq
 }
 
@@ -1064,6 +1094,7 @@ const runTurn = async (userText, options = {}) => {
         tripLocked = true
         const had = (cues || []).filter((c) => c && c.slot === 'animations').map((c) => c.id)
         cues = (cues || []).filter((c) => c && c.slot !== 'animations')
+        tripLog({ ev: 'away', remainMs: Math.round(Number(away.until) - nowMs), trip: away.trip })
         log('[perf] 离座中(' + away.trip + '，剩余 ' + Math.max(0, Math.round((Number(away.until) - nowMs) / 1000)) + 's)，本轮不编排'
           + (had.length ? ' (原本要演 ' + had.join(',') + ')' : ''))
       } else {
@@ -1083,18 +1114,37 @@ const runTurn = async (userText, options = {}) => {
         } catch { /* 拿不到快照就按"她空闲"处理，下面还有冷却挡着 */ }
         const allowed = trip && !cooling && idleNow && state.phase !== 'focus'
         if (trip && !allowed) {
-          log('[perf] trip dropped: ' + trip.key + (cooling ? ' (冷却中)' : '') + (idleNow ? '' : ' (她还在演)') + (state.phase === 'focus' ? ' (专注模式)' : ''))
+          tripLog({ ev: 'drop', key: trip.key, cooling, idleNow, phase: state.phase })
+        log('[perf] trip dropped: ' + trip.key + (cooling ? ' (冷却中)' : '') + (idleNow ? '' : ' (她还在演)') + (state.phase === 'focus' ? ' (专注模式)' : ''))
         }
         if (allowed) {
           tripLocked = true
-          const others = (cues || []).filter((c) => c && c.slot !== 'animations')
-          cues = [...trip.steps, ...others]
-          state.away = awayWindow(trip, nowMs)
+          // 一趟行程按"一条动作一个队列条目"下发：出去 / 按住 / 回来。
+          // 按住那一条要独占队列，否则它在演的时候下一条会被 Exclusive 挡掉或打断。
+          const win = tripWindow(trip)
+          // 条目排在这一句之后（先说话，再起身）：pushCue 把这一轮推完会接着把这几条排上。
+          pendingTripCues = win.items.map((it) => ({
+            id: it.id,
+            holdMs: it.holdMs,
+            spanMs: it.spanMs,
+            ttlMs: Math.round(win.totalMs) + 120000,
+          }))
+          const speechMs = Math.round(Number(audio?.duration) * 1000) || 0
+          state.away = {
+            from: nowMs + speechMs,
+            until: nowMs + speechMs + win.awayMs,
+            trip: trip.label,
+            holdMs: win.items.find((x) => x.holdMs > 0)?.holdMs || 0,
+          }
           state.lastTripAt = nowMs
           state.nextTripAt = nowMs + cooldownMs()
           try { saveState() } catch { /* 存盘失败不影响这次演出 */ }
-          log('[perf] 离座长途启动: ' + trip.key + ' 共 ' + Math.round(trip.totalMs / 1000) + 's → '
-            + trip.steps.map((s) => String(s.id).replace(/^anim_/, '') + '@' + s.at).join(' → '))
+          tripLog({ ev: 'start', key: trip.key, totalMs: Math.round(win.totalMs), holdMs: state.away.holdMs, items: win.items.map((x) => ({ id: x.id, holdMs: x.holdMs })) })
+          log('[perf] 离座长途启动: ' + trip.key + ' 共 ' + Math.round(win.totalMs / 1000) + 's（含按住 '
+            + Math.round((state.away.holdMs || 0) / 1000) + 's） → '
+            + win.items.map((x) => String(x.id).replace(/^anim_wild_leavechair_/, '') + (x.holdMs ? '(hold)' : '')).join(' → '))
+          // 这一轮的动作已经作为条目推完了，本轮的 cues 清空（这句台词在第一条上）
+          cues = (cues || []).filter((c) => c && c.slot !== 'animations')
         }
       }
     }
@@ -1793,26 +1843,30 @@ const runTurn = async (userText, options = {}) => {
       : (json?.id ? [{ slot: 'animations', id: String(json.id), at: 0 }] : [])
     const durMs = Math.round(Number(json?.durationMs) || 0)
     const subtitleLen = String(json?.subtitle || '').length
-    const cues = chainStartToLoop(normalizeCueTiming(
-      performance.slice(0, 8)
-        .map((c) => ({
-          slot: String(c?.slot || 'animations'),
-          id: String(c?.id || ''),
-          at: Number(c?.at) || 0,
-          durationMs: Number(c?.durationMs) || animDurationMs(String(c?.id || '')),
-          text: typeof c?.text === 'string' ? c.text.slice(0, 40) : '',
-          why: typeof c?.why === 'string' ? c.why.slice(0, 24) : '',
-        }))
-        .filter((c) => c.id),
-      durMs,
-      subtitleLen,
-    ), durMs, subtitleLen, perfFamily(), perfAge(), queueAheadNow())
+    const base = performance.slice(0, 8)
+      .map((c) => ({
+        slot: String(c?.slot || 'animations'),
+        id: String(c?.id || ''),
+        at: Number(c?.at) || 0,
+        durationMs: Number(c?.durationMs) || animDurationMs(String(c?.id || '')),
+        holdMs: Number(c?.holdMs) || 0,
+        text: typeof c?.text === 'string' ? c.text.slice(0, 40) : '',
+        why: typeof c?.why === 'string' ? c.why.slice(0, 24) : '',
+      }))
+      .filter((c) => c.id)
+    // 离座长途的条目是"一条动作一个条目"，chain 会把它摊成 start/loop×n/end，
+    // 按住那段就没了。raw 标记让它原样下发（holdMs 交给游戏端按住循环）。
+    const cues = json?.raw
+      ? base
+      : chainStartToLoop(normalizeCueTiming(base, durMs, subtitleLen), durMs, subtitleLen, perfFamily(), perfAge(), queueAheadNow())
     const audioUrl = typeof json?.audioUrl === 'string' ? json.audioUrl : ''
     return {
       performance: cues,
       slots: cues.map((c) => c.slot),
       ids: cues.map((c) => c.id),
       ats: cues.map((c) => c.at),
+      holds: cues.map((c) => Number(c.holdMs) || 0),
+      ttlMs: Number(json?.ttlMs) || 0,
       subtitle: typeof json?.subtitle === 'string' ? json.subtitle.slice(0, cfg.maxSubtitle || 60) : '',
       voice: audioUrl ? { audioUrl } : null,
       audioUrl,
