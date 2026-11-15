@@ -947,7 +947,7 @@ namespace ChillPerformer
                         clipActive = false; ReleaseBaseGameCache(); exitValid = false;
                         exitSmooth = null;
                         lastFamilyEnd = Time.time;
-                        Plugin.Log.LogInfo("clip done: " + activeClip.name + " frames=" + dbgFrames
+                        Plugin.Log.LogInfo("rootΔ=" + (rootStartValid && bones != null && bones.Length > 0 ? (bones[0].localPosition - rootAtClipStart).magnitude.ToString("F2") : "-") + "m " + "clip done: " + activeClip.name + " frames=" + dbgFrames
                             + " peakHead=" + headSpeedMax.ToString("F0") + "dps@t" + dbgPeakAt.ToString("F2") + "s/dt" + (dbgPeakDt * 1000f).ToString("F1") + "ms dev=" + headDevDeg.ToString("F1") + "deg"
                 + " amp=head" + dbgAmpHead.ToString("F1") + "/body" + dbgAmpBody.ToString("F1") + "deg"
                 + " clamp=" + dbgClamped + "\u00b0t" + dbgClampFirst.ToString("F2") + "/" + dbgClampAt.ToString("F2") + "s/" + dbgClampBone + "\u00b0" + dbgClampMax.ToString("F0") + "d"
@@ -1232,6 +1232,21 @@ namespace ChillPerformer
         private readonly List<AnimationClip> propClips = new List<AnimationClip>();
         // 道具没有"身体预算"那套，进度按归一化走：角色走到几成，道具也走到几成。
         private float propProgress;
+        // 根位移：离座/行走类 clip 必须放行，否则"走到沙发"这件事被写回逻辑抹掉，
+        // 人只在画面里原地做动作。按住段则把根冻在走到的位置。
+        private bool posFree;
+        // 沙发锚点：按名字现找（离座动画是原地动画，位移得我们自己给）
+        private Transform tripAnchor;
+        private bool tripAnchorSearched;
+        private bool tripWalking;
+        private Vector3 tripFromWorld;
+        private Vector3 tripToWorld;
+        private Vector3 chairHomeWorld;
+        private bool chairHomeValid;
+        private bool heldPosValid;
+        private Vector3 heldPos;
+        private Vector3 rootAtClipStart;
+        private bool rootStartValid;
         // 这一条没有同名道具 clip 时沿用上一条的最后姿势（否则椅子会弹回原位）
         private readonly List<GameObject> lastPropTargets = new List<GameObject>();
         private readonly List<AnimationClip> lastPropClips = new List<AnimationClip>();
@@ -1634,6 +1649,11 @@ namespace ChillPerformer
                 for (int i = 0; i < n; i++) baseGamePos[i] = bones[i].localPosition;
                 baseGameValid = true;
             }
+            if (!chairHomeValid && bones != null && bones.Length > 0)
+            {
+                chairHomeWorld = bones[0].position;
+                chairHomeValid = true;
+            }
             if (baseGameRot != null && baseGameRot.Length == n)
             {
                 for (int i = 0; i < n; i++)
@@ -1649,6 +1669,14 @@ namespace ChillPerformer
             // 归还期间不再重采样：cts 越过 clipLen 后，循环类片段会取到回卷/收尾帧，
             // 姿势在那一帧跳一下（实测颈部 24°），随后全交给限速器去抹。
             // 归还的本质是"停止表演、把身体还回去"，姿势就停在最后一帧。
+            if (tripWalking && bones != null && bones.Length > 0)
+            {
+                // 用 clip 进度当时间轴：走位和脚步同一节奏；smoothstep 起步收尾都不硬
+                float ud = segTotal > 0.01f ? Mathf.Clamp01(Mathf.Min(ct, segTotal) / segTotal) : 1f;
+                float k = ud * ud * (3f - 2f * ud);
+                bones[0].position = Vector3.Lerp(tripFromWorld, tripToWorld, k);
+                if (segHoldTotal > 0f) heldPos = bones[0].position;
+            }
             bool exiting0 = !clipLoop && ct > clipLen;
             if (!exiting0) SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
             if (!exiting0 && (propClips.Count > 0 || lastPropClips.Count > 0))
@@ -1847,7 +1875,28 @@ namespace ChillPerformer
                 float d = Quaternion.Angle(lastRot[i], q);
                 lastRot[i] = q;
                 tr.localRotation = q;
-                tr.localPosition = gamePos[i];
+                if (i == 0)
+                {
+                    if (posFree)
+                    {
+                        // 放行：采样已经把根移到该去的地方，记下来给按住段用
+                        heldPos = tr.localPosition;
+                        heldPosValid = true;
+                    }
+                    else if (heldPosValid && segHoldTotal > 0f)
+                    {
+                        // 在沙发上"待着"：根冻在走到的位置，不然她会被拽回椅子
+                        tr.localPosition = heldPos;
+                    }
+                    else
+                    {
+                        tr.localPosition = gamePos[i];
+                    }
+                }
+                else
+                {
+                    tr.localPosition = gamePos[i];
+                }
                 dbgMaxDeg = Mathf.Max(dbgMaxDeg, d);
                 if (isHead)
                 {
@@ -1870,6 +1919,30 @@ namespace ChillPerformer
             if (float.IsNaN(axis.x) || (axis.x == 0f && axis.y == 0f && axis.z == 0f)) return Quaternion.identity;
             return Quaternion.AngleAxis(ang * w, axis);
         }
+
+private Transform FindTripAnchor()
+{
+    if (tripAnchorSearched) return tripAnchor;
+    tripAnchorSearched = true;
+    try
+    {
+        foreach (var tr in Resources.FindObjectsOfTypeAll<Transform>())
+        {
+            if (tr == null || !tr.gameObject.scene.IsValid()) continue;
+            string nm = tr.name ?? "";
+            if (nm.IndexOf("couch", StringComparison.OrdinalIgnoreCase) < 0
+                && nm.IndexOf("sofa", StringComparison.OrdinalIgnoreCase) < 0) continue;
+            if (nm.IndexOf("side", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+            if (!tr.gameObject.activeInHierarchy) continue;
+            tripAnchor = tr;
+            Plugin.Log.LogInfo("trip anchor: " + nm + " world=" + tr.position.ToString("F2"));
+            break;
+        }
+        if (tripAnchor == null) Plugin.Log.LogInfo("trip anchor: 没找到沙发，离座只做原地动作");
+    }
+    catch (Exception ex) { Plugin.Log.LogInfo("trip anchor failed: " + ex.Message); }
+    return tripAnchor;
+}
 
 private void EnsureBones()
         {
@@ -1895,6 +1968,25 @@ private void EnsureBones()
             if (headIdx < 0) for (int i = 0; i < list.Length; i++) if (upperAllowed[i]) { headIdx = i; break; }
             Plugin.Log.LogInfo("head bone: idx=" + headIdx + " name=" + (headIdx >= 0 ? list[headIdx].name : "(none)") + " upper=" + System.Array.FindAll(upperAllowed, b => b).Length);
             Plugin.Log.LogInfo("bones cached: " + list.Length + " under " + root.name);
+            // 离座动画是原地动画（根位移 0）：想真到沙发上去，得先知道沙发在哪。
+            try
+            {
+                int found = 0;
+                foreach (var tr in Resources.FindObjectsOfTypeAll<Transform>())
+                {
+                    if (tr == null || !tr.gameObject.scene.IsValid()) continue;
+                    string nm = tr.name ?? "";
+                    if (nm.IndexOf("sofa", StringComparison.OrdinalIgnoreCase) < 0
+                        && nm.IndexOf("couch", StringComparison.OrdinalIgnoreCase) < 0
+                        && nm.IndexOf("bed", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    Plugin.Log.LogInfo("seat candidate: " + nm + " world=" + tr.position.ToString("F2")
+                        + " active=" + tr.gameObject.activeInHierarchy + " parent=" + (tr.parent == null ? "-" : tr.parent.name));
+                    if (++found >= 10) break;
+                }
+                Plugin.Log.LogInfo("seat candidates=" + found + " charRoot=" + root.name + " world=" + root.position.ToString("F2")
+                    + " local=" + root.localPosition.ToString("F2") + " parent=" + (root.parent == null ? "-" : root.parent.name));
+            }
+            catch (Exception ex) { Plugin.Log.LogInfo("seat scan failed: " + ex.Message); }
         }
 
         // 队里还排着动画吗？（只看槽位，不看时间：时间由排队消费端控制）
@@ -2004,6 +2096,50 @@ private void EnsureBones()
             }
             // 量完才知道该多快、多重：这是唯一决定"动作多大、多快"的地方
             planFamily = StripSuffix(clipName);
+            // 需要走位的那几族：离座、行走。它们不改写根位移就没有意义。
+            posFree = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
+                || clipName.IndexOf("_walk", StringComparison.OrdinalIgnoreCase) >= 0
+                || clipName.IndexOf("_run", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (posFree && bones != null && bones.Length > 0)
+            {
+                rootAtClipStart = bones[0].localPosition;
+                rootStartValid = true;
+            }
+            // 普通坐姿动作开始时清掉"她走开了"的记忆，免得一直冻在沙发
+            if (!posFree && holdMs <= 0) heldPosValid = false;
+            // 走位：去程送到沙发，回程送回椅子，按住段原地待在沙发上
+            tripWalking = false;
+            bool isGo = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
+                && (clipName.IndexOf("_go", StringComparison.OrdinalIgnoreCase) >= 0
+                    || clipName.IndexOf("_start", StringComparison.OrdinalIgnoreCase) >= 0);
+            bool isBack = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
+                && clipName.IndexOf("comeback", StringComparison.OrdinalIgnoreCase) >= 0;
+            if ((isGo || isBack) && bones != null && bones.Length > 0)
+            {
+                var anchor = FindTripAnchor();
+                if (anchor != null)
+                {
+                    tripWalking = true;
+                    tripFromWorld = bones[0].position;
+                    if (isGo)
+                    {
+                        Vector3 c = anchor.position;
+                        Vector3 toward = tripFromWorld - c;
+                        toward.y = 0f;
+                        if (toward.sqrMagnitude < 0.01f) toward = Vector3.forward;
+                        // 站到沙发前面，别站进坐垫里
+                        tripToWorld = c + toward.normalized * 0.55f;
+                        tripToWorld.y = tripFromWorld.y;
+                    }
+                    else
+                    {
+                        if (heldPosValid) tripFromWorld = heldPos;
+                        tripToWorld = chairHomeValid ? chairHomeWorld : tripFromWorld;
+                    }
+                    if (Plugin.VerboseCues.Value)
+                        Plugin.Log.LogInfo("trip walk: " + (isGo ? "go" : "back") + " from=" + tripFromWorld.ToString("F2") + " to=" + tripToWorld.ToString("F2"));
+                }
+            }
             // 分类：决定这一段的合成方式（叠加 / 绝对过渡）、预算与是否独占
             ClipClass cls = MotionRules.Classify(clipName);
             float transMs = MotionRules.TransitionMs(currentClass, cls);
