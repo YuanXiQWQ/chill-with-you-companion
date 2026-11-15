@@ -7,7 +7,8 @@ const REPS = Number(process.argv[2]) || 3
 const CASES = [
   { text: '我写代码写得有点累，先喝口水', cls: 'prop', verb: 'drink' },
   { text: '我困得不行了，伸个懒腰', cls: 'posture', verb: 'yawn|stretch' },
-  { text: '我先去趟便利店，等我一下', cls: 'locomotion', verb: 'leavechair|go|comeback' },
+  // 她始终坐在椅子上：离座意图的正确结果是「不安排表演」，所以期望类别是 none（2026-11-15）
+  { text: '我先去趟便利店，等我一下', cls: 'none', verb: null },
   { text: '对，就按这个来，同意', cls: 'gesture', verb: 'nod' },
   { text: '这段报告我还没写完，有点烦', cls: 'prop', verb: 'write|report|pc|typing' },
   { text: '今天天气不错啊', cls: null, verb: null }
@@ -33,7 +34,10 @@ for (const c of CASES) {
     const anims = (body.performance || []).filter((x) => x.slot === 'animations')
     const ids = anims.map((x) => String(x.id || ''))
     const classes = ids.map((id) => classifyClip(id))
-    const clsOk = c.cls === null ? classes.length > 0 : classes.includes(c.cls)
+    // cls:'none' = 这段不该有表演（离座意图），必须是 0 条动作
+  const clsOk = c.cls === 'none' ? classes.length === 0
+    : c.cls === null ? classes.length > 0
+      : classes.includes(c.cls)
     const verbOk = c.verb === null ? true : ids.some((id) => new RegExp(c.verb).test(id))
     rows.push({
       text: c.text,
