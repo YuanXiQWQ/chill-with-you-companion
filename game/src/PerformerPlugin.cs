@@ -91,8 +91,8 @@ namespace ChillPerformer
             MixerGroupMatch = Config.Bind("audio", "MixerGroupMatch", "voice", "Keyword(s) that pick the mixer group, comma separated, case-insensitive. First match wins.");
             MixerGroupFallback = Config.Bind("audio", "MixerGroupFallback", "master", "Fallback keyword(s) when nothing matches MixerGroupMatch. Empty = leave the source unmixed (old behaviour).");
             QueueEnabled = Config.Bind("queue", "Enabled", true, "Queue incoming cues locally and play them one after another. False = old behaviour, only the newest item is performed.");
-            QueueMax = Config.Bind("queue", "Max", 4, "Queue depth. When full the OLDEST waiting item is dropped (stale lines are the ones worth losing).");
-            QueueTtlMs = Config.Bind("queue", "TtlMs", 20000, "Drop a waiting item once it is older than this. Keeps a long yield from replaying lines from ten minutes ago.");
+            QueueMax = Config.Bind("queue", "Max", 8, "Queue depth. When full the OLDEST waiting item is dropped (stale lines are the ones worth losing). 8 = 连发五六句也不会把前面那句挤掉（实测 4 深度时 dropped 一路涨）。");
+            QueueTtlMs = Config.Bind("queue", "TtlMs", 45000, "Drop a waiting item once it is older than this. Keeps a long yield from replaying lines from ten minutes ago.");
             QueueGapMs = Config.Bind("queue", "GapMs", 250, "Silence between two queued lines, in milliseconds.");
             VerboseCues = Config.Bind("debug", "VerboseCues", false, "Log every performance cue.");
             PullEnabled = Config.Bind("console", "PullEnabled", true, "Poll chill-brain for cues pushed from the DSH console.");
@@ -503,7 +503,7 @@ namespace ChillPerformer
               .Append(",\"played\":").Append(qPlayed)
               .Append(",\"dropped\":").Append(qDropped)
               .Append(",\"expired\":").Append(qExpired)
-              .Append(",\"maxDepth\":").Append(qMaxDepth)
+              .Append(",\"maxDepth\":").Append(qMaxDepth).Append(",\"maxQueue\":").Append(Plugin.QueueMax == null ? 0 : Plugin.QueueMax.Value).Append(",\"ttlMs\":").Append(Plugin.QueueTtlMs == null ? 0 : Plugin.QueueTtlMs.Value)
               .Append(",\"enabled\":").Append((Plugin.QueueEnabled != null && Plugin.QueueEnabled.Value) ? "true" : "false")
               .Append('}');
             sb.Append(",\"motion\":{\"class\":\"").Append(MotionRules.Label(profile.Class))

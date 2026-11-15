@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+### 改动：排队深度 4 → 8、等待有效期 20s → 45s
+
+- `queue.Max` 默认 4 → 8：连发五六句时，第 5 句往后的指令会把最早那句中段挤掉（实测某夜 `queue.dropped=26`）
+- `queue.TtlMs` 默认 20000 → 45000：6 句连发跑下来最后一句会因为排队超过 20 秒被判过期（实测 `expired=1`）
+- `/game` 的 `queue` 块新增 `maxQueue` / `ttlMs`，配置值可以直接从接口核对（`maxDepth` 是"观察到的最大深度"，不是配置，别拿它验）
+- 实测：7 句连发 `played=7 / dropped=0 / expired=0`，峰值深度 3（够不到 8，正常对话到不了上限）
+
 ### 重构：动作管道改为「预算 + 乘法」
 
 - **删除**整条截断链：`MaxDegPerSec`、`HeadMaxDegPerSec`、`HeadLowPassHz`、`HeadFollowHz`、`HeadReversalHz`、`HeadDeadZoneDeg`、`HeadMaxDevDeg`、`HeadNodMaxDevDeg`
