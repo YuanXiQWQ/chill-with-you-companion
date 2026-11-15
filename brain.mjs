@@ -67,6 +67,8 @@ import {
   summarizeForPrompt,
 } from './lib/assets.js'
 
+import { planSequence, classifyClip, enforceContentClass, MOTION_CLASS } from './lib/motion-class.js'
+import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
 import { createFeed } from './lib/feed.mjs'
@@ -1040,14 +1042,60 @@ const runTurn = async (userText, options = {}) => {
     const mouth = audio && mouthText
       ? mouthFrames(mouthText, { duration: audio.duration > 0 ? audio.duration + 0.06 : 0, fps: cfg.mouthFps || 30 })
       : null
-    // 动作排布：按这句音频的真实时长把动作铺开，而不是全挤在 0ms
-  if (cues && cues.length > 0 && audio && audio.duration > 0) {
-    const durMs = Math.max(700, audio.duration * 1000)
-    if (cues.length === 1) cues[0].at = 0
-    else {
-      const span = Math.min(durMs * 0.85, 5200)
-      cues.forEach((c, i) => { c.at = Math.round((i / (cues.length - 1)) * span) })
+    // 闸门：内容明确指向某类动作（喝/写/累/走）而模型选的类别完全不符，就换掉。
+    // 提示词只是建议，这里才是保证；只覆盖"完全不符"，不敢动模型的部分正确选择。
+    if (cues && cues.length > 0) {
+      try {
+        const snap = game.snapshot() || {}
+        const cur = snap.motion || {}
+        const curLeft = Number(cur.remainingMs)
+        const curLayer = cur.active ? layerOf(cur.active) : ""
+        const gate = enforceContentClass(cues, {
+          text: userText,
+          headOnly: state.phase === "focus",
+          emotion: parsed.emotion,
+          manifest,
+          currentLayer: curLayer,
+        })
+        // 门决策落盘：事后能对照"她本来要演什么、被改成了什么"
+        try {
+          const gateLine = JSON.stringify({
+            at: new Date().toISOString(),
+            text: String(userText || "").slice(0, 40),
+            emotion: parsed.emotion,
+            want: gate.want || null,
+            picked: gate.picked || null,
+            changed: gate.changed,
+            manCount: Array.isArray(manifest && manifest.animations) ? manifest.animations.length : 0,
+            hadCues: (cues || []).filter((c) => c.slot === "animations").map((c) => c.id),
+          }) + "\n"
+          appendFileSync(((cfg && cfg.dataDir) || ".") + "/gate.log", gateLine)
+        } catch { /* 诊断失败不影响演出 */ }
+        if (gate.changed && gate.changed.length) {
+          cues = gate.cues
+          log("[perf] content gate: " + JSON.stringify(gate.changed))
+        }
+        // 编排：排序 + 冲突串行化 + 按"她正在做的事"算过渡。
+        // 表演与语音解绑后这里不再传说话时长做"铺满"，只传延续信息。
+        const planned = planSequence(cues, {
+          text: userText,
+          currentClass: cur.class || MOTION_CLASS.IDLE,
+          currentLayer: curLayer,
+          currentEndsAt: Number.isFinite(curLeft) && curLeft > 0 ? curLeft : 0,
+          lastFamily: perfFamily(),
+          sinceLastMs: perfAge(),
+          continueWindowMs: 20000,
+        })
+        cues = planned.cues
+        if (planned.notes && planned.notes.length) log("[perf] sequence: " + JSON.stringify(planned.notes))
+      } catch (error) {
+        log("[perf] planSequence failed: " + (error && error.message))
+      }
     }
+    // 表演和语音解绑：动作按固定节拍顺序起手，与音频长度无关；口型仍严格跟音频。
+  if (cues && cues.length > 0) {
+    const STEP_MS = 360
+    cues.forEach((c, i) => { c.at = i * STEP_MS })
   }
   return {
     parsed, model, audio, cues, dropped, mouth,
@@ -1162,7 +1210,8 @@ const runTurn = async (userText, options = {}) => {
           })),
           actDurMs,
           actChars,
-        ), actDurMs, actChars)
+        ), actDurMs, actChars, perfFamily(), perfAge(), queueAheadNow())
+        try { const prim = (actCues || []).find((c) => c.slot === 'animations'); if (prim) notePerf(prim.id) } catch { }
         const act = buildAct(parsed, {
           turnId: `t-${Date.now()}`,
           textLang: cfg.tts.textLang,
@@ -1426,7 +1475,31 @@ const runTurn = async (userText, options = {}) => {
    * 模型基本只会给 `_start`（它觉得那才是「做这个动作」），所以这里补一段 `_loop` 接着。
    * 同组的段不参与最小间隔约束（见 normalizeCueTiming），否则补上的 loop 反而被推远。
    */
-  function chainStartToLoop(list, durMs, subtitleLen) {
+  // 「她刚才在做什么」：编排据此决定"继续做"还是"重新进入"。
+  const perfMemo = { family: "", at: 0 }
+  function perfFamily() { return perfMemo.family || "" }
+  function perfAge() { return perfMemo.at ? Date.now() - perfMemo.at : Infinity }
+  // 队里还排着几条：>0 说明上一套还没演完，这一套要"接"而不是"起"。
+  function queueAheadNow() {
+    try {
+      const snap = game.snapshot() || {}
+      const depth = Number((snap.queue || {}).depth) || 0
+      // "正在演"也算前面有动作：这一刻她的身体不在待机里，下一套要接上去而不是重新起手。
+      const m = snap.motion || {}
+      const playing = m.active && Number(m.remainingMs) > 0 ? 1 : 0
+      return depth + playing
+    } catch { return 0 }
+  }
+
+  function notePerf(id) {
+    try {
+      const fam = grammarFamilyFn(String(id || ""))
+      if (fam) perfMemo.family = fam
+      perfMemo.at = Date.now()
+    } catch { }
+  }
+
+  function chainStartToLoop(list, durMs, subtitleLen, lastFamily, sinceLastMs, queueAhead) {
     const animIdx = indexManifest(manifest).get('animations')
     const has = (id) => Boolean(animIdx && animIdx.has(id))
     // 和 normalizeCueTiming 用同一套时长估算，两边算出来的窗口必须一致，
@@ -1477,6 +1550,30 @@ const runTurn = async (userText, options = {}) => {
       // 拿 _loop 的 50ms 去当 _start 的时长，过渡就变成一闪而过。
       const startDur = startId ? (animDurationMs(startId) || 1000) : 0
 
+      // 形态由内容决定，不由这句话的长短视频定：
+      //   手势（点头/害羞/笑）是一两秒的反应，展开成整族等于"每句话都做一个完整动作再回待机"；
+      //   道具/姿态/位移（喝茶/伸懒腰/离座）才是一件事，按家族整段走。
+      const headCls = classifyClip(startId || base)
+      const isGesture = headCls === MOTION_CLASS.GESTURE
+      // 同一家族刚演过且没冷：接着 hold 它的 loop，不重新进入+退出——她也正在做着这件事。
+      const warmSame = Boolean(lastFamily) && grammarFamilyFn(base) === lastFamily
+        && Number.isFinite(sinceLastMs) && sinceLastMs < 20000
+
+      // 前面还排着动作：上一段的收尾就是这一段的起步。
+      // 她此刻正好在收尾动作里——再自己加一个 _start 等于做完一件事又"重新起手"一次。
+      if (Number(queueAhead) > 0)
+      {
+        const bodyId = has(loopId) ? loopId : (has(base) ? base : startId)
+        if (bodyId)
+        {
+          const bodyDur = Math.min(Math.max(animDurationMs(bodyId) || 1500, 300), 2600)
+          const cue = mk(bodyId, g.at, bodyDur)
+          cue.chained = true
+          out.push(cue)
+          continue
+        }
+      }
+
       // 1) 进入过渡。没有 start 段就从原始时间点直接开始（单段动画本来就自包含）
       if (startDur) out.push(mk(startId, g.at, startDur))
       const loopAt = g.at + startDur
@@ -1485,35 +1582,60 @@ const runTurn = async (userText, options = {}) => {
       //   thinking1_loop / confidence_loop = 50ms，jump_loop = 17ms（每秒 20~59 次）
       //   lookaround_loop = 10000ms（整段录制长度）
       // 前者循环播放就是头部 20Hz 抖动，看着像抽搐；这类微动循环不展开，走 start → end。
+      if (warmSame && has(loopId))
+      {
+        // 进入段已经先 push 了，延续时把它退掉——她本来就在做这件事，不需要再起手。
+        if (startId && out.length && out[out.length - 1].id === startId) out.pop()
+        const warmLoop = Math.min(Math.max(animDurationMs(loopId) || 1200, 300), 2600)
+        const kept = mk(loopId, g.at, warmLoop)
+        kept.continued = true
+        out.push(kept)
+        continue
+      }
       const rawLoop = has(loopId) ? (animDurationMs(loopId) || 600) : 0
       const tinyLoop = rawLoop > 0 && rawLoop < 300
+      const loopMs = tinyLoop ? 0 : Math.min(Math.max(rawLoop, 300), 2600)
 
       // 收尾过渡只给最后一组。前面几组的 loop 会被下一组的 start 接手，
       // 那条 start 本身就是过渡，不需要再插一个 end 把人家顶掉。
       const isLast = gi === ordered.length - 1
       const hasEnd = isLast && has(endId)
       const endDur = hasEnd ? (animDurationMs(endId) || 1000) : 0
-      // 收尾该在什么时候开始：语音结束前把 end 播完。
-      const rawEndAt = hasEnd ? windowMs - endDur : 0
-      // 留给循环的空隙。start 和 end 本身就占满窗口时（喝茶 1833+1167 对 15 字），
-      // 硬塞一个 400ms 的循环只会让它在半途被收尾顶掉，观感像卡了一下。
-      // 不够就干脆不插 loop，end 直接接 start。
-      const gap = hasEnd ? rawEndAt - loopAt : 0
-      const useLoop = Boolean(rawLoop) && !tinyLoop && (!hasEnd || gap >= 600)
-      const endAt = useLoop ? rawEndAt : loopAt
+      // 收尾紧接循环之后，与"语音什么时候结束"无关。整组太长就不插循环。
+      const tooLong = startDur + loopMs + endDur > 9000
+      const useLoop = loopMs > 0 && !tooLong
+      const endAt = useLoop ? loopAt + loopMs : loopAt
 
       // 2) 过渡播完接循环，别硬弹回静态。
-      const loopDur = useLoop ? (hasEnd ? endAt - loopAt : rawLoop) : 0
+      const loopDur = useLoop ? loopMs : 0
       // 有的组本身就是一段完整流程（break_tea_sub_maker 的 start 就 8667ms，
       // 整组 17.7 秒），拿它当「边说边做」的动作会演到话说完很久还在动。
-      if (loopDur && startDur + loopDur + endDur <= Math.max(windowMs * 2.5, 6000)) out.push(mk(loopId, loopAt, loopDur))
+      // 上限与语音无关：整组超过 9 秒就不插循环，否则一律插一拍。
+      if (loopDur) out.push(mk(loopId, loopAt, loopDur))
+
+      if (isGesture)
+      {
+        const selfId = startId || base
+        const selfDur = animDurationMs(selfId) || 1500
+        out.push(mk(selfId, g.at, selfDur))
+        continue
+      }
 
       // 3) 收尾过渡
       if (hasEnd) out.push(mk(endId, loopDur ? endAt : loopAt, endDur))
     }
     // 游戏端按时间线走，数组顺序和时间顺序不一致时容易读错，排一下
     out.sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0))
-    return out
+    // 去重：同一段同一时刻只该出现一次。
+    // planSequence 与 chainStartToLoop 各自会补进入段，两边都留就会同 id 同 at 演两遍。
+    const seen = new Set()
+    const dedup = out.filter((c) => {
+      const k = String(c.slot) + "|" + String(c.id) + "|" + String(c.at)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+    return dedup
   }
 
   /**
@@ -1528,97 +1650,28 @@ const runTurn = async (userText, options = {}) => {
    *   2. 同一动作连着出现两次的合并——「点头、点头」只会显得呆。
    *   3. 间隔太近的往后错开，避免两个动作同一毫秒触发。
    */
+  /**
+   * 起手时刻排布。表演与语音解绑后只做两件事：
+   *   1) 同组（同 base 的 start/loop/end）保持相对顺序，不互相推远；
+   *   2) 相邻两个不同动作之间留最小间隔，避免互相覆盖。
+   */
   function normalizeCueTiming(list, durMs, subtitleLen) {
-    const cues = Array.isArray(list) ? list.slice() : []
-    if (!cues.length) return cues
-
-    // 真实音频时长优先；没有就按字幕长度估。中文 TTS 约 5.5 字/秒，
-    // 再保底 1.2 秒——太短的话动作会挤成一坨。
-    const real = Math.round(Number(durMs) || 0)
-    const chars = Math.max(1, Number(subtitleLen) || 0)
-    const est = real > 0 ? real : Math.max(1200, Math.round(chars * 220))
-    const windowMs = Math.round(est * 0.9)   // 收在语音结束前，留一点余量
-
-    // 判断这批是毫秒还是比例：只要有一条 > 1，就按整批毫秒处理。
-    const looksMs = cues.some((c) => Number(c.at) > 1)
-    let assumed = 0
-    if (looksMs) {
-      // 模型心里有个「整句多长」的假设。取最大时间点反推：
-      // 它通常把最后一个动作排在六成到八成的样子，这里按 0.65 折算。
-      const maxAt = Math.max.apply(null, cues.map((c) => Number(c.at) || 0))
-      assumed = Math.max(est, maxAt / 0.65)
-    }
-
     const out = []
-    for (const c of cues) {
-      const raw = Number(c.at) || 0
-      const pos = looksMs ? raw / assumed : Math.max(0, Math.min(1, raw))
-      const at = Math.round(Math.max(0, Math.min(1, pos)) * windowMs)
-      // 相邻同 id 合并：连着两次同一个动作没有信息量
-      const prev = out[out.length - 1]
-      if (prev && prev.id === c.id && prev.slot === c.slot) continue
-      out.push(Object.assign({}, c, { at }))
-    }
-
-    // 短句只留一个动作。10 个字左右的话念两秒，中间再换一次姿势就是抽搐；
-    // 模型有时不听 prompt，这里硬卡。
-    // 只卡 animations——sfx / scene 是音效和场景，跟姿势密度无关，砍掉就少了个音效。
-    if (chars < 12) {
-      let kept = 0
-      const seenBase = new Set()
-      const slim = out.filter((c) => {
-        if (c.slot !== 'animations') return true
-        const base = String(c.id || '').replace(/_(start|loop|end)$/, '')
-        if (seenBase.has(base)) return true   // 同一动作的分段一起留
-        if (kept >= 1) return false
-        seenBase.add(base)
-        kept += 1
-        return true
-      })
-      out.length = 0
-      out.push.apply(out, slim)
-    }
-
-    // 一句话里最多一个头部动作。两个 head 动作同时驱动头骨，出来就是高频抖动；
-    // 分段（_start/_loop/_end）算同一个动作，不能拆散。
-    {
-      let headBase = ''
-      const only = out.filter((c) => {
-        if (c.slot !== 'animations' || partOf(c.id) !== 'head') return true
-        const base = String(c.id || '').replace(/_(start|loop|end)$/, '')
-        if (headBase && headBase !== base) return false
-        headBase = base
-        return true
-      })
-      out.length = 0
-      out.push.apply(out, only)
-    }
-
-    // 间隔不能小于「前一个动作自己播完的时间」，否则它还没做完就被下一个顶掉，
-    // 看起来就是一串动作连着播。loop 类动作的 durationMs 是一圈的长度，不代表要播这么久，
-    // 所以按 1200ms 封顶。
-    const MIN_GAP = 1000
-    const baseOf = (id) => String(id || '').replace(/_(start|loop|end)$/, '')
-    for (let i = 1; i < out.length; i += 1) {
-      // 同一动作的分段（start→loop→end）必须首尾相接，不能被间隔约束推开；
-      // 推开的后果是 start 播完空等 1.45 秒才进 loop，比不接还难看。
-      if (baseOf(out[i].id) === baseOf(out[i - 1].id)) continue
-      const prevDur = Math.min(1200, Number(out[i - 1].durationMs) || 0)
-      const need = Math.max(MIN_GAP, prevDur + 250)
-      const gap = out[i].at - out[i - 1].at
-      if (gap < need) out[i].at = out[i - 1].at + need
-    }
-    // 错开之后可能顶出窗口，整体压回来
-    const last = out[out.length - 1]
-    if (last && last.at > windowMs && out.length > 1) {
-      const span = last.at - (out[0].at || 0)
-      const scale = span > 0 ? windowMs / last.at : 1
-      for (const c of out) c.at = Math.round(c.at * scale)
+    let cursor = 0
+    const MIN_GAP = 160
+    for (const c of Array.isArray(list) ? list : []) {
+      if (!c || typeof c !== "object") continue
+      const at = Math.max(0, Number(c.at) || 0)
+      const group = String(c.id || "").replace(/_(start|loop2?|end)$/, "")
+      const prev = out.length ? out[out.length - 1] : null
+      const prevGroup = prev ? String(prev.id || "").replace(/_(start|loop2?|end)$/, "") : ""
+      const sameGroup = prev && group === prevGroup
+      const startAt = sameGroup ? Math.max(at, cursor) : Math.max(at, cursor + MIN_GAP)
+      out.push({ ...c, at: Math.round(startAt) })
+      cursor = startAt
     }
     return out
   }
-
-  /** 把一次推送请求整理成游戏端 FeedItemDto 能吃的形状。 */
   function buildCueItem(json) {
     const performance = Array.isArray(json?.performance)
       ? json.performance
@@ -1638,7 +1691,7 @@ const runTurn = async (userText, options = {}) => {
         .filter((c) => c.id),
       durMs,
       subtitleLen,
-    ), durMs, subtitleLen)
+    ), durMs, subtitleLen, perfFamily(), perfAge(), queueAheadNow())
     const audioUrl = typeof json?.audioUrl === 'string' ? json.audioUrl : ''
     return {
       performance: cues,
