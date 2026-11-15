@@ -69,7 +69,7 @@ import {
 
 import { planSequence, classifyClip, enforceContentClass, isOffChair, offSeatIdle, seatGuard, MOTION_CLASS } from './lib/motion-class.js'
 import { buildSuite } from './lib/core-action.js'
-import { decideTrip, awayWindow } from './lib/seat-trip.js'
+import { decideTrip, awayWindow, cooldownMs } from './lib/seat-trip.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
@@ -1070,8 +1070,10 @@ const runTurn = async (userText, options = {}) => {
         const trip = decideTrip(userText)
         // 启动门槛：冷却时间够、她手上没活在演、不在专注模式。
         // 每次启动都是十几秒起步的接管，不能因为一句话里出现"沙发"就演。
+        // 冷却 3~5 分钟（每次随机）：比 12 分钟自然得多，又不至于一句话就站起来。
         const lastTripAt = Number(state.lastTripAt) || 0
-        const cooling = nowMs - lastTripAt < 12 * 60 * 1000
+        const nextTripAt = Number(state.nextTripAt) || 0
+        const cooling = nowMs < nextTripAt || (lastTripAt && nowMs - lastTripAt < 3 * 60 * 1000)
         let idleNow = true
         try {
           const s0 = game.snapshot() || {}
@@ -1089,6 +1091,7 @@ const runTurn = async (userText, options = {}) => {
           cues = [...trip.steps, ...others]
           state.away = awayWindow(trip, nowMs)
           state.lastTripAt = nowMs
+          state.nextTripAt = nowMs + cooldownMs()
           try { saveState() } catch { /* 存盘失败不影响这次演出 */ }
           log('[perf] 离座长途启动: ' + trip.key + ' 共 ' + Math.round(trip.totalMs / 1000) + 's → '
             + trip.steps.map((s) => String(s.id).replace(/^anim_/, '') + '@' + s.at).join(' → '))

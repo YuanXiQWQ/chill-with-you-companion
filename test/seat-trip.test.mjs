@@ -2,7 +2,7 @@
 // 接管期内她不在椅子上，这段时间的对话不排表演，只出字幕与语音。
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { decideTrip, tripPlan, awayWindow, stepMs, TRIPS, AWAY_TAIL_MS } from '../lib/seat-trip.js'
+import { decideTrip, tripPlan, awayWindow, stepMs, cooldownMs, TRIPS, AWAY_TAIL_MS, COOLDOWN_MIN_MS, COOLDOWN_MAX_MS } from '../lib/seat-trip.js'
 import { isOffChair } from '../lib/motion-class.js'
 
 test('认得出要离座的说法，普通闲聊不启动', () => {
@@ -56,4 +56,15 @@ test('接管窗口覆盖整趟行程，并在末尾多留一点余地', () => {
 test('段时长取自游戏清单，不是猜的', () => {
   assert.ok(stepMs('anim_wild_leavechair_cup_go') > 5000, 'cup_go 应该有好几秒')
   assert.equal(stepMs('anim_不存在的族'), 0)
+})
+test('冷却 3~5 分钟：不长到"这句话她一直没接"，也不短到一句话就站起来', () => {
+  assert.equal(COOLDOWN_MIN_MS, 3 * 60 * 1000)
+  assert.equal(COOLDOWN_MAX_MS, 5 * 60 * 1000)
+  for (const r of [0, 0.25, 0.5, 0.75, 1, 2, -1]) {
+    const ms = cooldownMs(() => r)
+    assert.ok(ms >= COOLDOWN_MIN_MS && ms <= COOLDOWN_MAX_MS, 'r=' + r + ' 得到 ' + ms + 'ms，越界')
+  }
+  // 随机会真的变，不是常数
+  const many = new Set(Array.from({ length: 50 }, () => cooldownMs()))
+  assert.ok(many.size > 10, '冷却算出来几乎一样，等于固定值')
 })
