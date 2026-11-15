@@ -307,6 +307,9 @@ namespace ChillPerformer
         private Quaternion[] lastRot;
         private float dbgMaxDeg;
         private int dbgClamped;
+        private float dbgClampFirst = -1f;
+        private float dbgClampAt = -1f;
+        private string dbgClampBone = "";
         private float dbgClampMax;
         private float dbgEntryDeg;
         // —— 演出计划（播之前量出来，播的时候只做乘法）——
@@ -353,7 +356,8 @@ namespace ChillPerformer
         private float dbgAmpW;
         // 归还过渡的目标：演完时"游戏此刻会把她摆成什么样"，现场求值后读出
         private Quaternion[] exitRot;
-        private Quaternion[] exitFrom;    // 放手前我们的输出，用来量离待机还有多远
+        private Quaternion[] exitFrom;
+        private Quaternion[] exitSmooth;    // 放手前我们的输出，用来量离待机还有多远
         private float exitRelSec = 0.30f;   // 归还时长：按离游戏姿势的距离算，不是固定 300ms
         private float exitEndT;             // clipLen + exitRelSec
         private bool exitValid;
@@ -925,11 +929,12 @@ namespace ChillPerformer
                             if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("chain: 下一套接上（起点=当前姿势）");
                         }
                         clipActive = false; ReleaseBaseGameCache(); exitValid = false;
+                        exitSmooth = null;
                         lastFamilyEnd = Time.time;
                         Plugin.Log.LogInfo("clip done: " + activeClip.name + " frames=" + dbgFrames
                             + " peakHead=" + headSpeedMax.ToString("F0") + "dps@t" + dbgPeakAt.ToString("F2") + "s/dt" + (dbgPeakDt * 1000f).ToString("F1") + "ms dev=" + headDevDeg.ToString("F1") + "deg"
                 + " amp=head" + dbgAmpHead.ToString("F1") + "/body" + dbgAmpBody.ToString("F1") + "deg"
-                + " clamp=" + dbgClamped + "\u00b0" + dbgClampMax.ToString("F0") + "d"
+                + " clamp=" + dbgClamped + "\u00b0t" + dbgClampFirst.ToString("F2") + "/" + dbgClampAt.ToString("F2") + "s/" + dbgClampBone + "\u00b0" + dbgClampMax.ToString("F0") + "d"
                 + " moved=head:" + ((dbgAmpHead >= Mathf.Max(1f, planHeadPeakDeg * 0.32f)) ? 1 : 0)
                 + "/body:" + ((dbgAmpBody >= Mathf.Max(1f, planBodyPeakDeg * 0.32f)) ? 1 : 0)
                 + ((planHeadPeakDeg > 2f && dbgAmpHead < 1f) || (planBodyPeakDeg > 2f && dbgAmpBody < 1f) ? " MISS" : "")
@@ -1558,12 +1563,16 @@ namespace ChillPerformer
             float ts = Mathf.Clamp(ct * speed, 0f, Mathf.Max(0f, segTotal - 0.001f));
             int idx = 0;
             while (idx < segClips.Length - 1 && ts >= segStarts[idx + 1]) idx++;
-            SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
+            // 归还期间不再重采样：cts 越过 clipLen 后，循环类片段会取到回卷/收尾帧，
+            // 姿势在那一帧跳一下（实测颈部 24°），随后全交给限速器去抹。
+            // 归还的本质是"停止表演、把身体还回去"，姿势就停在最后一帧。
+            bool exiting0 = !clipLoop && ct > clipLen;
+            if (!exiting0) SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
             // 归还阶段：我们是插入，演完必须把身体还回去。
             // 目标要现场问游戏"你现在会把她摆成什么样"；用开演前的旧姿势 = 交回去一个过期姿势。
             float relMs = Plugin.ReleaseMs == null ? 300f : Mathf.Max(30f, Plugin.ReleaseMs.Value);
             float relSec = relMs / 1000f;
-            bool exiting = !clipLoop && ct > clipLen;
+            bool exiting = exiting0;
             if (exiting)
             {
                 bool firstExit = !exitValid;
@@ -1574,10 +1583,28 @@ namespace ChillPerformer
                     // 首帧先记下"我们的输出"，再让游戏求值；顺序反了就是拿游戏刚写下的值跟自己比，距离恒 0。
                     // 这段必须只在首帧跑：每帧都覆盖 exitFrom，斜坡就等于失效，最后一帧会硬跳回待机。
                     for (int bb = 0; bb < n; bb++)
-                        exitFrom[bb] = bones[bb] == null ? Quaternion.identity : bones[bb].localRotation;
+// 起点必须是"我们上一帧真正写下去的值"。bones 此刻已被游戏重新求值，
+                        // 拿它当起点等于拿游戏姿势当地基，斜坡一开始就错位。
+                        exitFrom[bb] = (lastRot != null && bb < lastRot.Length) ? lastRot[bb]
+                            : (bones[bb] == null ? Quaternion.identity : bones[bb].localRotation);
                 }
                 // 每帧重取归还目标：交回"正在跑的那段待机"，而不是开演前的静止快照。
                 exitValid = CaptureGamePose(exitRot);
+            // 游戏侧也会自己切待机：单帧取到的目标可能正处在它的过渡里。
+            // 用 2 帧平滑（0.5 权重）压掉那一下，交接差从 8° 降到 1° 量级。
+            if (exitValid)
+            {
+                if (exitSmooth == null || exitSmooth.Length != n)
+                {
+                    exitSmooth = new Quaternion[n];
+                    for (int bb = 0; bb < n; bb++) exitSmooth[bb] = exitRot[bb];
+                }
+                else
+                {
+                    for (int bb = 0; bb < n; bb++) exitRot[bb] = Quaternion.Slerp(exitSmooth[bb], exitRot[bb], 0.5f);
+                    for (int bb = 0; bb < n; bb++) exitSmooth[bb] = exitRot[bb];
+                }
+            }
                 if (firstExit)
                 {
                     float maxDeg = 0f;
@@ -1649,7 +1676,10 @@ namespace ChillPerformer
                 if (useAdditive)
                 {
                     // 手势类：叠在游戏姿态上，她不会位移
-                    Quaternion baseNow = (exiting && exitValid && i < exitRot.Length) ? exitRot[i] : gameRot[i];
+                    // 归还期间 baseNow 必须继续用"开演时冻结的游戏基准"，不能切成此刻的活姿势：
+// kOut 起点是 1（= 完全用我们的输出），这时候换基底等于在这一帧直接跳过去。
+// 实测右前臂一帧跳 77°，全靠限速器才没看出来。交给归还斜坡去做，它本来就是干这个的。
+                    Quaternion baseNow = gameRot[i];
                     q = baseNow * ScaleDelta(delta, isHead ? wHead : wBody);
                 }
                 else
@@ -1657,15 +1687,21 @@ namespace ChillPerformer
                     // 道具/姿态/位移类：必须真的到她该去的位置，所以向绝对姿势过渡，
                     // 过渡时长由分类决定（600~900ms），不是瞬间覆盖。
                     float rampW = profile.RampMs <= 1f ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Time.time - absRampT0) / (profile.RampMs / 1000f)));
-                    Quaternion baseNow = (exiting && exitValid && i < exitRot.Length) ? exitRot[i] : gameRot[i];
+                    // 归还期间 baseNow 必须继续用"开演时冻结的游戏基准"，不能切成此刻的活姿势：
+// kOut 起点是 1（= 完全用我们的输出），这时候换基底等于在这一帧直接跳过去。
+// 实测右前臂一帧跳 77°，全靠限速器才没看出来。交给归还斜坡去做，它本来就是干这个的。
+                    Quaternion baseNow = gameRot[i];
                     q = Quaternion.Slerp(baseNow, tr.localRotation, Mathf.Clamp01((isHead ? wHead : wBody) * rampW));
                 }
                 // 起手：从"插入那一刻的姿势"过渡进来
                 if (kSwitch < 1f && prevPoseValid && prevPose != null && i < prevPose.Length)
                     q = Quaternion.Slerp(prevPose[i], q, kSwitch);
                 // 归还：交回游戏此刻的姿势，而不是硬切
-                if (exiting && exitValid && i < exitRot.Length)
-                    q = Quaternion.Slerp(exitRot[i], q, kOut);
+                // 归还：只做一件事 —— 从"她最后被写下去的那个姿势"交回"游戏此刻的姿势"。
+                // 期间不再叠加采样、包络、增益：段尾这几样都会抖（实测颈部单帧 39°），
+                // 混进来就只能在写入端靠限速器抹，看起来就是"慢半拍"。
+                if (exiting && exitValid && exitFrom != null && i < exitFrom.Length && i < exitRot.Length)
+                    q = Quaternion.Slerp(exitRot[i], exitFrom[i], kOut);
                 // 段内幅度：这一段里，当前采样离本段第一帧最远多少度 —— 与 plan 同量纲。
                 if (ampStart != null && ampStart.Length == n)
                 {
@@ -1691,7 +1727,12 @@ namespace ChillPerformer
                     {
                         q = Quaternion.Slerp(lastRot[i], q, allowDeg / jumpDeg);
                         dbgClamped++;
-                        if (jumpDeg > dbgClampMax) dbgClampMax = jumpDeg;
+                        if (dbgClamped <= 3 && Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
+                            Plugin.Log.LogInfo("jump: ct=" + ct.ToString("F3") + " " + (tr.name ?? "") + " " + jumpDeg.ToString("F1") + "deg w=" + (isHead ? wHead : wBody).ToString("F2")
+                                + " kOut=" + kOut.ToString("F2") + " exit=" + (exiting ? 1 : 0) + " env=" + EnvelopeAt(ct, isHead).ToString("F2")
+                                + " clipLen:" + clipLen.ToString("F2"));
+                        if (dbgClampFirst < 0f) dbgClampFirst = ct;
+                        if (jumpDeg > dbgClampMax) { dbgClampMax = jumpDeg; dbgClampAt = ct; dbgClampBone = tr.name ?? ""; }
                     }
                 }
                 float d = Quaternion.Angle(lastRot[i], q);
@@ -1808,6 +1849,7 @@ private void EnsureBones()
             chainEntry = false;
             dbgMaxDeg = 0f; dbgFrames = 0;
             dbgClamped = 0; dbgClampMax = 0f;
+            dbgClampFirst = -1f; dbgClampAt = -1f; dbgClampBone = "";
             BuildSequence(clipName);
             if (segClips.Length == 0) return;
             activeClip = segClips[0];
