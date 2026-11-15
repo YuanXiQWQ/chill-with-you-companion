@@ -2055,8 +2055,10 @@ private void EnsureBones()
             propTargets.Clear();
             propClips.Clear();
             {
+                // 离座/回来这两族的椅子动画是按另一套锚点摆的，套过来会把椅子甩到镜头前
+                bool skipPropForTrip = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0;
                 List<Animator> holders;
-                if (clipExtraOwners.TryGetValue(clipName, out holders))
+                if (!skipPropForTrip && clipExtraOwners.TryGetValue(clipName, out holders))
                 {
                     for (int hi = 0; hi < holders.Count; hi++)
                     {
