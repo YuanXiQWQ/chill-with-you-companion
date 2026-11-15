@@ -1069,7 +1069,7 @@ GPT-SoVITS 没起（`127.0.0.1:9880` 不通）时**不报错**：自动降级成
 | `MixerGroupFallback` | `master` | 主匹配不到时的退路；留空 = 保持独立输出 |
 | `Volume` | `0.85` | 在游戏那一路电平**之上**再乘的系数，不是绝对音量 |
 
-实际挂到了哪一组，看 `BepInEx/LogOutput.log` 里的 `mixer: voice -> <混音器>/<组>` 一行，或者 `/chill/v1/game` 的 `mixer` 字段。
+实际挂到了哪一组，看 `BepInEx/LogOutput.log` 里的 `mixer: voice -> <混音器>/<组>` 一行，或者 `/chill/v1/game` 的 `mixer` 字段。紧跟其后还有一行 `mixer level: VoiceVolume=-x.x dB`——把游戏里的语音音量拉低再让她说一句，这个数字会跟着掉（通常是 `-80.0`），它就是「我们和游戏共用同一个电平」的硬证据。
 ## 模块地图（0.4.0 起）
 
 | 文件 | 职责 |

@@ -290,7 +290,7 @@ namespace ChillPerformer
         private bool probed;
 
         // 控制台推来的 cue：每 PullInterval 秒问一次 /pull?since=N
-        private const string Version = "0.9.4";
+        private const string Version = "0.10.1";
 
         private static string Js(string s)
         {
@@ -1246,6 +1246,18 @@ namespace ChillPerformer
             }
             voiceGroup = pick;
             voiceGroupLabel = GroupLabel(pick);
+            // 顺手把这一路当前的音量读数记下来：玩家拉低或静音时，这个数字会变，
+            // 用它就能自证"她确实挂在游戏那一路电平上"，不用靠耳朵。
+            try
+            {
+                float db;
+                string pname = pick.name + "Volume";
+                if (pick.audioMixer != null && pick.audioMixer.GetFloat(pname, out db))
+                    Plugin.Log.LogInfo("mixer level: " + pname + "=" + db.ToString("F1") + " dB");
+                else if (pick.audioMixer != null && pick.audioMixer.GetFloat("MasterVolume", out db))
+                    Plugin.Log.LogInfo("mixer level: MasterVolume=" + db.ToString("F1") + " dB");
+            }
+            catch (Exception e) { Plugin.Log.LogInfo("mixer level: unavailable (" + e.Message + ")"); }
             if (audioSource != null) audioSource.outputAudioMixerGroup = pick;
             Plugin.Log.LogInfo("mixer: voice -> " + voiceGroupLabel);
         }
