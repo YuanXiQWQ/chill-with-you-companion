@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 using BepInEx.Logging;
 
@@ -75,6 +76,33 @@ namespace ChillPerformer
         {
             try { return SceneManager.GetActiveScene().name ?? ""; }
             catch { return ""; }
+        }
+
+        // 混音器路由：把场里各 AudioSource 已挂着的混音器组交出去（去重），
+        // 让合成语音能"和游戏同组"，从而跟随游戏自己的那一路音量与静音。
+        // 只读公开字段 outputAudioMixerGroup，不反射游戏内部类型。
+        public static List<AudioMixerGroup> MixerGroups()
+        {
+            var list = new List<AudioMixerGroup>();
+            if (audioComps.Count == 0)
+            {
+                try
+                {
+                    var all = UnityEngine.Object.FindObjectsOfType<AudioSource>();
+                    for (int i = 0; i < all.Length; i++) if (all[i] != null) audioComps.Add(all[i]);
+                    if (log != null) log.LogInfo("mixer: scanned audio sources=" + all.Length);
+                }
+                catch (Exception e) { if (log != null) log.LogWarning("mixer: scan failed " + e.Message); }
+            }
+            for (int i = 0; i < audioComps.Count; i++)
+            {
+                var a = audioComps[i];
+                if (a == null) continue;
+                var g = a.outputAudioMixerGroup;
+                if (g == null) continue;
+                if (!list.Contains(g)) list.Add(g);
+            }
+            return list;
         }
 
         private static bool HasAny(string hay, string[] tokens)

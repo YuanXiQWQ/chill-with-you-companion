@@ -371,7 +371,7 @@ node tools/gen-anim-manifest.mjs
 | 位置 | 为什么允许 |
 | --- | --- |
 | `<游戏>/BepInEx/plugins/ChillPerformer.dll` | 游戏端本体，不放进去她就不会动 |
-| `<游戏>/BepInEx/config/local.chill.performer.cfg` | 里面只有 `brain.Token` 与端口，用于和侧车对上 |
+| `<游戏>/BepInEx/config/local.chill.performer.cfg` | `brain.Token` 与端口（和侧车对上）、混音器路由的开关与匹配词 |
 | `<数据目录>/`（`memory/` `audio/` `kb/` `state.json` `llm.json` `token` `*.log`） | 记忆、缓存、配置与日志都在这里；换机器整个拷走即可 |
 | 本仓库自身（源码、`tools/`、`test/`、文档） | 装、修、升级都在这一层发生 |
 
@@ -1058,6 +1058,18 @@ ref\ref-index.json                  导出记录
 
 GPT-SoVITS 没起（`127.0.0.1:9880` 不通）时**不报错**：自动降级成"纯字幕 + 不播语音"，游戏照常演。
 
+**她说话走游戏自己的混音器。** 插件的语音源会挂到游戏那一路 `AudioMixerGroup` 上，所以游戏里把「语音」音量拉低、或直接静音，她的合成语音跟着一起变——不是另开一条音量路径。挂不上时（游戏版本换了组名）会自动退到 master 组，再不行就保持原来的独立输出，**不会因此没声**。
+
+配置在 `BepInEx/config/local.chill.performer.cfg` 的 `[audio]` 段：
+
+| 键 | 默认 | 含义 |
+| --- | --- | --- |
+| `FollowGameMixer` | `true` | 是否挂到游戏混音器组 |
+| `MixerGroupMatch` | `voice` | 选哪一组，逗号分隔、不分大小写，按词匹配（组名或混音器名） |
+| `MixerGroupFallback` | `master` | 主匹配不到时的退路；留空 = 保持独立输出 |
+| `Volume` | `0.85` | 在游戏那一路电平**之上**再乘的系数，不是绝对音量 |
+
+实际挂到了哪一组，看 `BepInEx/LogOutput.log` 里的 `mixer: voice -> <混音器>/<组>` 一行，或者 `/chill/v1/game` 的 `mixer` 字段。
 ## 模块地图（0.4.0 起）
 
 | 文件 | 职责 |

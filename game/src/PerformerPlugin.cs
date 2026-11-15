@@ -13,6 +13,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Networking;
 
 namespace ChillPerformer
@@ -43,6 +44,9 @@ namespace ChillPerformer
         internal static ConfigEntry<int> HeartbeatMs;
         internal static ConfigEntry<float> MotionMaxDegPerSec;
         internal static ConfigEntry<float> VoiceVolume;
+        internal static ConfigEntry<bool> FollowGameMixer;
+        internal static ConfigEntry<string> MixerGroupMatch;
+        internal static ConfigEntry<string> MixerGroupFallback;
         internal static ConfigEntry<bool> VerboseCues;
         internal static ConfigEntry<bool> ShowSubtitle;
 
@@ -55,7 +59,10 @@ namespace ChillPerformer
                 "Optional bearer token; leave empty unless chill-brain config sets one.");
 
             ShowSubtitle = Config.Bind("ui", "ShowSubtitle", true, "Draw the self-made subtitle overlay.");
-            VoiceVolume = Config.Bind("audio", "Volume", 0.85f, "Playback volume of synthesized voice.");
+            VoiceVolume = Config.Bind("audio", "Volume", 0.85f, "Relative volume of synthesized voice, multiplied on top of the game's own mixer level.");
+            FollowGameMixer = Config.Bind("audio", "FollowGameMixer", true, "Route the synthesized voice through the game's own AudioMixer group, so the in-game volume slider and mute for that group apply to her voice too.");
+            MixerGroupMatch = Config.Bind("audio", "MixerGroupMatch", "voice", "Keyword(s) that pick the mixer group, comma separated, case-insensitive. First match wins.");
+            MixerGroupFallback = Config.Bind("audio", "MixerGroupFallback", "master", "Fallback keyword(s) when nothing matches MixerGroupMatch. Empty = leave the source unmixed (old behaviour).");
             VerboseCues = Config.Bind("debug", "VerboseCues", false, "Log every performance cue.");
             PullEnabled = Config.Bind("console", "PullEnabled", true, "Poll chill-brain for cues pushed from the DSH console.");
             PullInterval = Config.Bind("console", "PullInterval", 0.6f, "Seconds between console pull requests.");
@@ -188,6 +195,11 @@ namespace ChillPerformer
         private readonly HashSet<string> clipNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Animator> clipOwners = new Dictionary<string, Animator>(StringComparer.OrdinalIgnoreCase);
         private AudioSource audioSource;
+        // 混音器路由：合成语音挂到游戏自己那一路混音器组上，游戏里的音量滑块与静音才管得住她。
+        // 只读公开字段 AudioSource.outputAudioMixerGroup，不反射游戏内部类型、不打补丁。
+        private AudioMixerGroup voiceGroup;
+        private string voiceGroupLabel = "off";
+        private float nextGroupTry;
         private GUIStyle subtitleStyle;
         // 口型：Face 的 SkinnedMeshRenderer + 六个母音 blendshape 下标
         private SkinnedMeshRenderer faceSmr;
@@ -322,6 +334,7 @@ namespace ChillPerformer
             sb.Append(",\"subtitle\":\"").Append(Js(subtitle)).Append('"');
             sb.Append(",\"mouth\":").Append(mouthActive ? "true" : "false");
             sb.Append(",\"audio\":").Append(audioSource != null && audioSource.isPlaying ? "true" : "false");
+            sb.Append(",\"mixer\":\"").Append(Js(voiceGroupLabel)).Append('"');
             sb.Append(",\"fps\":").Append(fps);
             sb.Append(",\"focus\":").Append(GameBusy.FocusMode ? "true" : "false");
             sb.Append(",\"pomTexts\":").Append(GameBusy.PomodoroCandidates);
@@ -671,6 +684,7 @@ namespace ChillPerformer
                     audioSource = best.gameObject.AddComponent<AudioSource>();
                     audioSource.playOnAwake = false;
                     audioSource.spatialBlend = 0f;
+                    ResolveVoiceGroup(); // 第一次尝试接入游戏的混音器组
                 }
             }
             else
@@ -1174,6 +1188,81 @@ namespace ChillPerformer
             if (p.StartsWith("/")) return BaseUrl + p;
             return BaseUrl + "/" + p;
         }
+        // —— 混音器路由 —————————————————————————————————————————————
+        // 目标：她的语音和游戏里那一路共用混音器组，玩家拉低或静音那一路，她一起静。
+        // 只用公开 API：读场里现成 AudioSource 的 outputAudioMixerGroup。
+        private static string GroupLabel(AudioMixerGroup g)
+        {
+            if (g == null) return "";
+            string mixer = (g.audioMixer != null) ? g.audioMixer.name : "?";
+            return mixer + "/" + g.name;
+        }
+
+        private static AudioMixerGroup PickGroup(string patterns, List<AudioMixerGroup> cands)
+        {
+            if (string.IsNullOrEmpty(patterns) || cands == null) return null;
+            string[] ks = patterns.Split(',');
+            for (int k = 0; k < ks.Length; k++)
+            {
+                string key = ks[k].Trim().ToLowerInvariant();
+                if (key.Length == 0) continue;
+                for (int i = 0; i < cands.Count; i++)
+                {
+                    var g = cands[i];
+                    if (g == null) continue;
+                    string hay = (g.name + " " + ((g.audioMixer != null) ? g.audioMixer.name : "")).ToLowerInvariant();
+                    if (hay.Contains(key)) return g;
+                }
+            }
+            return null;
+        }
+
+        private void ResolveVoiceGroup()
+        {
+            nextGroupTry = Time.time + 30f; // 场景里还没有带组的源时，30 秒后再看一次
+            if (Plugin.FollowGameMixer == null || !Plugin.FollowGameMixer.Value)
+            {
+                voiceGroupLabel = "off";
+                return;
+            }
+            var cands = GameBusy.MixerGroups();
+            if (cands.Count == 0)
+            {
+                voiceGroupLabel = "none";
+                Plugin.Log.LogInfo("mixer: no audio source carries a mixer group yet");
+                return;
+            }
+            var names = new List<string>();
+            for (int i = 0; i < cands.Count; i++) names.Add(GroupLabel(cands[i]));
+            Plugin.Log.LogInfo("mixer candidates: " + string.Join(", ", names.ToArray()));
+            var pick = PickGroup(Plugin.MixerGroupMatch.Value, cands);
+            if (pick == null) pick = PickGroup(Plugin.MixerGroupFallback.Value, cands);
+            if (pick == null)
+            {
+                voiceGroup = null;
+                voiceGroupLabel = "none";
+                Plugin.Log.LogInfo("mixer: nothing matched (match=" + Plugin.MixerGroupMatch.Value + " fallback=" + Plugin.MixerGroupFallback.Value + "), keeping own output");
+                return;
+            }
+            voiceGroup = pick;
+            voiceGroupLabel = GroupLabel(pick);
+            if (audioSource != null) audioSource.outputAudioMixerGroup = pick;
+            Plugin.Log.LogInfo("mixer: voice -> " + voiceGroupLabel);
+        }
+
+        private void ApplyVoiceGroup()
+        {
+            if (audioSource == null) return;
+            if (Plugin.FollowGameMixer == null || !Plugin.FollowGameMixer.Value)
+            {
+                audioSource.outputAudioMixerGroup = null;
+                voiceGroupLabel = "off";
+                return;
+            }
+            if (voiceGroup == null && Time.time >= nextGroupTry) ResolveVoiceGroup();
+            if (voiceGroup != null && audioSource.outputAudioMixerGroup != voiceGroup) audioSource.outputAudioMixerGroup = voiceGroup;
+        }
+
         private IEnumerator PlayAudio(string urlOrPath)
         {
             if (audioSource == null) yield break;
@@ -1219,6 +1308,7 @@ namespace ChillPerformer
                 yield break;
             }
             if (audioSource.isPlaying) audioSource.Stop(); // 上一句没播完就叠音
+            ApplyVoiceGroup(); // 挂上游戏混音器组；音量从此是"在游戏电平之上再乘"
             audioSource.PlayOneShot(clip, Plugin.VoiceVolume.Value);
             mouthDur = clip.length;
             mouthT0 = Time.time;
