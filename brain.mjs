@@ -68,6 +68,7 @@ import {
 } from './lib/assets.js'
 
 import { planSequence, classifyClip, enforceContentClass, isOffChair, offSeatIdle, seatGuard, MOTION_CLASS } from './lib/motion-class.js'
+import { buildSuite } from './lib/core-action.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
@@ -1046,6 +1047,20 @@ const runTurn = async (userText, options = {}) => {
     // 提示词只是建议，这里才是保证；只覆盖"完全不符"，不敢动模型的部分正确选择。
     // 每轮编排动作之前先检测她此刻的待机：她要是正离座（沙发/走去拿东西那几族），
     // 这一轮整段不排动作。身体不在椅子上时插入没有落点，把她拽回来比不演更难看。
+    // 核心动作机制（先于闸门与编排）：这句话的核心行为由语句决定，跟模型给没给动作无关。
+    // 模型那两次一条动作都没给（cues 空），如果放在后面的块里就永远轮不到它。
+    try {
+      // 注意：cues 可能是 null（模型没给动作），别把它改成 []——下游用 null 区分
+      // "走情绪兜底" 与 "真的没有动作"，改了就丢兜底动作（smoke 测试就是这么挂的）。
+      const suite = buildSuite(Array.isArray(cues) ? cues : [], userText)
+      if (suite.core) {
+        log('[perf] core: ' + suite.core.verb + ' → ' + suite.core.family + ' [' + suite.from + ']'
+          + (suite.suite.length ? ' suite=' + suite.suite.map((x) => x.role + ':' + String(x.id).replace(/^anim_/, '')).join(' > ') : ' (不改动)'))
+      }
+      if (suite.suite.length) cues = suite.cues
+    } catch (error) {
+      log('[perf] core-action failed: ' + (error && error.message))
+    }
     if (cues && cues.length > 0) {
       try {
         const liveSnap = game.snapshot() || {}
@@ -1096,6 +1111,14 @@ const runTurn = async (userText, options = {}) => {
           cues = gate.cues
           log("[perf] content gate: " + JSON.stringify(gate.changed))
         }
+        // 闸门是"按模型想演什么"挑条目的，它会把核心族换掉——「先喝口水」被换成过笑。
+        // 核心行为由语句定，所以闸门改完之后以核心为准再锁一次。
+        try {
+          const again = buildSuite(Array.isArray(cues) ? cues : [], userText)
+          if (again.suite.length) cues = again.cues
+        } catch (error) {
+          log('[perf] core re-apply failed: ' + (error && error.message))
+        }
         // 编排：排序 + 冲突串行化 + 按"她正在做的事"算过渡。
         // 表演与语音解绑后这里不再传说话时长做"铺满"，只传延续信息。
         const planned = planSequence(cues, {
@@ -1124,8 +1147,17 @@ const runTurn = async (userText, options = {}) => {
     }
     // 表演和语音解绑：动作按固定节拍顺序起手，与音频长度无关；口型仍严格跟音频。
   if (cues && cues.length > 0) {
-    const STEP_MS = 360
-    cues.forEach((c, i) => { c.at = i * STEP_MS })
+    // 核心动作的"一整套"已经由 planSequence 按整套跨度排好位（起手 → 核心 → 收尾），
+    // 这里再统一按 360ms 打散会把三拍挤成一团——实测伸懒腰被插进写代码的中段。
+    // 没有整套时沿用 360ms 节拍（表演与语音解绑后的老规矩）。
+    if (cues.some((c) => c && c.locked)) {
+      const first = cues.find((c) => c && c.slot === 'animations')
+      const base = first ? Number(first.at) || 0 : 0
+      for (const c of cues) if (c && c.slot === 'animations' && Number(c.at) < base) c.at = base
+    } else {
+      const STEP_MS = 360
+      cues.forEach((c, i) => { c.at = i * STEP_MS })
+    }
   }
   return {
     parsed, model, audio, cues, dropped, mouth,

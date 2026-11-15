@@ -67,8 +67,21 @@ console.log('  ── 二、同族延续 ──')
   const b = await act('那再喝一口吧')
   const cont = b.anim.some((x) => x.continued === true) || (b.anim.length === 1 && /_loop$/.test(b.anim[0].id))
   check('同一件事 → 只接 loop（不重新起手）', cont, b.anim.map((x) => x.id.replace(/^anim_/, '') + '@' + x.durationMs).join(' '))
-  check('  loop 段恰好一拍（不按语音重复）', (a.anim || []).filter((x) => /_loop2?$/.test(x.id)).length <= 1, (a.anim || []).map((x) => x.id).join(' '))
-  check('  接上是单段 loop（<=2600ms）', b.anim.every((x) => /_loop2?$/.test(x.id)) && b.span <= 2700, a.span + 'ms → ' + b.span + 'ms')
+  // 有了核心动作的"一整套"，一段回复可以有两拍（先喝水、再写代码），
+  // 每拍各带一个 loop 是正常的；要防的是同一族按语音重复好几拍。
+  const loopPerFam = {}
+  for (const x of a.anim || []) {
+    if (!/_loop2?$/.test(x.id)) continue
+    const fam = String(x.id).replace(/_loop2?$/, '')
+    loopPerFam[fam] = (loopPerFam[fam] || 0) + 1
+  }
+  check('  每族 loop 恰好一拍（不按语音重复）', Object.values(loopPerFam).every((n) => n <= 1), JSON.stringify(loopPerFam))
+  // 接上同一件事时不该重新起手（只 loop），时长也不该按语音拉长。
+  // 上限按"这一族自己的循环段长度 + 起手过渡"给，而不是写死 2600——各族循环长度不同
+  // （喝茶 2334ms、写代码 2600ms），写死就会在换族时误报。
+  const loopOnly = b.anim.length > 0 && b.anim.every((x) => /_loop2?$/.test(x.id))
+  const cap = Math.max(...b.anim.map((x) => Number(x.durationMs) || 0)) + 900
+  check('  接上是单段 loop（不重新起手）', loopOnly && b.span <= cap, a.span + 'ms → ' + b.span + 'ms (上限 ' + cap + ')')
   await sleep(2200)
 }
 
