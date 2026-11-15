@@ -1095,6 +1095,9 @@ const runTurn = async (userText, options = {}) => {
         game: game.snapshot(),
         gameAgeMs: game.age(),
         gameOnline: game.online(),
+        // 大脑端自己的队列水位（和游戏端那个队列各自独立、互不同步）：
+        // depth 是还没被拉走的条数，waiters 是挂着长轮询的游戏端连接数
+        queue: feed.stats(),
         hasApiKey,
         // 只报「key 从哪来」，不报值：宿主借来的凭据会在 env 里标 CHILL_KEY_SOURCE
         keySource: String(process.env.CHILL_KEY_SOURCE || '') || (hasApiKey ? 'credentials-file-or-env' : 'none'),

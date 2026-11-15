@@ -374,6 +374,7 @@ node tools/doctor.mjs --json   # agent 看：单个 JSON 对象
 | 她只动不说话 | `voice` | 语音引擎不可用，已降级——设计行为，不是 bug |
 | 路由数不是 31 | `routes` | 插件与侧车版本不一致，或改完没重启 |
 | 动作抽搐 / 卡住 | `game`（`detail.core`）+ `<数据目录>/cue.log` | 游戏更新后 clip 名或帧数变了；用 `game/assets.seed.json` 对名字 |
+| 连着来几句，前几句没说出来 | `game` 的 `queue.dropped` / `queue.expired` | 队列满被挤掉（调大 `queue.Max`）或排队超 TTL 过期（调大 `queue.TtlMs`）；两个都不涨 = 上游没生成 |
 | 面板接口全绿但没图标 | `versions` + `lib/client.js` 第 1 段的 `id` | 客户端模块 ID 与当前插件名不符 |
 
 ### 日志在哪

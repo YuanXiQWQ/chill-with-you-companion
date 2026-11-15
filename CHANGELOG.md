@@ -14,6 +14,14 @@
 - `[audio]` 三个新配置：`FollowGameMixer`（默认开）、`MixerGroupMatch`（默认 `voice`）、`MixerGroupFallback`（默认 `master`）
 - `/chill/v1/game` 增加 `mixer` 字段，报出实际挂到哪一组；首次解析把候选组写一行日志，便于核对
 
+### 新增：表演排队
+
+- 表演端改成**本地队列**：大脑端与表演端各排各的队、互不同步，指令到一条排一条，严格先来先演
+- **不打断**：正在说的那句一定说完；新的一句只排队，不掐断上一句
+- 游戏自己在演剧情时让台，队内条目按 TTL 过期，不补播旧话
+- `[queue]` 段四个配置：`Enabled` / `Max`（默认 4，满了丢最旧）/ `TtlMs`（默认 20 秒）/ `GapMs`（默认 250 毫秒）
+- `/chill/v1/game` 的 `queue` 字段报 `depth` / `played` / `dropped` / `expired` / `maxDepth`；`/chill/v1/health` 的 `queue` 报大脑端自己的水位
+- `Enabled=false` 回到旧行为（只演最新一条），是现成回滚开关
 ### 变更
 
 - `[audio] Volume` 的语义从「绝对音量」改为「在游戏那一路电平之上再乘的系数」，默认仍 0.85

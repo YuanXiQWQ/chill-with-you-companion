@@ -47,6 +47,10 @@ namespace ChillPerformer
         internal static ConfigEntry<bool> FollowGameMixer;
         internal static ConfigEntry<string> MixerGroupMatch;
         internal static ConfigEntry<string> MixerGroupFallback;
+        internal static ConfigEntry<bool> QueueEnabled;
+        internal static ConfigEntry<int> QueueMax;
+        internal static ConfigEntry<int> QueueTtlMs;
+        internal static ConfigEntry<int> QueueGapMs;
         internal static ConfigEntry<bool> VerboseCues;
         internal static ConfigEntry<bool> ShowSubtitle;
 
@@ -63,6 +67,10 @@ namespace ChillPerformer
             FollowGameMixer = Config.Bind("audio", "FollowGameMixer", true, "Route the synthesized voice through the game's own AudioMixer group, so the in-game volume slider and mute for that group apply to her voice too.");
             MixerGroupMatch = Config.Bind("audio", "MixerGroupMatch", "voice", "Keyword(s) that pick the mixer group, comma separated, case-insensitive. First match wins.");
             MixerGroupFallback = Config.Bind("audio", "MixerGroupFallback", "master", "Fallback keyword(s) when nothing matches MixerGroupMatch. Empty = leave the source unmixed (old behaviour).");
+            QueueEnabled = Config.Bind("queue", "Enabled", true, "Queue incoming cues locally and play them one after another. False = old behaviour, only the newest item is performed.");
+            QueueMax = Config.Bind("queue", "Max", 4, "Queue depth. When full the OLDEST waiting item is dropped (stale lines are the ones worth losing).");
+            QueueTtlMs = Config.Bind("queue", "TtlMs", 20000, "Drop a waiting item once it is older than this. Keeps a long yield from replaying lines from ten minutes ago.");
+            QueueGapMs = Config.Bind("queue", "GapMs", 250, "Silence between two queued lines, in milliseconds.");
             VerboseCues = Config.Bind("debug", "VerboseCues", false, "Log every performance cue.");
             PullEnabled = Config.Bind("console", "PullEnabled", true, "Poll chill-brain for cues pushed from the DSH console.");
             PullInterval = Config.Bind("console", "PullInterval", 0.6f, "Seconds between console pull requests.");
@@ -200,6 +208,21 @@ namespace ChillPerformer
         private AudioMixerGroup voiceGroup;
         private string voiceGroupLabel = "off";
         private float nextGroupTry;
+        // 表演队列：大脑端有自己的队列，这里再排一次——两边独立、不同步，
+        // 大脑只说"这一条演什么"，什么时候演由游戏端自己按先来先演决定。
+        private struct PendingAct
+        {
+            public ActDto dto;
+            public int seq;
+            public float at;      // 入队时刻（unscaled）
+            public string src;
+        }
+        private readonly List<PendingAct> pending = new List<PendingAct>();
+        private bool performing;
+        private int qDropped;
+        private int qExpired;
+        private int qMaxDepth;
+        private int qPlayed;
         private GUIStyle subtitleStyle;
         // 口型：Face 的 SkinnedMeshRenderer + 六个母音 blendshape 下标
         private SkinnedMeshRenderer faceSmr;
@@ -275,6 +298,7 @@ namespace ChillPerformer
                 ? "brain ok, heroine animator NOT found"
                 : "ready (" + clipNames.Count + " clips)"));
             StartCoroutine(Forever(PullLoop, "PullLoop"));
+            StartCoroutine(Forever(PerformLoop, "PerformLoop"));
         }
 
 
@@ -335,6 +359,15 @@ namespace ChillPerformer
             sb.Append(",\"mouth\":").Append(mouthActive ? "true" : "false");
             sb.Append(",\"audio\":").Append(audioSource != null && audioSource.isPlaying ? "true" : "false");
             sb.Append(",\"mixer\":\"").Append(Js(voiceGroupLabel)).Append('"');
+            // 队列现场：depth=在等的条数，played/dropped/expired 是三条出口的计数
+            sb.Append(",\"queue\":{\"depth\":").Append(pending.Count)
+              .Append(",\"performing\":").Append(performing ? "true" : "false")
+              .Append(",\"played\":").Append(qPlayed)
+              .Append(",\"dropped\":").Append(qDropped)
+              .Append(",\"expired\":").Append(qExpired)
+              .Append(",\"maxDepth\":").Append(qMaxDepth)
+              .Append(",\"enabled\":").Append((Plugin.QueueEnabled != null && Plugin.QueueEnabled.Value) ? "true" : "false")
+              .Append('}');
             sb.Append(",\"fps\":").Append(fps);
             sb.Append(",\"focus\":").Append(GameBusy.FocusMode ? "true" : "false");
             sb.Append(",\"pomTexts\":").Append(GameBusy.PomodoroCandidates);
@@ -476,9 +509,6 @@ namespace ChillPerformer
                 }
                 if (root == null) continue;
                 int newestSeq = feedSeq;
-                ActDto newest = null;
-                string newestSrc = "";
-                int skipped = 0;
                 try
                 {
                     if (!probed) { probed = true; SceneProbe.Dump(Plugin.Log, false); }
@@ -506,37 +536,37 @@ namespace ChillPerformer
                         if (headSeq > feedSeq) feedSeq = headSeq;
                         continue;
                     }
-                    // 只在最新一条上表演：让位/断线久了会攒一串，逐条补播会让她把十分钟前的旧话
-                    // 一句句说出来（实测就是这个现象）。这里把游标推到最新，只保留最后一条。
-
+                    // 大脑端排它自己的队，这里排这里的队，两边不同步：
+                    // 指令到了就按 seq 顺序排进本地队列，由 PerformLoop 一条一条演。
+                    // 会丢的只有两种——超过 TTL 的旧话、队列满了时最旧的那条。
+                    int added = 0;
                     for (int i = 0; i < items.Count; i++)
                     {
                         var d = JsonLite.AsDict(items[i]);
                         if (d == null) continue;
                         int s = JsonLite.Int(JsonLite.Get(d, "seq"));
+                        if (s != 0 && s <= feedSeq) continue; // 已经排过或演过
                         ActDto parsed = null;
                         try { parsed = ParseActDict(d); }
                         catch (Exception e) { Plugin.Log.LogWarning("pull parse item " + s + ": " + e.Message); }
                         if (parsed == null) continue;
-                        if (s > newestSeq) { if (newest != null) skipped++; newestSeq = s; newest = parsed; newestSrc = JsonLite.Str(JsonLite.Get(d, "source")); }
+                        string src = JsonLite.Str(JsonLite.Get(d, "source"));
+                        parsed.emotion = string.IsNullOrEmpty(src) ? "console" : src;
+                        Enqueue(parsed, s, src);
+                        if (s > newestSeq) newestSeq = s;
+                        added++;
                     }
-                    if (skipped > 0) Plugin.Log.LogInfo("pull backlog: skipped " + skipped + " stale item(s), playing newest seq=" + newestSeq);
-                    feedSeq = newestSeq;
+                    if (added > 0) Plugin.Log.LogInfo("pull: queued " + added + " item(s) seq<=" + newestSeq + " depth=" + pending.Count);
+                    if (newestSeq > feedSeq) feedSeq = newestSeq;
                 }
                 catch (Exception e)
                 {
                     // 关键：解析/表演出任何异常都不能让循环死掉，否则整个插件永久静默
                     lastError = "pull loop: " + e.Message;
                     Plugin.Log.LogError(lastError);
-                    newest = null;
                 }
-                // yield 必须放在 try/catch 之外（C# 迭代器不允许在带 catch 的 try 里 yield）
-                if (newest != null)
-                {
-                    newest.emotion = string.IsNullOrEmpty(newestSrc) ? "console" : newestSrc;
-                    Plugin.Log.LogInfo("pull item seq=" + newestSeq + " cues=" + newest.performance.Length + " sub=" + (string.IsNullOrEmpty(newest.subtitle.text) ? "-" : newest.subtitle.text));
-                    yield return StartCoroutine(Perform(newest));
-                }
+                // 这里不再自己演出：只负责把指令排进队列，演由 PerformLoop 一条一条来
+                yield return null;
             }
         }
         private ActDto ParseActDict(Dictionary<string, object> root)
@@ -1273,6 +1303,84 @@ namespace ChillPerformer
             }
             if (voiceGroup == null && Time.time >= nextGroupTry) ResolveVoiceGroup();
             if (voiceGroup != null && audioSource.outputAudioMixerGroup != voiceGroup) audioSource.outputAudioMixerGroup = voiceGroup;
+        }
+
+        // —— 表演队列 ——————————————————————————————————————————————
+        // 严格先来先演、不打断：正在说的那句一定说完，队里按 seq 顺序接着来。
+        // 大脑端与这里各排各的队，互不同步；两边唯一的共同约定是 seq 与 TTL。
+        private void Enqueue(ActDto dto, int seq, string src)
+        {
+            if (dto == null) return;
+            if (Plugin.QueueEnabled == null || !Plugin.QueueEnabled.Value)
+            {
+                // 回滚路径：只留最新一条（0.10.1 及以前的行为）
+                pending.Clear();
+                pending.Add(new PendingAct { dto = dto, seq = seq, at = Time.unscaledTime, src = src });
+                return;
+            }
+            for (int i = 0; i < pending.Count; i++) if (pending[i].seq == seq) return;
+            int max = Plugin.QueueMax == null ? 4 : Mathf.Max(1, Plugin.QueueMax.Value);
+            while (pending.Count >= max)
+            {
+                int oldest = pending[0].seq;
+                pending.RemoveAt(0);
+                qDropped++;
+                Plugin.Log.LogInfo("queue: dropped oldest seq=" + oldest + " (full)");
+            }
+            pending.Add(new PendingAct { dto = dto, seq = seq, at = Time.unscaledTime, src = src });
+            if (pending.Count > qMaxDepth) qMaxDepth = pending.Count;
+        }
+
+        private void PruneExpired()
+        {
+            int ttl = Plugin.QueueTtlMs == null ? 20000 : Mathf.Max(0, Plugin.QueueTtlMs.Value);
+            if (ttl <= 0) return;
+            float now = Time.unscaledTime;
+            for (int i = pending.Count - 1; i >= 0; i--)
+            {
+                float age = now - pending[i].at;
+                if (age > ttl / 1000f)
+                {
+                    Plugin.Log.LogInfo("queue: expired seq=" + pending[i].seq + " age=" + age.ToString("F1") + "s");
+                    pending.RemoveAt(i);
+                    qExpired++;
+                }
+            }
+        }
+
+        private IEnumerator PerformLoop()
+        {
+            while (true)
+            {
+                if (pending.Count == 0) { yield return new WaitForSecondsRealtime(0.2f); continue; }
+                PruneExpired();
+                if (performing) { yield return new WaitForSecondsRealtime(0.1f); continue; }
+                // 上一句还在响或动作还没收尾：等它，绝不打断
+                if (audioSource != null && audioSource.isPlaying) { yield return new WaitForSecondsRealtime(0.1f); continue; }
+                if (clipActive) { yield return new WaitForSecondsRealtime(0.1f); continue; }
+                // 游戏在演它自己的剧情/台词：让台，不插嘴；队里的按 TTL 自然过期
+                if (GameBusy.IsHard)
+                {
+                    if (Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
+                        Plugin.Log.LogInfo("queue: yielding to game (" + GameBusy.Reason + ") depth=" + pending.Count);
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    continue;
+                }
+                var item = pending[0];
+                pending.RemoveAt(0);
+                performing = true;
+                qPlayed++;
+                string subText = (item.dto.subtitle == null || string.IsNullOrEmpty(item.dto.subtitle.text)) ? "-" : item.dto.subtitle.text;
+                Plugin.Log.LogInfo("queue: play seq=" + item.seq + " depth=" + pending.Count + " waited=" + (Time.unscaledTime - item.at).ToString("F1") + "s cues=" + (item.dto.performance == null ? 0 : item.dto.performance.Length) + " sub=" + subText);
+                yield return StartCoroutine(Perform(item.dto));
+                // 等这一条真的演完（语音播完 + 动作收尾），30 秒兜底防卡死
+                float until = Time.unscaledTime + 30f;
+                while (Time.unscaledTime < until && ((audioSource != null && audioSource.isPlaying) || clipActive))
+                    yield return null;
+                int gap = Plugin.QueueGapMs == null ? 250 : Mathf.Max(0, Plugin.QueueGapMs.Value);
+                if (gap > 0) yield return new WaitForSecondsRealtime(gap / 1000f);
+                performing = false;
+            }
         }
 
         private IEnumerator PlayAudio(string urlOrPath)
