@@ -67,7 +67,7 @@ import {
   summarizeForPrompt,
 } from './lib/assets.js'
 
-import { planSequence, classifyClip, enforceContentClass, MOTION_CLASS } from './lib/motion-class.js'
+import { planSequence, classifyClip, enforceContentClass, isOffChair, MOTION_CLASS } from './lib/motion-class.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
@@ -1087,6 +1087,15 @@ const runTurn = async (userText, options = {}) => {
           continueWindowMs: 20000,
         })
         cues = planned.cues
+        // 她始终坐在椅子上：离座类动作一律不排（内容闸门也可能引入，所以在这里兜一道）。
+        // 不是"少演一个动作"的问题——离座那几秒她不在画面里，归还时姿势还对不上。
+        {
+          const off = cues.filter((c) => c && c.slot === 'animations' && isOffChair(c.id))
+          if (off.length) {
+            cues = cues.filter((c) => !(c && c.slot === 'animations' && isOffChair(c.id)))
+            log('[perf] off-chair dropped: ' + JSON.stringify(off.map((c) => c.id)))
+          }
+        }
         if (planned.notes && planned.notes.length) log("[perf] sequence: " + JSON.stringify(planned.notes))
       } catch (error) {
         log("[perf] planSequence failed: " + (error && error.message))

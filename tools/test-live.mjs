@@ -39,7 +39,8 @@ const cases = [
   { text: '对，就按这个来，同意', want: 'gesture' },
   { text: '我写代码写得有点累，先喝口水', want: 'prop' },
   { text: '我困得不行了，伸个懒腰', want: 'posture' },
-  { text: '我先去趟便利店，等我一下', want: 'locomotion' },
+    // 她始终坐在椅子上：离座/走动的意图不再安排表演（2026-11-15 定的规矩）
+    { text: '我先去趟便利店，等我一下', want: 'none' },
 ]
 
 console.log('  ── 一、形态与时长（时长只来自游戏段） ──')
@@ -48,7 +49,10 @@ for (const c of cases) {
   const ids = anim.map((x) => x.id.replace(/^anim_/, ''))
   const shape = ids.length === 1 ? 'single' : ids.length >= 2 ? 'multi' : 'none'
   const gestureOk = c.want !== 'gesture' || (ids.length === 1 && cls(anim[0]?.id) === 'gesture')
-  const durOk = anim.length > 0 && anim.every((x) => Number(x.durationMs) > 0)
+  // want:'none' 是"这段不该有表演"（比如离座意图），必须是 0 条动作，不是时长不够
+  const durOk = c.want === 'none'
+    ? anim.length === 0
+    : (anim.length > 0 && anim.every((x) => Number(x.durationMs) > 0))
   check(c.text.slice(0, 10) + ' [' + c.want + '] 形态=' + shape + ' ' + span + 'ms', gestureOk && durOk, ids.join(' '))
   check('  字幕 ' + sub.length + ' 字', sub.length > 0 && sub.length <= 40, sub.slice(0, 22))
   const over = anim.filter((x) => Number(x.durationMs) > MAX_CLIP_MS)

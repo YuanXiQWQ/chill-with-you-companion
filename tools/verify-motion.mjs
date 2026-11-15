@@ -55,8 +55,18 @@ check('三段式家族 48', Object.values(grammar.byFamily).filter((f) => f.segs
 
 // ── ④ 编排：层切换要被标记，且换层后按姿态类留过渡 ──
 {
-  const r = planSequence([{ slot: 'animations', id: 'anim_wild_leavechair_sofa_go', at: 0 }], { text: '我去一下', currentLayer: '剧情动作', speechMs: 3000 })
+  // 离座类已不排（她始终坐在椅子上），跨层用坐姿里的手势→道具来验：
+  // 手势走上半身、喝茶切全身，两条不同层，切换必须被标记。
+  const r = planSequence([
+    { slot: 'animations', id: 'anim_story_base001_sub_nod', at: 0 },
+    { slot: 'animations', id: 'anim_break_tea_sub_drink_start', at: 0 }
+  ], { text: '嗯，喝口茶', currentLayer: '剧情动作', speechMs: 3000 })
   check('跨层被记录', r.notes.some((n) => n.why === 'layer-switch'), JSON.stringify(r.notes))
+  }
+  // 离座类必须被编排直接剔除
+  {
+  const r2 = planSequence([{ slot: 'animations', id: 'anim_wild_leavechair_sofa_go', at: 0 }], { text: '我去一下' })
+  check('离座不排', r2.cues.filter((c) => c.slot === 'animations').length === 0, JSON.stringify(r2.cues))
 }
 
 // ── ⑤ 编排：独占类之间必须留过渡，不能排到同一时刻 ──
