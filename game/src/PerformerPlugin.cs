@@ -68,6 +68,8 @@ namespace ChillPerformer
         internal static ConfigEntry<float> MotionWeightCeil;
         internal static ConfigEntry<float> VoiceVolume;
         internal static ConfigEntry<bool> FollowGameMixer;
+        public static ConfigEntry<bool> Props;
+        public static ConfigEntry<bool> TripWalk;
         internal static ConfigEntry<string> MixerGroupMatch;
         internal static ConfigEntry<string> MixerGroupFallback;
         internal static ConfigEntry<bool> QueueEnabled;
@@ -88,6 +90,12 @@ namespace ChillPerformer
             ShowSubtitle = Config.Bind("ui", "ShowSubtitle", true, "Draw the self-made subtitle overlay.");
             VoiceVolume = Config.Bind("audio", "Volume", 0.85f, "Relative volume of synthesized voice, multiplied on top of the game's own mixer level.");
             FollowGameMixer = Config.Bind("audio", "FollowGameMixer", true, "Route the synthesized voice through the game's own AudioMixer group, so the in-game volume slider and mute for that group apply to her voice too.");
+            // 让椅子、窗户这些道具跟着同名 clip 一起动。默认关：
+            // 那套动画是按别的场景锚点摆的，套过来会把物体甩到位（实测：椅子糊住整个镜头）。
+            Props = Config.Bind("acting", "Props", false, "Let props (chair, window…) play their same-named clip. Off by default.");
+            // 手动走位：离座时把角色根送到沙发/床边。默认关——
+            // 这些 clip 是原地动画（rootΔ=0），游戏是在别处摆好位置再播的，硬塞位移会把人放到镜头外。
+            TripWalk = Config.Bind("acting", "TripWalk", false, "Move the character root during leave-chair clips. Off by default.");
             MixerGroupMatch = Config.Bind("audio", "MixerGroupMatch", "voice", "Keyword(s) that pick the mixer group, comma separated, case-insensitive. First match wins.");
             MixerGroupFallback = Config.Bind("audio", "MixerGroupFallback", "master", "Fallback keyword(s) when nothing matches MixerGroupMatch. Empty = leave the source unmixed (old behaviour).");
             QueueEnabled = Config.Bind("queue", "Enabled", true, "Queue incoming cues locally and play them one after another. False = old behaviour, only the newest item is performed.");
@@ -1237,6 +1245,11 @@ namespace ChillPerformer
         private bool posFree;
         // 沙发锚点：按名字现找（离座动画是原地动画，位移得我们自己给）
         private Transform tripAnchor;
+        // 房间相机：游戏靠切换它们换视角（Camera_Desk / Camera_Sofa / Camera_Bed）
+        private Camera camDesk;
+        private Camera camSofa;
+        private Camera camBed;
+        private bool roomCamCached;
         private bool tripAnchorSearched;
         private bool tripWalking;
         private Vector3 tripFromWorld;
@@ -1920,6 +1933,43 @@ namespace ChillPerformer
             return Quaternion.AngleAxis(ang * w, axis);
         }
 
+private void CacheRoomCameras()
+{
+    if (roomCamCached) return;
+    roomCamCached = true;
+    try
+    {
+        foreach (var c in Resources.FindObjectsOfTypeAll<Camera>())
+        {
+            if (c == null || !c.gameObject.scene.IsValid()) continue;
+            string nm = c.gameObject.name ?? "";
+            if (nm.IndexOf("Camera_Desk", StringComparison.OrdinalIgnoreCase) >= 0) camDesk = c;
+            else if (nm.IndexOf("Camera_Sofa", StringComparison.OrdinalIgnoreCase) >= 0) camSofa = c;
+            else if (nm.IndexOf("Camera_Bed", StringComparison.OrdinalIgnoreCase) >= 0) camBed = c;
+        }
+        Plugin.Log.LogInfo("room cams: desk=" + (camDesk != null) + " sofa=" + (camSofa != null) + " bed=" + (camBed != null));
+    }
+    catch (Exception ex) { Plugin.Log.LogInfo("room cams failed: " + ex.Message); }
+}
+
+// 换房间视角。用游戏自己的相机，不碰任何位置参数
+private void SetRoomView(string view)
+{
+    CacheRoomCameras();
+    bool sofa = view == "sofa";
+    bool bed = view == "bed";
+    if (camSofa == null && camBed == null) return; // 没有这些相机就什么都别做
+    try
+    {
+        if (camSofa != null) camSofa.gameObject.SetActive(sofa);
+        if (camBed != null) camBed.gameObject.SetActive(bed);
+        var main = Camera.main;
+        if (main != null && (camSofa != null || camBed != null)) main.enabled = !(sofa || bed);
+        if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("room view: " + view);
+    }
+    catch (Exception ex) { Plugin.Log.LogInfo("room view failed: " + ex.Message); }
+}
+
 private Transform FindTripAnchor()
 {
     if (tripAnchorSearched) return tripAnchor;
@@ -1967,6 +2017,44 @@ private void EnsureBones()
             }
             if (headIdx < 0) for (int i = 0; i < list.Length; i++) if (upperAllowed[i]) { headIdx = i; break; }
             Plugin.Log.LogInfo("head bone: idx=" + headIdx + " name=" + (headIdx >= 0 ? list[headIdx].name : "(none)") + " upper=" + System.Array.FindAll(upperAllowed, b => b).Length);
+
+            // cam scan：房间里有几台相机、谁管切换
+            try
+            {
+                foreach (var cam in Resources.FindObjectsOfTypeAll<Camera>())
+                {
+                    if (cam == null || !cam.gameObject.scene.IsValid()) continue;
+                    Plugin.Log.LogInfo("cam scan: " + cam.gameObject.name + " enabled=" + cam.enabled
+                        + " goActive=" + cam.gameObject.activeInHierarchy + " depth=" + cam.depth.ToString("F1")
+                        + " pos=" + cam.transform.position.ToString("F2") + " parent=" + (cam.transform.parent == null ? "-" : cam.transform.parent.name));
+                }
+                foreach (var mb in Resources.FindObjectsOfTypeAll<MonoBehaviour>())
+                {
+                    if (mb == null || !mb.gameObject.scene.IsValid()) continue;
+                    if (mb.GetType().Name.IndexOf("Camera", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    var t = mb.GetType();
+                    var fields = t.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    int shown = 0;
+                    foreach (var f in fields)
+                    {
+                        if (f.FieldType != typeof(string) && f.FieldType != typeof(int) && f.FieldType != typeof(bool)) continue;
+                        object v = null;
+                        try { v = f.GetValue(mb); } catch { continue; }
+                        Plugin.Log.LogInfo("cam field: " + t.Name + "." + f.Name + " = " + v);
+                        if (++shown >= 12) break;
+                    }
+                    if (mb.transform.childCount > 0)
+                    {
+                        for (int ci = 0; ci < mb.transform.childCount && ci < 12; ci++)
+                        {
+                            var ch = mb.transform.GetChild(ci);
+                            Plugin.Log.LogInfo("cam child: " + t.Name + "/" + ch.name + " active=" + ch.gameObject.activeSelf
+                                + " pos=" + ch.position.ToString("F2"));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { Plugin.Log.LogInfo("cam scan failed: " + ex.Message); }
             Plugin.Log.LogInfo("bones cached: " + list.Length + " under " + root.name);
             // 离座动画是原地动画（根位移 0）：想真到沙发上去，得先知道沙发在哪。
             try
@@ -2056,7 +2144,8 @@ private void EnsureBones()
             propClips.Clear();
             {
                 // 离座/回来这两族的椅子动画是按另一套锚点摆的，套过来会把椅子甩到镜头前
-                bool skipPropForTrip = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool skipPropForTrip = Plugin.Props == null || !Plugin.Props.Value
+                || clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0;
                 List<Animator> holders;
                 if (!skipPropForTrip && clipExtraOwners.TryGetValue(clipName, out holders))
                 {
@@ -2116,21 +2205,28 @@ private void EnsureBones()
                     || clipName.IndexOf("_start", StringComparison.OrdinalIgnoreCase) >= 0);
             bool isBack = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
                 && clipName.IndexOf("comeback", StringComparison.OrdinalIgnoreCase) >= 0;
+            // 换房间视角：游戏自己就是靠 Camera_Sofa / Camera_Bed 切的
+            bool isSofa = clipName.IndexOf("_sofa", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool isBed = clipName.IndexOf("_bed", StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isGo && (isSofa || isBed)) SetRoomView(isSofa ? "sofa" : "bed");
+            if (isBack) SetRoomView("desk");
             if ((isGo || isBack) && bones != null && bones.Length > 0)
             {
                 var anchor = FindTripAnchor();
                 if (anchor != null)
                 {
-                    tripWalking = true;
+                    // 有对应的房间相机时，位置必须跟上——否则镜头切过去拍到的是空沙发
+                tripWalking = (isSofa || isBed) || (Plugin.TripWalk != null && Plugin.TripWalk.Value);
                     tripFromWorld = bones[0].position;
                     if (isGo)
                     {
                         Vector3 c = anchor.position;
-                        Vector3 toward = tripFromWorld - c;
+                        // 站哪由镜头决定：沙发往相机那边让 0.35m，别站进坐垫里、也别怼到镜头上
+                        Camera roomCam = isBed ? camBed : camSofa;
+                        Vector3 toward = roomCam != null ? (roomCam.transform.position - c) : (tripFromWorld - c);
                         toward.y = 0f;
                         if (toward.sqrMagnitude < 0.01f) toward = Vector3.forward;
-                        // 站到沙发前面，别站进坐垫里
-                        tripToWorld = c + toward.normalized * 0.55f;
+                        tripToWorld = c + toward.normalized * 0.35f;
                         tripToWorld.y = tripFromWorld.y;
                     }
                     else
