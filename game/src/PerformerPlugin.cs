@@ -306,6 +306,9 @@ namespace ChillPerformer
         private float clipFadeIn = 0.45f;
         private Quaternion[] lastRot;
         private float dbgMaxDeg;
+        private int dbgClamped;
+        private float dbgClampMax;
+        private float dbgEntryDeg;
         // —— 演出计划（播之前量出来，播的时候只做乘法）——
         private float planWBody = 1f;
         private float planWHead = 1f;
@@ -369,6 +372,12 @@ namespace ChillPerformer
         // —— 实时遥测（只观察，不参与运算）——
         private float headDevDeg;
         private float headSpeedMax;
+        // 尖峰定位：峰值角速度发生在第几秒、那一帧 dt 多少（判断是真空跳还是 dt 量化）
+        private float dbgPeakAt;
+        private float dbgPeakDt;
+        private string dbgPeakBone = "";
+        private float dbgExitDeg;
+        private float dbgExitSec;
         private int headIdx = -1;
         // —— 同族续演 / 重复跳过 ——
         private string activeBase = "";
@@ -918,8 +927,9 @@ namespace ChillPerformer
                         clipActive = false; ReleaseBaseGameCache(); exitValid = false;
                         lastFamilyEnd = Time.time;
                         Plugin.Log.LogInfo("clip done: " + activeClip.name + " frames=" + dbgFrames
-                            + " peakHead=" + headSpeedMax.ToString("F0") + "dps dev=" + headDevDeg.ToString("F1") + "deg"
+                            + " peakHead=" + headSpeedMax.ToString("F0") + "dps@t" + dbgPeakAt.ToString("F2") + "s/dt" + (dbgPeakDt * 1000f).ToString("F1") + "ms dev=" + headDevDeg.ToString("F1") + "deg"
                 + " amp=head" + dbgAmpHead.ToString("F1") + "/body" + dbgAmpBody.ToString("F1") + "deg"
+                + " clamp=" + dbgClamped + "\u00b0" + dbgClampMax.ToString("F0") + "d"
                 + " moved=head:" + ((dbgAmpHead >= Mathf.Max(1f, planHeadPeakDeg * 0.32f)) ? 1 : 0)
                 + "/body:" + ((dbgAmpBody >= Mathf.Max(1f, planBodyPeakDeg * 0.32f)) ? 1 : 0)
                 + ((planHeadPeakDeg > 2f && dbgAmpHead < 1f) || (planBodyPeakDeg > 2f && dbgAmpBody < 1f) ? " MISS" : "")
@@ -1557,28 +1567,16 @@ namespace ChillPerformer
             if (exiting)
             {
                 bool firstExit = !exitValid;
-                // 逐帧检查：归还途中又来了新动作，就把归还压到 50ms —— 她不用先回待机再起手。
-                // 只缩不伸：已经在更短的窗口里了就保持。
-                if (HasAnimPending())
-                {
-                    exitRelSec = 0.05f;
-                    float chainEnd = ct + 0.05f;
-                    if (chainEnd < exitEndT || exitEndT <= 0f) exitEndT = chainEnd;
-                }
                 if (exitRot == null || exitRot.Length != n) exitRot = new Quaternion[n];
                 if (exitFrom == null || exitFrom.Length != n) exitFrom = new Quaternion[n];
                 if (firstExit)
-                // 后面还排着动作：这段不用慢慢归还待机，100ms 内交接，下一套直接接上
-                if (HasAnimPending()) exitRelSec = 0.10f;
                 {
                     // 首帧先记下"我们的输出"，再让游戏求值；顺序反了就是拿游戏刚写下的值跟自己比，距离恒 0。
+                    // 这段必须只在首帧跑：每帧都覆盖 exitFrom，斜坡就等于失效，最后一帧会硬跳回待机。
                     for (int bb = 0; bb < n; bb++)
-                    {
                         exitFrom[bb] = bones[bb] == null ? Quaternion.identity : bones[bb].localRotation;
-                    }
                 }
                 // 每帧重取归还目标：交回"正在跑的那段待机"，而不是开演前的静止快照。
-                // 快照是死的——她的待机一直在推进，淡出落到死姿势上，放手时照样跳。
                 exitValid = CaptureGamePose(exitRot);
                 if (firstExit)
                 {
@@ -1594,8 +1592,13 @@ namespace ChillPerformer
                     }
                     // 距离决定归还时长：坐着点头差 5°，0.3s 够；站起来差 100°，还用 0.3s 就是被扫回去。
                     exitRelSec = Mathf.Clamp(0.30f + maxDeg / 180f, 0.30f, 0.90f);
-                    // 衔接：不用等归还走完——后面还排着动作，她在收尾的最后一瞬就接上下一套。
-                    if (HasAnimPending()) exitRelSec = 0.12f;
+                    // 后面还排着动作：不用等满归还窗口，但也不许为了"快"切一刀 ——
+                    // 上限 0.25s 是按"这段距离最多走 0.25s"算的，下一段自己的进入过渡会接着把它走完。
+                    if (HasAnimPending() && exitRelSec > 0.25f) exitRelSec = 0.25f;
+                    dbgExitDeg = maxDeg;
+                    dbgExitSec = exitRelSec;
+                    if (Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
+                        Plugin.Log.LogInfo("exit: deg=" + maxDeg.ToString("F1") + " over=" + (exitRelSec * 1000f).ToString("F0") + "ms => " + (maxDeg / Mathf.Max(0.01f, exitRelSec)).ToString("F0") + "dps" + (HasAnimPending() ? " chained" : ""));
                     exitEndT = clipLen + exitRelSec;
                     if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("return: " + (exitValid ? "live idle" : "fallback") + " dist=" + maxDeg.ToString("F1") + "deg rel=" + (exitRelSec * 1000f).ToString("F0") + "ms");
                 }
@@ -1668,6 +1671,23 @@ namespace ChillPerformer
                         else if (amp > dbgAmpBody) { dbgAmpBody = amp; dbgAmpName = tr.name ?? ""; dbgAmpW = wBody; }
                     }
                 }
+                // 硬限速：段边界、envelope 尾巴、clip 自己的末帧，都会在某些帧造成单帧大跳。
+                // 这里按预算收口（头 160dps / 身体 320dps），任何来源的跳变都变成 1~2 帧的快速过渡，
+                // 而不是一帧切过去。1.15 留一点余量，免得正常快动作被压成慢动作。
+                {
+                    float limDt = Mathf.Max(0.0001f, Time.deltaTime);
+                    float budget = isHead
+                        ? (Plugin.HeadSpeedBudget == null ? 160f : Plugin.HeadSpeedBudget.Value)
+                        : (Plugin.BodySpeedBudget == null ? 320f : Plugin.BodySpeedBudget.Value);
+                    float allowDeg = Mathf.Max(0.6f, budget * limDt * 1.15f);
+                    float jumpDeg = Quaternion.Angle(lastRot[i], q);
+                    if (jumpDeg > allowDeg)
+                    {
+                        q = Quaternion.Slerp(lastRot[i], q, allowDeg / jumpDeg);
+                        dbgClamped++;
+                        if (jumpDeg > dbgClampMax) dbgClampMax = jumpDeg;
+                    }
+                }
                 float d = Quaternion.Angle(lastRot[i], q);
                 lastRot[i] = q;
                 tr.localRotation = q;
@@ -1676,7 +1696,8 @@ namespace ChillPerformer
                 if (isHead)
                 {
                     headDevDeg = Mathf.Max(headDevDeg, Quaternion.Angle(gameRot[i], q));
-                    headSpeedMax = Mathf.Max(headSpeedMax, d / dt);
+                    float spd = d / dt;
+                    if (spd > headSpeedMax) { headSpeedMax = spd; dbgPeakAt = ct; dbgPeakDt = dt; dbgPeakBone = tr.name ?? ""; }
                 }
             }
             dbgFrames++;
@@ -1773,11 +1794,14 @@ private void EnsureBones()
             string fam = StripSuffix(clipName);
             bool inFamily = clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase)
                 || (fam == activeBase && (nowWall - lastFamilyEnd) < (Plugin.FamilyGraceMs == null ? 1.5f : Plugin.FamilyGraceMs.Value / 1000f));
-            bool continueFamily = chainEntry || clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase)
+            // chainEntry 只作标记（日志用）：淡入时长交给下面的距离公式，
+            // 否则"接队"就等于强制 120ms —— 换族时那一下就是硬切。
+            bool continueFamily = clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase)
                 || (!clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase) && (nowWall - lastFamilyEnd) < (Plugin.FamilyGraceMs == null ? 1.5f : Plugin.FamilyGraceMs.Value / 1000f));
             if (bones != null) for (int i = 0; i < bones.Length; i++) lastRot[i] = bones[i].localRotation;
             chainEntry = false;
             dbgMaxDeg = 0f; dbgFrames = 0;
+            dbgClamped = 0; dbgClampMax = 0f;
             BuildSequence(clipName);
             if (segClips.Length == 0) return;
             activeClip = segClips[0];
@@ -1841,8 +1865,18 @@ private void EnsureBones()
             inAbsolute = !profile.Additive;
             absRampT0 = Time.time;
             clipLen = Mathf.Clamp(Mathf.Min(clipLen, maxClipSec), 0.2f, 30f);
-            clipFadeIn = continueFamily ? 0.12f : 0.45f;
-            headDevDeg = 0f; headSpeedMax = 0f;
+            // 进入过渡不能是固定值：她此刻在什么姿势、这条 clip 第一帧是什么姿势，
+            // 差多少度就得给多久。固定 0.45s 对 10° 的点头够用，对 100° 的起身/离座就是硬切；
+            // 衔接时用 0.12s 更是一定切。所以按角差算，同族且几乎没位移时才走利落档。
+            // 进入过渡按「这段动作实际要移动多少度 × 视觉速度上限」算，而不是拍一个固定值。
+            // 拿 clip 原始首帧姿势做差是错的量纲：手势 peakBody=0°，原始首帧却能差 107°。
+            // 用类别 profile 的位移预算（BodyDeg）与 RampMs 作下界，再按 300°/s 收口。
+            float clsDeg = Mathf.Min(planBodyPeakDeg > 0.5f ? planBodyPeakDeg : profile.BodyDeg, profile.BodyDeg);
+            float bySpeed = clsDeg / 300f;
+            clipFadeIn = Mathf.Clamp(Mathf.Max(profile.RampMs / 1000f, bySpeed), 0.16f, 0.95f);
+            // 同族且这段几乎不动：保持利落（点头不该有半秒的起手）
+            if (continueFamily && clsDeg < 8f) clipFadeIn = Mathf.Min(clipFadeIn, 0.18f);
+            dbgEntryDeg = clsDeg;            headDevDeg = 0f; headSpeedMax = 0f;
             clipT0 = Time.time;
             clipStartWall = nowWall;
             clipLoop = loop;
@@ -1853,7 +1887,7 @@ private void EnsureBones()
                     + " wBody=" + planWBody.ToString("F2") + " wHead=" + planWHead.ToString("F2")
                     + " peakBody=" + planBodyPeakDeg.ToString("F0") + "deg/" + planBodyPeakSpd.ToString("F0") + "dps"
                     + " peakHead=" + planHeadPeakDeg.ToString("F0") + "deg/" + planHeadPeakSpd.ToString("F0") + "dps"
-                    + " wall=" + clipLen.ToString("F2") + (continueFamily ? " (family)" : ""));
+                    + " fade=" + Mathf.RoundToInt(clipFadeIn * 1000f) + "ms/" + Mathf.RoundToInt(dbgEntryDeg) + "deg wall=" + clipLen.ToString("F2") + (continueFamily ? " (family)" : ""));
         }
 
         private void PlayAnim(string idOrName, int durationMs)
