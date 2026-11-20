@@ -327,9 +327,14 @@ namespace ChillPerformer
                 if (!TryReadText(c, out text)) continue;
                 string t = (text ?? "").Trim();
                 if (t.Length == 0) continue;
-                var mm = System.Text.RegularExpressions.Regex.Match(t, @"([0-9]{1,3})\s*[:：]\s*([0-9]{2})");
+                // 三段都要：游戏面板显示的是 HH:MM:SS。只取前两段会把 27 分 23 秒截成
+                // "00:27"，侧车 parseClock 读成 27 秒 —— 专注中途就判定"跑完了"，把人踢进休息。
+                // 这里只多抓一段，判"在不在变"的逻辑不变。
+                var mm = System.Text.RegularExpressions.Regex.Match(t, @"([0-9]{1,3})\s*[:：]\s*([0-9]{2})(?:\s*[:：]\s*([0-9]{2}))?");
                 if (!mm.Success) continue;
-                t = mm.Groups[1].Value + ":" + mm.Groups[2].Value;
+                t = mm.Groups[3].Success
+                    ? mm.Groups[1].Value + ":" + mm.Groups[2].Value + ":" + mm.Groups[3].Value
+                    : mm.Groups[1].Value + ":" + mm.Groups[2].Value;
                 found = t;
                 break;
             }

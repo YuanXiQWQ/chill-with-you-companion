@@ -1,0 +1,3670 @@
+{
+  "generatedAt": "2026-11-15T10:13:43.967Z",
+  "source": "game/clips.full.json（游戏 LogOutput 的 clipdump）",
+  "totalClips": 477,
+  "families": 243,
+  "shapes": {
+    "start+loop+end": 48,
+    "loop": 20,
+    "single": 154,
+    "start": 6,
+    "loop+end": 6,
+    "start+end": 7,
+    "end": 2
+  },
+  "lay": {
+    "story": "剧情动作",
+    "wild": "站立动作",
+    "break": "休息",
+    "work": "工作",
+    "face": "表情",
+    "item": "道具",
+    "lookplayer": "面向玩家"
+  },
+  "byFamily": {
+    "anim_base001_sub_lookaround001": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "",
+      "cls": "gesture",
+      "semantic": [
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 417,
+        "loop": 10000,
+        "start": 417
+      },
+      "durationMs": 10000
+    },
+    "anim_break_dryeye": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "揉眼睛",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1700,
+        "loop": 633,
+        "start": 2033
+      },
+      "durationMs": 2033
+    },
+    "anim_break_forward_base": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "break",
+      "cls": "idle",
+      "semantic": [
+        "休息",
+        "基本",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 2333,
+        "loop": 6000
+      },
+      "durationMs": 6000
+    },
+    "anim_break_forward_sub_interest": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1333
+      },
+      "durationMs": 1333
+    },
+    "anim_break_forward_sub_keyboard": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3333
+      },
+      "durationMs": 3333
+    },
+    "anim_break_movie_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 17833,
+        "start": 1167
+      },
+      "durationMs": 17833
+    },
+    "anim_break_movie_base_loop2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "看电影",
+        "基本",
+        "循环二"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 4000,
+        "start": 1000
+      },
+      "durationMs": 4000
+    },
+    "anim_break_movie_sub_laugh": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "笑"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2500,
+        "start": 1500
+      },
+      "durationMs": 2500
+    },
+    "anim_break_movie_sub_suspense": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "看电影",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 1500,
+        "start": 2500
+      },
+      "durationMs": 2500
+    },
+    "anim_break_movie_sub_trash": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5667
+      },
+      "durationMs": 5667
+    },
+    "anim_break_music_base": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_break_music_loop_high": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2667
+      },
+      "durationMs": 2667
+    },
+    "anim_break_music_low": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1333,
+        "loop": 5000,
+        "start": 1833
+      },
+      "durationMs": 5000
+    },
+    "anim_break_novel_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [
+        "休息",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 2233,
+        "loop": 5000,
+        "start": 2333
+      },
+      "durationMs": 5000
+    },
+    "anim_break_novel_sub_action": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [
+        "休息",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 500,
+        "loop": 1500,
+        "start": 3500
+      },
+      "durationMs": 3500
+    },
+    "anim_break_novel_sub_pageflip_back": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 667
+      },
+      "durationMs": 667
+    },
+    "anim_break_novel_sub_pageflip_next": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 833
+      },
+      "durationMs": 833
+    },
+    "anim_break_playingwithapen": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [
+        "休息",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 3400,
+        "loop": 1467,
+        "start": 867
+      },
+      "durationMs": 3400
+    },
+    "anim_break_playingwithapen_drop": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 7733
+      },
+      "durationMs": 7733
+    },
+    "anim_break_playingwithapen_drop.0002": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 7633
+      },
+      "durationMs": 7633
+    },
+    "anim_break_sleep_base": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 6000
+      },
+      "durationMs": 6000
+    },
+    "anim_break_sleep_sub_fall": {
+      "segs": [
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "posture",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "loop": 4000,
+        "start": 2833
+      },
+      "durationMs": 4000
+    },
+    "anim_break_sleep_sub_wakeup": {
+      "segs": [
+        "end",
+        "loop",
+        "single",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "posture",
+      "semantic": [
+        "休息",
+        "睡觉",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "single": 4333,
+        "end": 1000,
+        "loop": 1000,
+        "start": 2167
+      },
+      "durationMs": 4333
+    },
+    "anim_break_tea_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1667,
+        "loop": 9000,
+        "start": 2667
+      },
+      "durationMs": 9000
+    },
+    "anim_break_tea_sub": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 8667
+      },
+      "durationMs": 8667
+    },
+    "anim_break_tea_sub_drink": {
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 1833,
+        "end": 1167,
+        "loop": 1167
+      },
+      "durationMs": 1833
+    },
+    "anim_break_tea_sub_hot": {
+      "segs": [
+        "single"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5667
+      },
+      "durationMs": 5667
+    },
+    "anim_break_tea_sub_maker": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 8667,
+        "loop": 9333,
+        "start": 8533
+      },
+      "durationMs": 9333
+    },
+    "anim_break_tea_sub_unique001": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "prop",
+      "semantic": [
+        "休息",
+        "喝茶",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 1667,
+        "start": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_break_yawn_1": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "break",
+      "cls": "posture",
+      "semantic": [
+        "休息",
+        "打哈欠",
+        "结束",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 3000,
+        "start": 2333
+      },
+      "durationMs": 3000
+    },
+    "anim_break_yawn_2": {
+      "segs": [
+        "start"
+      ],
+      "scene": "break",
+      "cls": "posture",
+      "semantic": [
+        "休息",
+        "打哈欠",
+        "进入"
+      ],
+      "segDurations": {
+        "start": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_env_ferriswheel": {
+      "segs": [
+        "single"
+      ],
+      "scene": "env",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 600000
+      },
+      "durationMs": 600000
+    },
+    "anim_env_jet": {
+      "segs": [
+        "single"
+      ],
+      "scene": "env",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 100000
+      },
+      "durationMs": 100000
+    },
+    "anim_env_whale": {
+      "segs": [
+        "single"
+      ],
+      "scene": "env",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 120000
+      },
+      "durationMs": 120000
+    },
+    "anim_face_shy_anger": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_deep": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_ehehe": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_fun": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_joy": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_monologue": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_monologue2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_rest": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_rough": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_sad": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_sad2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_shy": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_sleepy": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_smile": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_surprise": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_thinking": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_wink": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_shy_zito": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_face_talk": {
+      "segs": [
+        "single"
+      ],
+      "scene": "face",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2833
+      },
+      "durationMs": 2833
+    },
+    "anim_furin": {
+      "segs": [
+        "single"
+      ],
+      "scene": "",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 12000
+      },
+      "durationMs": 12000
+    },
+    "anim_item_novel": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "item",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "loop": 167
+      },
+      "durationMs": 167
+    },
+    "anim_item_novel_back": {
+      "segs": [
+        "single"
+      ],
+      "scene": "item",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 500
+      },
+      "durationMs": 500
+    },
+    "anim_item_novel_next": {
+      "segs": [
+        "single"
+      ],
+      "scene": "item",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 500
+      },
+      "durationMs": 500
+    },
+    "anim_item_textbook_idle": {
+      "segs": [
+        "single"
+      ],
+      "scene": "item",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 83
+      },
+      "durationMs": 83
+    },
+    "anim_item_textbook_pageflip": {
+      "segs": [
+        "single"
+      ],
+      "scene": "item",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 1650
+      },
+      "durationMs": 1650
+    },
+    "anim_lookplayer": {
+      "segs": [
+        "start"
+      ],
+      "scene": "lookplayer",
+      "cls": "gesture",
+      "semantic": [
+        "进入"
+      ],
+      "segDurations": {
+        "start": 333
+      },
+      "durationMs": 333
+    },
+    "anim_plankshake": {
+      "segs": [
+        "single"
+      ],
+      "scene": "",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4500
+      },
+      "durationMs": 4500
+    },
+    "anim_start_christmas_001": {
+      "segs": [
+        "single"
+      ],
+      "scene": "start",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 8000
+      },
+      "durationMs": 8000
+    },
+    "anim_start_fromoutside_001": {
+      "segs": [
+        "single"
+      ],
+      "scene": "start",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 10667
+      },
+      "durationMs": 10667
+    },
+    "anim_start_haircheck": {
+      "segs": [
+        "single"
+      ],
+      "scene": "start",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 6000
+      },
+      "durationMs": 6000
+    },
+    "anim_start_v3_full": {
+      "segs": [
+        "single"
+      ],
+      "scene": "start",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 3983
+      },
+      "durationMs": 3983
+    },
+    "anim_startcamera": {
+      "segs": [
+        "single"
+      ],
+      "scene": "",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_startcamera_mobile": {
+      "segs": [
+        "single"
+      ],
+      "scene": "startcamera",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2500
+      },
+      "durationMs": 2500
+    },
+    "anim_startvolume": {
+      "segs": [
+        "single"
+      ],
+      "scene": "",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_base": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_12_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4333
+      },
+      "durationMs": 4333
+    },
+    "anim_story_base001_sub_125_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4500
+      },
+      "durationMs": 4500
+    },
+    "anim_story_base001_sub_125_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_20": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4333
+      },
+      "durationMs": 4333
+    },
+    "anim_story_base001_sub_27_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_27_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_story_base001_sub_27_3": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 500,
+        "loop": 3583,
+        "start": 917
+      },
+      "durationMs": 3583
+    },
+    "anim_story_base001_sub_27_4": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_27_5": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_27_6": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1667
+      },
+      "durationMs": 1667
+    },
+    "anim_story_base001_sub_27_7": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 2000,
+        "loop": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_27_8": {
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 5000,
+        "end": 1000,
+        "loop": 2000
+      },
+      "durationMs": 5000
+    },
+    "anim_story_base001_sub_28_0": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_story_base001_sub_28_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 12667
+      },
+      "durationMs": 12667
+    },
+    "anim_story_base001_sub_28_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_28_3": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_28_3loop": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_28_4": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 1167,
+        "loop": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_28_5": {
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 1000,
+        "end": 1333,
+        "loop": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_28_6": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 18333
+      },
+      "durationMs": 18333
+    },
+    "anim_story_base001_sub_confidence": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 583,
+        "loop": 50,
+        "start": 833
+      },
+      "durationMs": 833
+    },
+    "anim_story_base001_sub_copycat": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1000
+      },
+      "durationMs": 1000
+    },
+    "anim_story_base001_sub_deep": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "深沉"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2000,
+        "start": 1667
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_distress": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_dropshoulders": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2000,
+        "start": 1000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_eieio": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2167
+      },
+      "durationMs": 2167
+    },
+    "anim_story_base001_sub_frustration1": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1667,
+        "loop": 2667,
+        "start": 1333
+      },
+      "durationMs": 2667
+    },
+    "anim_story_base001_sub_frustration2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "沮丧二"
+      ],
+      "segDurations": {
+        "end": 1667,
+        "loop": 3000,
+        "start": 1333
+      },
+      "durationMs": 3000
+    },
+    "anim_story_base001_sub_introduce": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1167,
+        "loop": 2000,
+        "start": 1500
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_jump": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 583,
+        "loop": 17,
+        "start": 833
+      },
+      "durationMs": 833
+    },
+    "anim_story_base001_sub_look_and_regrect": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 14000
+      },
+      "durationMs": 14000
+    },
+    "anim_story_base001_sub_lookpenguin": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1167,
+        "loop": 2000,
+        "start": 1500
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_magicalprincess_1": {
+      "segs": [
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "loop": 2667,
+        "start": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_story_base001_sub_magicalprincess_2": {
+      "segs": [
+        "end",
+        "loop2",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环二",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1667,
+        "loop2": 3667,
+        "start": 1867
+      },
+      "durationMs": 3667
+    },
+    "anim_story_base001_sub_magicalprincess_2_loop1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4133
+      },
+      "durationMs": 4133
+    },
+    "anim_story_base001_sub_magicalprincess_2_middle": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_base001_sub_newyear_countdown_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5333
+      },
+      "durationMs": 5333
+    },
+    "anim_story_base001_sub_newyear_countdown_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_story_base001_sub_newyear_countdown_3": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2667
+      },
+      "durationMs": 2667
+    },
+    "anim_story_base001_sub_newyear_countdown_4": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3667
+      },
+      "durationMs": 3667
+    },
+    "anim_story_base001_sub_nod": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2167
+      },
+      "durationMs": 2167
+    },
+    "anim_story_base001_sub_openbook": {
+      "segs": [
+        "end"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束"
+      ],
+      "segDurations": {
+        "end": 3500
+      },
+      "durationMs": 3500
+    },
+    "anim_story_base001_sub_openbook_endloop": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_story_base001_sub_openbook_loopchange1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 2667
+      },
+      "durationMs": 2667
+    },
+    "anim_story_base001_sub_openbook_loopchange2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 833
+      },
+      "durationMs": 833
+    },
+    "anim_story_base001_sub_openbook_middleloop": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_story_base001_sub_openbook_startloop": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_story_base001_sub_pattern1": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2833,
+        "start": 1500
+      },
+      "durationMs": 2833
+    },
+    "anim_story_base001_sub_presshands": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1500,
+        "loop": 2500,
+        "start": 2000
+      },
+      "durationMs": 2500
+    },
+    "anim_story_base001_sub_shakehead": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2167
+      },
+      "durationMs": 2167
+    },
+    "anim_story_base001_sub_shy": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "害羞"
+      ],
+      "segDurations": {
+        "end": 1417,
+        "start": 2167
+      },
+      "durationMs": 2167
+    },
+    "anim_story_base001_sub_thinking1": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 833,
+        "loop": 50,
+        "start": 833
+      },
+      "durationMs": 833
+    },
+    "anim_story_base001_sub_thinking1_sub_agree": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1750
+      },
+      "durationMs": 1750
+    },
+    "anim_story_base001_sub_thinking1_sub_frustration": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2500
+      },
+      "durationMs": 2500
+    },
+    "anim_story_base001_sub_touch_glasses": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本1",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 833,
+        "loop": 3333,
+        "start": 833
+      },
+      "durationMs": 3333
+    },
+    "anim_story_base002_sub_magicalprincess": {
+      "segs": [
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "进入"
+      ],
+      "segDurations": {
+        "start": 6600
+      },
+      "durationMs": 6600
+    },
+    "anim_story_base002_sub_magicalprincess_eat_1": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 700,
+        "loop": 1900,
+        "start": 2767
+      },
+      "durationMs": 2767
+    },
+    "anim_story_base002_sub_magicalprincess_eat_2": {
+      "segs": [
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "prop",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "loop": 1933,
+        "start": 2500
+      },
+      "durationMs": 2500
+    },
+    "anim_story_base002_sub_magicalprincess_idle": {
+      "segs": [
+        "end"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "segDurations": {
+        "end": 767
+      },
+      "durationMs": 767
+    },
+    "anim_story_base002_sub_magicalprincess_idle_1": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "segDurations": {
+        "loop": 1167
+      },
+      "durationMs": 1167
+    },
+    "anim_story_base002_sub_magicalprincess_idle_2": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "segDurations": {
+        "loop": 2833
+      },
+      "durationMs": 2833
+    },
+    "anim_story_base002_sub_magicalprincess_idle_3": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "待机"
+      ],
+      "segDurations": {
+        "loop": 2833
+      },
+      "durationMs": 2833
+    },
+    "anim_story_base002_sub_magicalprincess_look": {
+      "segs": [
+        "end",
+        "loop"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "结束",
+        "循环"
+      ],
+      "segDurations": {
+        "end": 2167,
+        "loop": 2000
+      },
+      "durationMs": 2167
+    },
+    "anim_story_base002_sub_magicalprincess_thinking": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [
+        "剧情动作",
+        "基本2",
+        "子动作",
+        "思考"
+      ],
+      "segDurations": {
+        "end": 1633,
+        "loop": 3000,
+        "start": 1233
+      },
+      "durationMs": 3000
+    },
+    "anim_story_subbase_002_base": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "基本",
+        "循环"
+      ],
+      "segDurations": {
+        "loop": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_story_subbase001_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "子姿势1",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2667,
+        "start": 1000
+      },
+      "durationMs": 2667
+    },
+    "anim_story_subbase001_sub_fun": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_subbase001_sub_guts": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2833
+      },
+      "durationMs": 2833
+    },
+    "anim_story_subbase001_sub_joy": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1500
+      },
+      "durationMs": 1500
+    },
+    "anim_story_subbase001_sub_sad": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1900
+      },
+      "durationMs": 1900
+    },
+    "anim_story_subbase002_base": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "子姿势2",
+        "基本",
+        "结束",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1500,
+        "start": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_subbase002_sub_fun": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2667
+      },
+      "durationMs": 2667
+    },
+    "anim_story_subbase002_sub_joy": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_subbase002_sub_sad": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_story_subbase003_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "story",
+      "cls": "idle",
+      "semantic": [
+        "剧情动作",
+        "子姿势3",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1167,
+        "loop": 1500,
+        "start": 1833
+      },
+      "durationMs": 1833
+    },
+    "anim_story_subbase003_sub_fun": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2167
+      },
+      "durationMs": 2167
+    },
+    "anim_story_subbase003sub_sad": {
+      "segs": [
+        "single"
+      ],
+      "scene": "story",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1667
+      },
+      "durationMs": 1667
+    },
+    "anim_ui_call": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2683
+      },
+      "durationMs": 2683
+    },
+    "anim_ui_call_Idle": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 1000
+      },
+      "durationMs": 1000
+    },
+    "anim_ui_call2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2683
+      },
+      "durationMs": 2683
+    },
+    "anim_ui_finish_endcredits_fadein": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 1500
+      },
+      "durationMs": 1500
+    },
+    "anim_ui_levelup": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2133
+      },
+      "durationMs": 2133
+    },
+    "anim_ui_levelup_none": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 60033
+      },
+      "durationMs": 60033
+    },
+    "anim_ui_loading": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 1500
+      },
+      "durationMs": 1500
+    },
+    "anim_ui_loading_fadein": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 567
+      },
+      "durationMs": 567
+    },
+    "anim_ui_loading_fadein_error": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 567
+      },
+      "durationMs": 567
+    },
+    "anim_ui_loading_finish": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 1333
+      },
+      "durationMs": 1333
+    },
+    "anim_ui_loading_finish_error": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 1333
+      },
+      "durationMs": 1333
+    },
+    "anim_ui_loading_gameend": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 2500
+      },
+      "durationMs": 2500
+    },
+    "anim_ui_screensharing": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "loop": 1000
+      },
+      "durationMs": 1000
+    },
+    "anim_ui_screensharing_In": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 1333
+      },
+      "durationMs": 1333
+    },
+    "anim_ui_screensharing_Out": {
+      "segs": [
+        "single"
+      ],
+      "scene": "ui",
+      "cls": "unknown",
+      "semantic": [],
+      "segDurations": {
+        "single": 1167
+      },
+      "durationMs": 1167
+    },
+    "anim_wild_banzai": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_wild_breath": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 6000
+      },
+      "durationMs": 6000
+    },
+    "anim_wild_cheer": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4167
+      },
+      "durationMs": 4167
+    },
+    "anim_wild_completetask": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5667
+      },
+      "durationMs": 5667
+    },
+    "anim_wild_deep_breath": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_wild_eieio": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3333
+      },
+      "durationMs": 3333
+    },
+    "anim_wild_feellarge": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 1600
+      },
+      "durationMs": 1600
+    },
+    "anim_wild_fidget": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4500
+      },
+      "durationMs": 4500
+    },
+    "anim_wild_good": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3500
+      },
+      "durationMs": 3500
+    },
+    "anim_wild_goodbye": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 7000
+      },
+      "durationMs": 7000
+    },
+    "anim_wild_greeting_wavehand": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "gesture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4667
+      },
+      "durationMs": 4667
+    },
+    "anim_wild_guts": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 2167
+      },
+      "durationMs": 2167
+    },
+    "anim_wild_guts_2": {
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [
+        "站立动作",
+        "加油",
+        "结束",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 2167,
+        "end": 1167,
+        "loop": 1000
+      },
+      "durationMs": 2167
+    },
+    "anim_wild_guts_3": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4667
+      },
+      "durationMs": 4667
+    },
+    "anim_wild_gymnastics": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 5667
+      },
+      "durationMs": 5667
+    },
+    "anim_wild_layout_bookfrompc": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5000
+      },
+      "durationMs": 5000
+    },
+    "anim_wild_layout_bookfromreport": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5667
+      },
+      "durationMs": 5667
+    },
+    "anim_wild_layout_pc": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 0
+      },
+      "durationMs": 0
+    },
+    "anim_wild_layout_pcfrombook": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4333
+      },
+      "durationMs": 4333
+    },
+    "anim_wild_layout_pcfromreport": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4667
+      },
+      "durationMs": 4667
+    },
+    "anim_wild_layout_reportfrombook": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 5333
+      },
+      "durationMs": 5333
+    },
+    "anim_wild_layout_reportfrompc": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 4667
+      },
+      "durationMs": 4667
+    },
+    "anim_wild_leavechair_bread_A_comeback": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 7333,
+        "start": 6600
+      },
+      "durationMs": 7333
+    },
+    "anim_wild_leavechair_bread_A_comeback_camera": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "loop": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_wild_leavechair_bread_A_comeback_eat_1": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 4267,
+        "loop": 1900
+      },
+      "durationMs": 4267
+    },
+    "anim_wild_leavechair_bread_A_comeback_eat_2": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 3000,
+        "loop": 1933
+      },
+      "durationMs": 3000
+    },
+    "anim_wild_leavechair_bread_A_comeback_eat_3": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 3167,
+        "loop": 1767
+      },
+      "durationMs": 3167
+    },
+    "anim_wild_leavechair_bread_B_comeback": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 7333,
+        "start": 6600
+      },
+      "durationMs": 7333
+    },
+    "anim_wild_leavechair_bread_B_comeback_camera": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "loop": 2000
+      },
+      "durationMs": 2000
+    },
+    "anim_wild_leavechair_bread_B_comeback_eat_1": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 4267,
+        "loop": 1900
+      },
+      "durationMs": 4267
+    },
+    "anim_wild_leavechair_bread_B_comeback_eat_2": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 3000,
+        "loop": 1933
+      },
+      "durationMs": 3000
+    },
+    "anim_wild_leavechair_bread_B_comeback_eat_3": {
+      "segs": [
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "single": 3167,
+        "loop": 1767
+      },
+      "durationMs": 3167
+    },
+    "anim_wild_leavechair_cookie_comeback": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 8567,
+        "start": 6567
+      },
+      "durationMs": 8567
+    },
+    "anim_wild_leavechair_cookie_comeback_camera": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "loop": 2033
+      },
+      "durationMs": 2033
+    },
+    "anim_wild_leavechair_cookie_comeback_eat_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 4500
+      },
+      "durationMs": 4500
+    },
+    "anim_wild_leavechair_cookie_comeback_eat_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 4100
+      },
+      "durationMs": 4100
+    },
+    "anim_wild_leavechair_cookie_comeback_eat_loop_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 2367
+      },
+      "durationMs": 2367
+    },
+    "anim_wild_leavechair_cookie_comeback_eat_loop_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 2300
+      },
+      "durationMs": 2300
+    },
+    "anim_wild_leavechair_cup_comeback": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 9000
+      },
+      "durationMs": 9000
+    },
+    "anim_wild_leavechair_cup_go": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 7300
+      },
+      "durationMs": 7300
+    },
+    "anim_wild_leavechair_cupcake_comeback": {
+      "segs": [
+        "end",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "结束",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 8567,
+        "start": 6567
+      },
+      "durationMs": 8567
+    },
+    "anim_wild_leavechair_cupcake_comeback_camera": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "回座",
+        "循环"
+      ],
+      "segDurations": {
+        "loop": 2033
+      },
+      "durationMs": 2033
+    },
+    "anim_wild_leavechair_cupcake_comeback_eat_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 4500
+      },
+      "durationMs": 4500
+    },
+    "anim_wild_leavechair_cupcake_comeback_eat_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 4100
+      },
+      "durationMs": 4100
+    },
+    "anim_wild_leavechair_cupcake_comeback_eat_loop_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 2367
+      },
+      "durationMs": 2367
+    },
+    "anim_wild_leavechair_cupcake_comeback_eat_loop_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 2300
+      },
+      "durationMs": 2300
+    },
+    "anim_wild_leavechair_normal_comeback": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 6667
+      },
+      "durationMs": 6667
+    },
+    "anim_wild_leavechair_normal_comeback_0001": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 6667
+      },
+      "durationMs": 6667
+    },
+    "anim_wild_leavechair_normal_go": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 4200
+      },
+      "durationMs": 4200
+    },
+    "anim_wild_leavechair_sofa": {
+      "segs": [
+        "loop"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "循环"
+      ],
+      "segDurations": {
+        "loop": 3767
+      },
+      "durationMs": 3767
+    },
+    "anim_wild_leavechair_sofa_comeback": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 8667
+      },
+      "durationMs": 8667
+    },
+    "anim_wild_leavechair_sofa_deepthink": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 3000,
+        "loop": 5667,
+        "start": 3000
+      },
+      "durationMs": 5667
+    },
+    "anim_wild_leavechair_sofa_go": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 9833
+      },
+      "durationMs": 9833
+    },
+    "anim_wild_leavechair_sofa_headphone": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [],
+      "segDurations": {
+        "single": 6333
+      },
+      "durationMs": 6333
+    },
+    "anim_wild_leavechair_sofa_lookoutside": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "locomotion",
+      "semantic": [
+        "站立动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 2667,
+        "loop": 8667,
+        "start": 3000
+      },
+      "durationMs": 8667
+    },
+    "anim_wild_memorie": {
+      "segs": [
+        "end",
+        "loop",
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 11667,
+        "end": 3333,
+        "loop": 1000
+      },
+      "durationMs": 11667
+    },
+    "anim_wild_stretch_1": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 6000
+      },
+      "durationMs": 6000
+    },
+    "anim_wild_stretch_2": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 8667
+      },
+      "durationMs": 8667
+    },
+    "anim_wild_stretchfullbody": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_wild_stretchshoulder": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 4000
+      },
+      "durationMs": 4000
+    },
+    "anim_wild_tea_base": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "idle",
+      "semantic": [],
+      "segDurations": {
+        "single": 7333
+      },
+      "durationMs": 7333
+    },
+    "anim_wild_tired": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 7000
+      },
+      "durationMs": 7000
+    },
+    "anim_wild_tired2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [
+        "站立动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1517,
+        "loop": 3233,
+        "start": 6083
+      },
+      "durationMs": 6083
+    },
+    "anim_wild_wanttotalk2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [
+        "站立动作",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1667,
+        "loop": 10000,
+        "start": 1667
+      },
+      "durationMs": 10000
+    },
+    "anim_wild_wet": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "posture",
+      "semantic": [],
+      "segDurations": {
+        "single": 3000
+      },
+      "durationMs": 3000
+    },
+    "anim_wild_window": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 9233
+      },
+      "durationMs": 9233
+    },
+    "anim_wild_window_close": {
+      "segs": [
+        "single"
+      ],
+      "scene": "wild",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 9233
+      },
+      "durationMs": 9233
+    },
+    "anim_work_book_base": {
+      "segs": [
+        "end",
+        "loop",
+        "loop2",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 2250,
+        "loop": 10000,
+        "loop2": 2667,
+        "start": 1750
+      },
+      "durationMs": 10000
+    },
+    "anim_work_book_base_loop2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "看书",
+        "基本",
+        "循环二"
+      ],
+      "segDurations": {
+        "end": 2000,
+        "loop": 6000,
+        "start": 2667
+      },
+      "durationMs": 6000
+    },
+    "anim_work_book_base_loop2_pageflip": {
+      "segs": [
+        "single"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 2667
+      },
+      "durationMs": 2667
+    },
+    "anim_work_book_sub_keytype": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "打字"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 4000,
+        "start": 1000
+      },
+      "durationMs": 4000
+    },
+    "anim_work_book_sub_pageflip": {
+      "segs": [
+        "single"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 2667
+      },
+      "durationMs": 2667
+    },
+    "anim_work_book_sub_thinking": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "看书",
+        "子动作",
+        "思考"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2667,
+        "start": 1000
+      },
+      "durationMs": 2667
+    },
+    "anim_work_pc_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 1100,
+        "loop": 10000,
+        "start": 1333
+      },
+      "durationMs": 10000
+    },
+    "anim_work_pc_base_loop2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "基本",
+        "循环二"
+      ],
+      "segDurations": {
+        "end": 2000,
+        "loop": 4333,
+        "start": 2333
+      },
+      "durationMs": 4333
+    },
+    "anim_work_pc_sub_stop": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "停止"
+      ],
+      "segDurations": {
+        "end": 500,
+        "loop": 2833,
+        "start": 667
+      },
+      "durationMs": 2833
+    },
+    "anim_work_pc_sub_thinking": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "用电脑",
+        "子动作",
+        "思考"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 1667,
+        "start": 1333
+      },
+      "durationMs": 1667
+    },
+    "anim_work_report_base": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "结束",
+        "循环",
+        "进入"
+      ],
+      "segDurations": {
+        "end": 2400,
+        "loop": 10667,
+        "start": 3600
+      },
+      "durationMs": 10667
+    },
+    "anim_work_report_base_loop2": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "基本",
+        "循环二"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 7667,
+        "start": 4333
+      },
+      "durationMs": 7667
+    },
+    "anim_work_report_base_loop3": {
+      "segs": [
+        "single"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [],
+      "segDurations": {
+        "single": 4167
+      },
+      "durationMs": 4167
+    },
+    "anim_work_report_sub_stop": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "停止"
+      ],
+      "segDurations": {
+        "end": 833,
+        "loop": 2833,
+        "start": 1333
+      },
+      "durationMs": 2833
+    },
+    "anim_work_report_sub_thinking": {
+      "segs": [
+        "end",
+        "loop",
+        "start"
+      ],
+      "scene": "work",
+      "cls": "prop",
+      "semantic": [
+        "工作",
+        "写报告",
+        "子动作",
+        "思考"
+      ],
+      "segDurations": {
+        "end": 1000,
+        "loop": 2333,
+        "start": 2000
+      },
+      "durationMs": 2333
+    }
+  }
+}

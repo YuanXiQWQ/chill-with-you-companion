@@ -201,6 +201,21 @@ dotnet build "<本仓库>\game\src\ChillPerformer.csproj" -c Release
 `ChillPerformer.csproj` 里的 `<GameDir>` 优先读环境变量 `CHILL_GAME_DIR`，
 没设才落到默认 Steam 路径。
 
+### 方式 C：已经装过，只想更新 DLL（最常用）
+
+`BepInEx/plugins` 里那份 DLL 被运行中的游戏映射住，直接覆盖会报
+`The requested operation cannot be performed on a file with a user-mapped section open`。
+用仓库里的部署工具，它会把「游戏正在跑」这件事一并处理：
+
+```powershell
+node tools\deploy-dll.mjs                                    # 只看：两份是否一致、游戏是否在跑
+node tools\deploy-dll.mjs --apply                             # 拷贝；游戏在跑则退出（不杀）
+node tools\deploy-dll.mjs --apply --restart                    # 关游戏 → 拷 → 用 steam 拉起
+node tools\deploy-dll.mjs --apply --restart --wait-idle 1200   # 等番茄钟结束（最多 20 分钟）再动手
+```
+
+`--wait-idle` 会连采两次确认空闲、动手前再查一次，**不会把正在跑的番茄钟直接砍掉**。
+
 ### 验收
 
 启动游戏一次，然后：
@@ -376,6 +391,8 @@ node tools/doctor.mjs --json   # agent 看：单个 JSON 对象
 | 动作抽搐 / 卡住 | `game`（`detail.core`）+ `<数据目录>/cue.log` | 游戏更新后 clip 名或帧数变了；用 `game/assets.seed.json` 对名字 |
 | 连着来几句，前几句没说出来 | `game` 的 `queue.dropped` / `queue.expired` | 队列满被挤掉（调大 `queue.Max`）或排队超 TTL 过期（调大 `queue.TtlMs`）；两个都不涨 = 上游没生成 |
 | 面板接口全绿但没图标 | `versions` + `lib/client.js` 第 1 段的 `id` | 客户端模块 ID 与当前插件名不符 |
+| 专注期她只有嘴形在动、脸不变 | `versions` | 游戏端 DLL 是旧的：旧版把换脸排在 `focus: 跳过动作 … continue` 之后。用 `tools\deploy-dll.mjs` 更新 |
+| 她翻来覆去只有一个动作 | —— | 0.11.0 已修（重复动作会换成本族下一个手势，见 `<数据目录>/repeat.log`）；仍单调时看她此刻的姿势族，同族动作本来就少 |
 
 ### 日志在哪
 
@@ -408,8 +425,8 @@ node tools/doctor.mjs --json   # agent 看：单个 JSON 对象
 │   └── src/                  C# 源码，可自行构建
 ├── ref/ref-index.json    需要哪些参考音频（wav 本身不随包）
 ├── skills/               配套技能文档
-├── tools/                自检（doctor）/ 安装 / 卸载 / 同步 token / 清单生成 / 发布体检
-├── test/                 21 个测试，不联网、不碰真实数据
+├── tools/                自检（doctor）/ 安装 / 卸载 / 同步 token / 部署 DLL / 实机观察 / 发布体检
+├── test/                 32 个测试文件（127 个用例），不联网、不碰真实数据
 ├── locale/zh.json        界面文案
 └── cordis.patch.yml      默认配置（模型 / 预算 / 语音开关 / dataDir）
 ```

@@ -1,6 +1,6 @@
 {
   "name": "dsh-chill-with-you-companion",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "description": "Chill with You 的聪音大脑：DSH 侧薄壳（拉起+反代+热换代）+ 侧车进程 brain.mjs/serve.mjs。",

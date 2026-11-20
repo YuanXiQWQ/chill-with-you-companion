@@ -1,0 +1,268 @@
+{
+    "generatedAt":  "2026-11-19T23:37:34",
+    "source":  "ChillPerformer Enum.GetNames(AnimationType)",
+    "total":  180,
+    "note":  "families = Enum.GetNames(AnimationType) 按前缀分组；stateToFamily = HeroineAI+ActionStateType 的 30 个状态对应哪一族。跨族播会把她从当前姿势里搬走，所以选动作要在自己这一族里选。",
+    "stateToFamily":  {
+                          "BreakMovie":  {
+                                             "evidence":  "observed: anim=BreakBase001 / L0=anim_break_movie_base_loop",
+                                             "family":  "BreakBase001"
+                                         },
+                          "BreakReadBook":  {
+                                                "evidence":  "observed: anim=BreakBase002_NextPage / L0=anim_break_novel_base_loop",
+                                                "family":  "BreakBase002"
+                                            },
+                          "BreakListenMusic":  {
+                                                   "evidence":  "observed: anim=BreakBase003_ListenMusicHigh / L0=anim_break_music_loop_high",
+                                                   "family":  "BreakBase003"
+                                               },
+                          "BreakTeaTime":  {
+                                               "evidence":  "observed: anim=BreakBase004 / L0=anim_break_tea_base_loop",
+                                               "family":  "BreakBase004"
+                                           },
+                          "BreakSleep":  {
+                                             "evidence":  "inferred: 族里只有 Sleep/GetUpSlowly/JumpUp",
+                                             "family":  "BreakBase005"
+                                         },
+                          "BreakForward":  {
+                                               "evidence":  "inferred: 族里是 Keyboard/PlayPen/Interest/DropPen",
+                                               "family":  "BreakBase006"
+                                           },
+                          "WorkPC":  {
+                                         "evidence":  "inferred: 族里是 KeyType/PageFlip",
+                                         "family":  "WorkBase002"
+                                     },
+                          "WorkBook":  {
+                                           "evidence":  "inferred: 同为翻页/书写类",
+                                           "family":  "WorkBase002"
+                                       },
+                          "WorkReport":  {
+                                             "evidence":  "inferred: 族里是 SmallThinking/BigThinking/BrushAwayTrash",
+                                             "family":  "WorkBase003"
+                                         },
+                          "ClickHeroine":  {
+                                               "evidence":  "observed: 点她走的是 Base001_Motion*",
+                                               "family":  "Base001"
+                                           }
+                      },
+    "families":  {
+                     "Base001":  [
+                                     "Base001",
+                                     "Base001_Motion1_FrustrationRight",
+                                     "Base001_Motion2_FrustrationLeft",
+                                     "Base001_Motion3_PressHands",
+                                     "Base001_Motion4_Dropshoulders",
+                                     "Base001_Motion5_Shy",
+                                     "Base001_Motion6_Jump",
+                                     "Base001_Motion7_Confidence",
+                                     "Base001_Motion8_Thinking",
+                                     "Base001_Motion9_Start_Thinking2",
+                                     "Base001_Motion10_Start_Thinking3",
+                                     "Base001_Motion11_Start_Lookdown",
+                                     "Base001_Motion12_Start_Nod",
+                                     "Base001_Motion13_Start_ShakeHead",
+                                     "Base001_Motion14_Start_LookPenguin",
+                                     "Base001_Motion15_Start_Introduce",
+                                     "Base001_Motion16",
+                                     "Base001_Motion17",
+                                     "Base001_Motion18",
+                                     "Base001_Motion19_Copycat",
+                                     "Base001_Motion20_Eieio",
+                                     "Base001_Motion21_Distress",
+                                     "Base001_Motion22_Feellarge",
+                                     "Base001_Motion23_Look_And_Regret",
+                                     "Base001_Motion24_Touch_Glasses"
+                                 ],
+                     "Wild":  [
+                                  "Wild001_Motion1_StretchFllBody",
+                                  "Wild001_Motion2_StretchShoulder",
+                                  "Wild001_Motion3_Tea",
+                                  "Wild001_Motion4_Guts",
+                                  "Wild001_Motion5_Wet",
+                                  "Wild001_Motion6_Banzai",
+                                  "Wild001_Motion7_Eieio",
+                                  "Wild001_Motion8_OpenWindow",
+                                  "Wild001_Motion9_CloseWindow",
+                                  "Wild001_Motion10_Breath",
+                                  "Wild001_Motion11_Guts_2",
+                                  "Wild001_Motion12_Good",
+                                  "Wild001_Motion13_Fidget",
+                                  "Wild001_Motion14_Arm",
+                                  "Wild001_Motion15_Tired",
+                                  "Wild001_Motion16_CompleteTask",
+                                  "Wild001_Motion17_DeepBreath",
+                                  "Wild001_Motion18_Tired_2",
+                                  "Wild001_Motion19_Gymnastics",
+                                  "Wild001_Motion20_Stretch_2",
+                                  "Wild001_Motion21_DryEye",
+                                  "Wild001_Motion22_Guts_3",
+                                  "Wild001_Motion23_Yawn_1",
+                                  "Wild001_Motion24_Yawn_2",
+                                  "Wild001_Motion25_Memorie",
+                                  "Wild002_FromPcToBook",
+                                  "Wild002_FromReportToBook",
+                                  "Wild002_FromBookToPc",
+                                  "Wild002_FromReportToPc",
+                                  "Wild002_FromBookToReport",
+                                  "Wild002_FromPcToReport",
+                                  "Wild003_LeaveChair_Normal",
+                                  "Wild003_LeaveChair_Sofa",
+                                  "Wild003_LeaveChair_Sofa_Thinking",
+                                  "Wild003_LeaveChair_Sofa_Look_Outside",
+                                  "Wild003_LeaveChair_Sofa_Control_Headphone",
+                                  "Wild003_LeaveChair_Cup",
+                                  "Wild003_LeaveChair_Cupcake_Comeback",
+                                  "Wild003_LeaveChair_Cupcake_Comeback_Loop",
+                                  "Wild003_LeaveChair_Cookie_Comeback",
+                                  "Wild003_LeaveChair_Cookie_Comeback_Loop",
+                                  "Wild003_LeaveChair_BreadA_Comeback",
+                                  "Wild003_LeaveChair_BreadA_Comeback_Loop",
+                                  "Wild003_LeaveChair_BreadB_Comeback",
+                                  "Wild003_LeaveChair_BreadB_Comeback_Loop"
+                              ],
+                     "WorkBase001":  [
+                                         "WorkBase001",
+                                         "WorkBase001_Stop",
+                                         "WorkBase001_Thinking",
+                                         "WorkBase001_DrinkTea",
+                                         "WorkBase001_Break",
+                                         "WorkBase001_Break2"
+                                     ],
+                     "WorkBase002":  [
+                                         "WorkBase002",
+                                         "WorkBase002_KeyType",
+                                         "WorkBase002_Thinking",
+                                         "WorkBase002_PageFlip",
+                                         "WorkBase002_Loop2",
+                                         "WorkBase002_Loop2_PageFlip",
+                                         "WorkBase002_DrinkTea"
+                                     ],
+                     "WorkBase003":  [
+                                         "WorkBase003",
+                                         "WorkBase003_SmallThinking",
+                                         "WorkBase003_BigThinking",
+                                         "WorkBase003_Loop2",
+                                         "WorkBase003_DrinkTea",
+                                         "WorkBase003_BrushAwayTrash"
+                                     ],
+                     "GameStart":  [
+                                       "GameStart_Start",
+                                       "GameStart_End",
+                                       "GameStart_Base_001"
+                                   ],
+                     "Desk":  [
+                                  "Desk_Click_Normal_Reaction",
+                                  "Desk_Click_Work_Reaction",
+                                  "Desk_Click_Rest_Reaction"
+                              ],
+                     "Enable":  [
+                                    "Enable_Talk"
+                                ],
+                     "BreakBase001":  [
+                                          "BreakBase001",
+                                          "BreakBase001_Laugh",
+                                          "BreakBase001_Suspenseful",
+                                          "BreakBase001_OutTrash",
+                                          "BreakBase001_Loop2"
+                                      ],
+                     "BreakBase002":  [
+                                          "BreakBase002",
+                                          "BreakBase002_NextPage",
+                                          "BreakBase002_PreviousPage",
+                                          "BreakBase002_Interest"
+                                      ],
+                     "BreakBase003":  [
+                                          "BreakBase003_ListenMusicLow",
+                                          "BreakBase003_ListenMusicHigh"
+                                      ],
+                     "BreakBase004":  [
+                                          "BreakBase004",
+                                          "BreakBase004_DrinkTea",
+                                          "BreakBase004_Stretch",
+                                          "BreakBase004_DrinkHot",
+                                          "BreakBase004_UseCoffeeMaker",
+                                          "BreakBase004_CoolingDrinkTea"
+                                      ],
+                     "BreakBase005":  [
+                                          "BreakBase005",
+                                          "BreakBase005_Sleep",
+                                          "BreakBase005_GetUpSlowly",
+                                          "BreakBase005_JumpUp",
+                                          "BreakBase005_JumpUp_End"
+                                      ],
+                     "BreakBase006":  [
+                                          "BreakBase006",
+                                          "BreakBase006_Interest",
+                                          "BreakBase006_Keyboard",
+                                          "BreakBase006_PlayPenLoop",
+                                          "BreakBase006_DropPen"
+                                      ],
+                     "Story":  [
+                                   "Story_SubBase001",
+                                   "Story_SubBase001_Joy",
+                                   "Story_SubBase001_Sad",
+                                   "Story_SubBase001_Fun",
+                                   "Story_SubBase001_Guts",
+                                   "Story_SubBase002",
+                                   "Story_SubBase002_Joy",
+                                   "Story_SubBase002_Sad",
+                                   "Story_SubBase002_Fun",
+                                   "Story_SubBase003",
+                                   "Story_SubBase003_Sad",
+                                   "Story_SubBase003_Fun",
+                                   "Story_SubBase004",
+                                   "Story_SubBase004_Agree",
+                                   "Story_SubBase004_Frustration",
+                                   "Story_SubBase005",
+                                   "Story_SubBase005_LookDown",
+                                   "Story_SubBase005_Nod",
+                                   "Story_SubBase005_Denial",
+                                   "Story_SubBase005_SpeakBlur",
+                                   "Story_SubBase005_StartClimax",
+                                   "Story_SubBase005_Climax_1",
+                                   "Story_SubBase005_Climax_2",
+                                   "Story_SubBase006",
+                                   "Story_SubBase006_001",
+                                   "Story_SubBase006_002",
+                                   "Story_SubBase006_003",
+                                   "Story_SubBase007",
+                                   "Story_SubBase007_001",
+                                   "Story_SubBase007_002",
+                                   "Story_SubBase007_003",
+                                   "Story_SubBase008_01_001",
+                                   "Story_SubBase008_01_002",
+                                   "Story_SubBase008_01_003",
+                                   "Story_SubBase008_01_004",
+                                   "Story_SubBase008_02_001",
+                                   "Story_SubBase008_02_002",
+                                   "Story_SubBase008_02_003",
+                                   "Story_SubBase008_02_004",
+                                   "Story_SubBase008_02_005",
+                                   "Story_SubBase008_02_006",
+                                   "Story_SubBase008_02_007",
+                                   "Story_SubBase008_02_008",
+                                   "Story_SubBase008_02_009",
+                                   "Story_SubBase008_02_010"
+                               ],
+                     "WantTalk":  [
+                                      "WantTalk_Base_001",
+                                      "WantTalk_Base_001_WaveHandShortTime",
+                                      "WantTalk_Base_001_LeaningForward"
+                                  ],
+                     "GameEnd":  [
+                                     "GameEnd_Base_001"
+                                 ],
+                     "Event":  [
+                                   "Event_Christmas_StartSitFromOutSide",
+                                   "Event_Christmas_Talk_001",
+                                   "Event_NewYear_Countdown_001",
+                                   "Event_NewYear_Countdown_002",
+                                   "Event_NewYear_Countdown_003",
+                                   "Event_NewYear_Countdown_004",
+                                   "Event_Halloween_StartSitFromOutSide"
+                               ],
+                     "NotChange":  [
+                                       "NotChange"
+                                   ]
+                 }
+}

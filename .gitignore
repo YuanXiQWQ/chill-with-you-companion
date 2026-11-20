@@ -42,6 +42,7 @@ ref/*.aac
 
 # ---- 游戏端源码的构建产物 ----
 game/src/bin/
+game/test/bin/
 game/src/obj/
 *.dll.bak-*
 
@@ -91,3 +92,11 @@ tokens.json
 UnityPlayer.dll
 *_Data/
 Chill with You*/
+
+data/brain.mjs.bak
+
+# 部署备份（本机产物，不进仓库）
+game/*.dll.prev
+game/*.prev
+# 内部审计记录：结论已进 CHANGELOG，不随包
+AUDIT-*.md

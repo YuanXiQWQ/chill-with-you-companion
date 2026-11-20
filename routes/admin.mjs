@@ -17,11 +17,14 @@ export function registerAdminRoutes(deps) {
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       // 别叫 state：外层有个同名的业务状态，遮蔽了以后加一行就会静默读错对象
-      const probe = await gameRunning()
+      // fresh 的时机：没有心跳就真去 tasklist 查一次。带缓存的探针会把"刚关掉的游戏"
+      // 继续报成运行中（45 秒缓存），面板于是把拉起按钮置灰——那正是"关掉以后拉不起来"。
+      const probe = await gameRunning(!game.online())
       return sendJson(res, 200, {
         ok: true,
         running: Boolean(probe.running),
         pid: probe.pid || 0,
+        stale: Boolean(probe.running) && !game.online(),
         image: game.image,
         uri: game.uri,
         error: probe.error || game.error() || '',

@@ -16,7 +16,9 @@ import { watch, appendFileSync, readFileSync, writeFileSync, statSync, mkdirSync
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { stat } from 'node:fs/promises'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { resolveToken } from './lib/config.mjs'
+import { createSidecarSupervisor } from './lib/sidecar-supervisor.js'
 
 export const name = 'dsh-chill-with-you-companion'
 export const inject = ['webServer']
@@ -84,6 +86,31 @@ export function apply(ctx, rawConfig = {}) {
       if (write) write.call(logger, '[dsh-chill-with-you-companion]', ...args)
     } catch { /* 同上：记日志永不允许抛 */ }
   }
+  // 宿主侧自己的一对校验：/chill/host/work 这类"能操作会话"的接口要用，
+  // 它们不在侧车里，拿不到侧车的 authorized。
+  const hostAuth = (req) => {
+    if (!TOKEN) return false
+    const digest = (v) => createHash('sha256').update(String(v)).digest()
+    const want = digest(TOKEN)
+    const header = String(req.headers?.authorization || '')
+    const bearer = header.startsWith('Bearer ') ? header.slice(7) : ''
+    const custom = String(req.headers?.['x-chill-token'] || '')
+    if (bearer && timingSafeEqual(digest(bearer), want)) return true
+    if (custom && timingSafeEqual(digest(custom), want)) return true
+    return false
+  }
+  // 浏览器跨源请求一定带 Origin；只放本机面板那几个来源，其余 403。
+  // 裸 fetch / curl 不带 Origin，交给上面的 token 兜（它们照样得带 token）。
+  const hostOriginOk = (req) => {
+    const origin = String(req.headers?.origin || '')
+    if (!origin) return true
+    const panelPort = String(process.env.DSH_WEB_PORT || 10722)
+    try {
+      const u = new URL(origin)
+      if (u.hostname !== '127.0.0.1' && u.hostname !== 'localhost') return false
+      return !u.port || u.port === panelPort
+    } catch { return false }
+  }
   // 注意：cordis 的 logger.info/warn 是原型方法，内部用 this()[type]() 取真实 logger。
   // 把它从 ctx.logger 上摘下来裸调用，this 就是 undefined，会抛 TypeError: this is not a function；
   // 这行又跑在 child.on('exit') 回调里，未捕获异常会直接终结整个 harness 进程。
@@ -97,167 +124,19 @@ export function apply(ctx, rawConfig = {}) {
     } catch { /* 记日志失败不能反过来杀掉宿主 */ }
   }
 
-  let child = null
-  let ready = false
-  let upstreamPort = PORT
-  let stopping = false
-  let restarts = []
-  let bootTimer = null
-  let recycling = false   // 换代中：exit 回调不得再安排一次 spawn，否则一次换代漏一个 node 进程
-  let watcher = null
-
-  const noteRestart = () => {
-    const now = Date.now()
-    restarts = restarts.filter((at) => now - at < 60000)
-    restarts.push(now)
-    return restarts.length
-  }
-
-  let exitReason = 'boot'
-  async function spawnSidecar(reason) {
-    if (stopping) return
-    ready = false
-    exitReason = reason
-    // 先向宿主借 key：安装机 dsh 里配过，这里就一定有，用户不必在插件里再配一遍。
-    const cred = await pickDshCredential(ctx, (rawConfig && rawConfig.keyRef) || 'DEEPSEEK_API_KEY')
-    const env = { ...process.env, CHILL_BRAIN_PORT: String(PORT), CHILL_BRAIN_CONFIG: JSON.stringify(rawConfig || {}) }
-    if (cred) {
-      // 用独立变量名，不写 env[cred.keyRef]：用户自己设的 DEEPSEEK_API_KEY 不能被顶掉，
-      // 那份是他显式配置，优先级高于这里借来的 default。
-      env.CHILL_DSH_KEY = cred.value
-      env.CHILL_DSH_KEY_REF = cred.keyRef
-      env.CHILL_KEY_SOURCE = cred.source
-      log('key from dsh credentials', { ref: cred.keyRef, source: cred.source })   // 只报来源，不报值
-    }
-    log('starting sidecar', { reason, port: PORT })
-    child = spawn(process.execPath, [SERVE], { cwd: HERE, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
-    const pid = child.pid
-    // 行缓冲：READY 行被拆到两个 chunk 里也必须认得出来，
-    // 否则侧车明明在听，宿主这边 ready 永远 false，所有请求 503。
-    let outBuf = ''
-    child.stdout.on('data', (chunk) => {
-      outBuf += String(chunk)
-      const lines = outBuf.split(/\r?\n/)
-      outBuf = lines.pop() || ''
-      for (const line of lines) {
-        if (!line.trim()) continue
-        const readyLine = line.match(/CHILL_SIDECAR_READY\s+(\d+)/)
-        if (readyLine) {
-          upstreamPort = Number(readyLine[1]) || PORT
-          ready = true
-          log('sidecar ready', { pid, port: upstreamPort })
-        } else {
-          log('sidecar|', line)
-        }
-      }
-    })
-    // 子进程被强杀时 stdout/stderr 可能报 EPIPE/ECONNRESET；没挂 error 监听就是未捕获事件
-    child.stdout.on('error', () => {})
-    child.stderr.on('error', () => {})
-    child.stdin?.on?.('error', () => {})
-    child.stderr.on('data', (chunk) => {
-      const text = String(chunk).trimEnd()
-      for (const line of text.split(/\r?\n/)) if (line.trim()) warn('sidecar!', line)
-    })
-    child.on('exit', (code, signal) => {
-      ready = false
-      // 先取诊断信息再写日志：万一日志层出问题，退出码也必须已经落盘
-      appendSidecarLog('exit pid=' + pid + ' code=' + code + ' signal=' + signal + ' reason=' + exitReason)
-      if (stopping) { log('sidecar stopped', { pid, code, signal }); return }
-      if (recycling) { log('sidecar replaced by recycle', { pid, code, signal }); return }
-      if (bootTimer) { clearTimeout(bootTimer); bootTimer = null }
-      const count = noteRestart()
-      const delay = count >= 5 ? 10000 : Math.min(1000 * count, 5000)
-      warn('sidecar exited, restarting', { pid, code, signal, attempt: count, delayMs: delay })
-      bootTimer = setTimeout(() => { bootTimer = null; void spawnSidecar('crash-restart') }, delay)
-      if (bootTimer.unref) bootTimer.unref()
-    })
-    child.on('error', (error) => {
-      warn('sidecar spawn failed', { error: String(error?.message || error) })
-      // spawn 失败（ENOENT / EACCES / 进程数上限）时 'exit' 可能根本不触发，
-      // 而全部重生逻辑都挂在 exit 上 —— 不在这里补一次，侧车就永久死亡。
-      if (stopping || recycling || bootTimer) return
-      ready = false
-      const count = noteRestart()
-      bootTimer = setTimeout(() => { bootTimer = null; void spawnSidecar('spawn-error') }, Math.min(1000 * count, 5000))
-      if (bootTimer.unref) bootTimer.unref()
-    })
-  }
-
-  function stopSidecar() {
-    return new Promise((resolve) => {
-      if (!child || child.exitCode !== null) return resolve()
-      const pid = child.pid
-      const done = () => resolve()
-      child.once('exit', done)
-      try {
-        if (process.platform === 'win32') spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on('error', () => {})
-        else child.kill('SIGTERM')
-      } catch {
-        try { child.kill() } catch { /* 已在退出 */ }
-      }
-      setTimeout(() => resolve(), 4000).unref?.()
-    })
-  }
-
-  function portClosed() {
-    return new Promise((resolve) => {
-      const probe = http.request({ host: '127.0.0.1', port: upstreamPort, method: 'GET', path: '/chill/v1/health', timeout: 400, agent: false }, (res) => { res.destroy(); resolve(false) })
-      probe.on('timeout', () => { probe.destroy(); resolve(true) })
-      probe.on('error', () => resolve(true))
-      probe.end()
-    })
-  }
-
-  // 换代必须"绝不抛出去"：这个函数由 fs.watch 回调触发，一旦抛出未处理的 Promise 拒绝，
-  // Node 会直接终结整个 harness 进程 —— 2026-11-13 两次"dsh 自己关了"就是这个。
-  let cycling = false
-  let queuedReason = ''
-  async function recycle(reason) {
-    if (cycling) {
-      queuedReason = reason
-      return
-    }
-    cycling = true
-    try {
-      log('recycling sidecar', { reason })
-      recycling = true
-      if (bootTimer) { clearTimeout(bootTimer); bootTimer = null }
-      await stopSidecar()
-      // 等旧监听彻底消失，避免新子进程撞 EADDRINUSE（serve.mjs 那边也有重试兜底）
-      for (let i = 0; i < 10; i += 1) {
-        if (await portClosed()) break
-        await new Promise((r) => setTimeout(r, 200))
-      }
-      void spawnSidecar(reason)
-    } catch (error) {
-      warn('recycle failed, keeping old process', { error: String(error?.message || error) })
-    } finally {
-      recycling = false
-      cycling = false
-      if (queuedReason) {
-        const next = queuedReason
-        queuedReason = ''
-        setTimeout(() => { recycle(next).catch(() => {}) }, 300)
-      }
-    }
-  }
-
-  /** 统一的"安全触发"入口：任何调用者都不会把异常泄漏成未处理拒绝。 */
-  function recycleSafe(reason) {
-    try {
-      return recycle(reason).catch((error) => warn('recycle rejected', { error: String(error?.message || error) }))
-    } catch (error) {
-      warn('recycle threw synchronously', { error: String(error?.message || error) })
-      return Promise.resolve()
-    }
-  }
+  const sup = createSidecarSupervisor({
+    ctx, log, warn,
+    servePath: SERVE, here: HERE, port: PORT, rawConfig,
+    appendLog: appendSidecarLog,
+    pickCredential: pickDshCredential,
+  })
 
   // ── 反代：游戏端与面板仍然只认 10722 ─────────────────────────────────────
   function proxy(req, res) {
-    const headers = { ...req.headers, host: `127.0.0.1:${upstreamPort}` }
+    const port = sup.port
+    const headers = { ...req.headers, host: `127.0.0.1:${port}` }
     if (TOKEN) headers['x-chill-token'] = TOKEN   // 面板与浮窗都不持有 token，由宿主代贴
-    const upstream = http.request({ host: '127.0.0.1', port: upstreamPort, method: req.method, path: req.url, headers }, (up) => {
+    const upstream = http.request({ host: '127.0.0.1', port, method: req.method, path: req.url, headers }, (up) => {
       res.writeHead(up.statusCode || 502, up.headers)
       up.pipe(res)
     })
@@ -265,7 +144,7 @@ export function apply(ctx, rawConfig = {}) {
       // 侧车正在换代/没起来：给一个能看懂的 503，而不是挂在半空
       if (!res.headersSent) {
         res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'retry-after': '2' })
-        res.end(JSON.stringify({ ok: false, error: 'sidecar not ready', detail: String(error?.message || error), port: upstreamPort }))
+        res.end(JSON.stringify({ ok: false, error: 'sidecar not ready', detail: String(error?.message || error), port }))
       } else {
         res.destroy()
       }
@@ -279,9 +158,9 @@ export function apply(ctx, rawConfig = {}) {
     kind: 'prefix',
     path: '/chill/v1',
     handler: (req, res) => {
-      if (!ready) {
+      if (!sup.ready) {
         res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'retry-after': '2' })
-        return res.end(JSON.stringify({ ok: false, error: 'sidecar starting', port: PORT }))
+        return res.end(JSON.stringify({ ok: false, error: 'sidecar starting', port: sup.port }))
       }
       proxy(req, res)
     },
@@ -292,7 +171,7 @@ export function apply(ctx, rawConfig = {}) {
     kind: 'prefix',
     path: '/chill/quick',
     handler: (req, res) => {
-      if (!ready) {
+      if (!sup.ready) {
         res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'retry-after': '2' })
         return res.end(JSON.stringify({ ok: false, error: 'sidecar starting', port: PORT }))
       }
@@ -305,9 +184,9 @@ export function apply(ctx, rawConfig = {}) {
     kind: 'exact',
     path: '/chill/v1/admin/sidecar',
     handler: async (req, res) => {
-      const body = { ok: true, ready, pid: child?.pid ?? null, port: upstreamPort, preferredPort: PORT, restarts: restarts.length, uptimeSec: Math.round(process.uptime()) }
+      const body = { ok: true, ...sup.state(), uptimeSec: Math.round(process.uptime()) }
       if (req.method === 'POST') {
-        recycleSafe('admin')
+        sup.recycleSafe('admin')
         body.recycling = true
       }
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
@@ -335,7 +214,7 @@ export function apply(ctx, rawConfig = {}) {
   // 旁观：把「这一轮他干了什么」交给侧车的聪音链路，由它决定要不要说一句。
   // 不往那边塞人设——塞了就会干扰它本来干活的判断。
   async function sidecarObserve(payload) {
-    const port = upstreamPort
+    const port = sup.port
     const body = JSON.stringify(payload || {})
     const init = {
       method: 'POST',
@@ -363,7 +242,7 @@ export function apply(ctx, rawConfig = {}) {
     if (text === ambientStamp) return
     try {
       const body = JSON.stringify({ text })
-      await fetch('http://127.0.0.1:' + upstreamPort + '/chill/v1/ambient', {
+      await fetch('http://127.0.0.1:' + sup.port + '/chill/v1/ambient', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) },
         body,
@@ -414,6 +293,11 @@ export function apply(ctx, rawConfig = {}) {
         res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
         res.end(JSON.stringify(body))
       }
+      // 这条以前整段没有校验：本机任何进程都能列会话、还能 POST /send 往正在跑的
+      // DSH 会话里塞文本（等于对 agent 做提示词注入）。2026-11-20 修：
+      // ① 和其余接口同一套 token；② Origin 只放本机面板，挡掉网页里的跨源 simple POST。
+      if (!hostAuth(req)) return reply(401, { error: 'unauthorized' })
+      if (!hostOriginOk(req)) return reply(403, { error: 'bad origin' })
       const url = new URL(String(req.url || '/'), 'http://127.0.0.1')
       const head = url.pathname.replace('/chill/host/work', '').replace(/^\/+|\/+$/g, '').split('/')[0] || ''
       const readJson = () => new Promise((resolve) => {
@@ -537,12 +421,8 @@ export function apply(ctx, rawConfig = {}) {
   }
 
   ctx.effect(() => {
-    void spawnSidecar('boot')
-    return () => {
-      stopping = true
-      if (bootTimer) clearTimeout(bootTimer)
-      void stopSidecar()
-    }
+    void sup.start('boot')
+    return () => { void sup.stop() }
   }, 'dsh-chill-with-you-companion: sidecar lifecycle')
 
   // 全局兜底：插件里任何未捕获异常 / 未处理拒绝都不许杀掉宿主。
@@ -575,7 +455,7 @@ export function apply(ctx, rawConfig = {}) {
     }
   }, 'dsh-chill-with-you-companion: 全局异常兜底')
 
-  ctx.effect(() => watchSources(), 'dsh-chill-with-you-companion: hot reload')
+  ctx.effect(() => sup.watchSources(), 'dsh-chill-with-you-companion: hot reload')
 
   // 近况推送不该挂在前端轮询上：控制台没开的时候她也得知道他那边在做什么。
   // 60 秒一次，pushAmbient 自己还会按 30 秒节流 + 文本去重。
