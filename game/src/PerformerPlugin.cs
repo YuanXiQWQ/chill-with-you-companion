@@ -7,6 +7,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Globalization;
 using System.Text;
 using BepInEx;
@@ -24,7 +25,7 @@ namespace ChillPerformer
 
     private static WatchRecorder watcher;
 
-    private static Animator FindHeroineForWatch()
+    internal static Animator FindHeroineForWatch()
     {
         try
         {
@@ -68,6 +69,31 @@ namespace ChillPerformer
             Log.LogInfo("watch: clip=" + live + " cam=" + camName + " root=" + rootPos.ToString("F2"));
         }
         catch (Exception ex) { Log.LogError("watch failed: " + ex); }
+    }
+
+    // 离座在途保护：不连点。判据是"当下这一帧在不在 leavechair 动画里"，
+    // 不靠历史标志——历史标志被误判过一次（明明在看书，却报还在离座）。
+    internal static class TripGuard
+    {
+        // 返回 true = 可以触发
+        public static bool TryBegin(string planName)
+        {
+            var h = FindHeroineForWatch();
+            if (h != null)
+            {
+                var infos = h.GetCurrentAnimatorClipInfo(0);
+                if (infos != null && infos.Length > 0 && infos[0].clip != null)
+                {
+                    string live = infos[0].clip.name;
+                    if (live.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        Log.LogInfo("trip: 忽略 " + planName + " —— 她正在离座（" + live + "）");
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
     }
 
     public static void EnsureWatcher()
@@ -126,8 +152,6 @@ namespace ChillPerformer
         internal static ConfigEntry<float> VoiceVolume;
         internal static ConfigEntry<bool> FollowGameMixer;
         public static ConfigEntry<bool> Props;
-        public static ConfigEntry<bool> TripWalk;
-        public static ConfigEntry<bool> RoomView;
         internal static ConfigEntry<string> MixerGroupMatch;
         internal static ConfigEntry<string> MixerGroupFallback;
         internal static ConfigEntry<bool> QueueEnabled;
@@ -135,6 +159,13 @@ namespace ChillPerformer
         internal static ConfigEntry<int> QueueTtlMs;
         internal static ConfigEntry<int> QueueGapMs;
         internal static ConfigEntry<bool> VerboseCues;
+        // 专注（只叠不搬）时，动作一律不走：游戏自己的表演模型是单槽的状态机，
+        // 任何"动作"都要切 ActionState，会把手上的事顶掉（实测原生 ClickHeroine 也会）。
+        // 原生不打断的通道只有两条：表情层 L2 与嘴形/语音层 L3。所以就只走这两条。
+        internal static ConfigEntry<bool> FocusNativeOnly;
+        internal static ConfigEntry<int> CameraDefaultSeat;
+        // 跨族原生动作：放宽时照播（会把她从当前姿势族里拽出来两秒），默认关。
+        internal static ConfigEntry<bool> CrossFamilyNative;
         internal static ConfigEntry<bool> ShowSubtitle;
 
         private void Awake()
@@ -151,12 +182,21 @@ namespace ChillPerformer
             // 让椅子、窗户这些道具跟着同名 clip 一起动。默认关：
             // 那套动画是按别的场景锚点摆的，套过来会把物体甩到位（实测：椅子糊住整个镜头）。
             Props = Config.Bind("acting", "Props", false, "Let props (chair, window…) play their same-named clip. Off by default.");
-            // 手动走位：离座时把角色根送到沙发/床边。默认关——
+            FocusNativeOnly = Config.Bind("acting", "FocusNativeOnly", true,
+                "During focus (upper-body only) skip body animation entirely and let the game keep its own state." +
+                " Only the native facial and mouth layers react. False = sample head clips over the live pose.");
+            // 默认机位：进场后把镜头定到书桌（游戏自己的 Camera_Desk），一次，之后不再抢。
+            // 0 = 书桌 / 1 = 沙发 / 2 = 床 / -1 = 不动（完全交给游戏）。
+            // 只做一次的原因：这是"开场站在哪"的偏好，不是持续接管；游戏自己后面切走就该让它切。
+            CameraDefaultSeat = Config.Bind("acting", "CameraDefaultSeat", 0,
+                "Seat camera to set once after load. 0=desk (game default), 1=sofa, 2=bed, -1=leave it alone.");
+            // 跨族原生动作：游戏那 180 条动作按姿势族命名，跨族播会把她从当前姿势里搬走两秒。
+            // 默认关——只在当前族里找等价动作，找不到就只做表情和嘴形。
+            CrossFamilyNative = Config.Bind("acting", "CrossFamilyNative", false,
+                "Allow native actions from another pose family (pops her out of the current pose for ~2s). Off = same family only.");            // 手动走位：离座时把角色根送到沙发/床边。默认关——
             // 这些 clip 是原地动画（rootΔ=0），游戏是在别处摆好位置再播的，硬塞位移会把人放到镜头外。
-            TripWalk = Config.Bind("acting", "TripWalk", false, "Move the character root during leave-chair clips. Off by default.");
             // 离座时切房间相机（Camera_Sofa / Camera_Bed）。默认关：游戏的视野本来不变，
             // 人是自己走到沙发坐下的。
-            RoomView = Config.Bind("acting", "RoomView", false, "Switch room camera during leave-chair. Off by default.");
             MixerGroupMatch = Config.Bind("audio", "MixerGroupMatch", "voice", "Keyword(s) that pick the mixer group, comma separated, case-insensitive. First match wins.");
             MixerGroupFallback = Config.Bind("audio", "MixerGroupFallback", "master", "Fallback keyword(s) when nothing matches MixerGroupMatch. Empty = leave the source unmixed (old behaviour).");
             QueueEnabled = Config.Bind("queue", "Enabled", true, "Queue incoming cues locally and play them one after another. False = old behaviour, only the newest item is performed.");
@@ -240,6 +280,26 @@ namespace ChillPerformer
         // 离座长途用它把"在沙发上待着"变成长时间接管的一个 cue，而不是几分钟的重复 cue。
         public int holdMs;
         public string text;
+        // 原生路径：非空时不走采样，改成调游戏自己的
+        // HeroineService.ChangeAnimation(AnimationType)，由 Unity 的状态机转载、混合、收尾。
+        // 实测："ForInteger" 只对 Wild001 有效，"ChangeAnimation(枚举)" 两者都行。
+        public string nativeName;
+        public int nativeId;
+        // nativeSub 只是后缀（"DrinkTea"）。游戏在每个基底下都实现了一遍同名子动作：
+        //   BreakBase004_DrinkTea / WorkBase001_DrinkTea / WorkBase002_DrinkTea / WorkBase003_DrinkTea
+        // 同一个"喝口茶"，坐着休息和在工位时身体姿势完全不同，写死任何一条都是错的。
+        // 所以由我们按她此刻的基底拼全名，拼不出来才退回 nativeName。
+        public string nativeSub;
+        // 子动作的同义写法（逗号分隔），语义链的第二层候选。
+        // 游戏把 DrinkTea 改名成 DrinkTeaCup 时，这里补一句就能救回来，不用重新编译客户端。
+        public string nativeAlso;
+        // 持续状态：写代码 / 看书 / 看电影 / 听歌 / 睡，对应 HeroineAI.ActionStateType。
+        // 有它就不走采样——直接告诉游戏的状态机"她该去干什么"，
+        // base_start -> base_loop -> base_end 全程它自己管。
+        public string stateName;
+        // 表情，对应 FacialType（Shy_Fun / Shy_Joy / Shy_Sad …）。
+        // 走 ChangeHeroineFacialAnimation，落在 L2 层，跟身体动作互不干扰。
+        public string facial;
     }
 
     [Serializable]
@@ -289,6 +349,8 @@ namespace ChillPerformer
         public int mouthFps;
         public int mouthFrames;
         public List<double> mouthFlat;
+        // 每帧那几个数的排列顺序，由服务端给。空 = 用服务端默认（a,i,u,e,o,n）。
+        public List<string> mouthChannels;
         public string motionScope = "full";
         // 这一句的语音时长（毫秒）。<=0 表示没拿到，回退到按字数估。
         public double durationMs;
@@ -384,14 +446,23 @@ if (Time.unscaledTime < nextAt) return;
         }
         private readonly List<PendingAct> pending = new List<PendingAct>();
         private bool performing;
+        // 记一下从什么时候开始 performing：Perform 抛异常时它不会再被复位，
+        // 队列就永久卡在 "if (performing) continue"。
+        private float performingSince;
+        private static string pendingPlan;
+        private static int pendingHoldMs;
+        private static float pendingUntil;
         private int qDropped;
         private int qExpired;
         private int qMaxDepth;
         private int qPlayed;
         private GUIStyle subtitleStyle;
-        // 口型：Face 的 SkinnedMeshRenderer + 六个母音 blendshape 下标
+        // 口型：Face 的 SkinnedMeshRenderer + 母音 blendshape 下标。
+        // 通道的顺序与数量都由服务端随数据下发（mouthChannels），游戏端不再保自己的副本：
+        // lib/lipsync.mjs 的 CHANNELS 是唯一定义源，游戏更新换命名、加通道、减通道都跟着它走。
         private SkinnedMeshRenderer faceSmr;
-        private readonly int[] mouthIdx = new int[] { -1, -1, -1, -1, -1, -1 };
+        private string[] mouthChannels = new string[0];
+        private int[] mouthIdx = new int[0];
         private float[] mouthW = new float[0];
         private int mouthCount;
         private int mouthFps = 30;
@@ -412,6 +483,23 @@ if (Time.unscaledTime < nextAt) return;
         private Transform[] bones;
         private bool upperOnly;
         private bool[] upperAllowed;
+        // 姿势追踪（诊断"归位抽动"）：每 TRACE_DT 秒记一行角度，到时写成 tsv。
+        // 外部命令通道是文件轮询，2 Hz 上下，抓不到 0.2 秒的回弹；只能在里面记。
+        private float traceUntil = 0f;
+        private float traceNextAt = 0f;
+        private Transform[] traceBones;
+        private System.Text.StringBuilder traceBuf;
+        private const float TraceDt = 0.05f;
+        // 原生放手的软着陆：把游戏那一两帧的归位 CrossFade 摊到 NativeExitBlend 秒。
+        private Quaternion[] nativeExitRot;
+        private float nativeExitUntil = 0f;
+        private const float NativeExitBlend = 0.35f;
+        // 当前基底没有某个子动作时的备选基底，按"最接近日常待人"排。
+        private static readonly string[] SubFallbackBases = {
+            "BreakBase004", "WorkBase002", "WorkBase001", "WorkBase003",
+            "BreakBase001", "BreakBase002", "BreakBase003", "BreakBase006",
+        };
+        private static readonly string[] TraceWanted = new string[] { "Hips", "Head", "LeftForeArm", "RightForeArm", "LeftUpLeg" };
         private Quaternion[] gameRot;
         private Vector3[] gamePos;
         private float clipFadeIn = 0.45f;
@@ -444,6 +532,8 @@ if (Time.unscaledTime < nextAt) return;
         private float switchMsFromClass = 260f;
         private bool inAbsolute;
         private float absRampT0 = -999f;
+        // 段边界交叉用的临时姿势（X_start 末帧 / X_end 首帧不同 → 硬切会跳）
+        private Quaternion[] blendTmp;
         // 换段/换族时的交叉淡化起点：新动作从"当前可见姿势"混过去，
         // 而不是从游戏姿势重新起算——否则上一段的偏移会在一帧内消失（实测 186°/s 尖峰）。
         // 游戏自身待机姿势的缓存：演出期间不许重抓，否则会把我们自己的输出当基底
@@ -479,6 +569,13 @@ if (Time.unscaledTime < nextAt) return;
         // prevPose 是否真的装着"上一次可见姿势"；没装着就不许淡化
         private bool prevPoseValid;
         private float switchT0 = -999f;
+        // 这段 clip 每根骨头的峰值偏移（度）与"到底要不要写"的掩码。
+        // 用途只有一个：叠加式演出里，clip 没动的骨头一律不写 —— 让游戏自己的状态机
+        // 继续驱动它们。她在专注时敲键盘，手臂就属于这一类。
+        private float[] bonePeak;
+        private bool[] boneDrive;
+        private int boneDriveCount;
+        private const float BoneDriveMinDeg = 1.5f;
         private float planBodyPeakDeg;
         private float planHeadPeakDeg;
         private float planBodyPeakSpd;
@@ -501,7 +598,6 @@ if (Time.unscaledTime < nextAt) return;
         private int skippedRepeat;
         private int dbgFrames;
         private float clipFadeOut = 0.40f;
-        private static readonly string[] MOUTH_KEYS = new string[] { "mouth_a", "mouth_i", "mouth_u", "mouth_e", "mouth_o", "mouth_n" };
 
         private string BaseUrl { get { return Plugin.BrainBaseUrl.Value.TrimEnd('/'); } }
 
@@ -538,6 +634,8 @@ if (Time.unscaledTime < nextAt) return;
             NativeSubtitle.Init(Plugin.Log);
             GameBusy.Init(Plugin.Log, audioSource);
             StartCoroutine(Forever(HeartbeatLoop, "Heartbeat"));
+            // 场景切换是真正的事件（Unity 自己会通知），当场上报一次，不靠轮询。
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoadedForMonitor;
             if (Plugin.Probes != null && Plugin.Probes.Value) SceneProbe.DumpUIText(Plugin.Log);
             IndexClipAssets();
             if (Plugin.TestSweep != null && Plugin.TestSweep.Value) StartCoroutine(TestSweep());
@@ -559,6 +657,13 @@ if (Time.unscaledTime < nextAt) return;
         private long bootSkipAtMs;
         private int pullPolls;
         private int heartbeatFails;
+        // 状态监测：每 200ms 算一次快照签名，变了立刻上报；没变就只按 HeartbeatMs
+        // 发一次存活性心跳。原来是固定 2 秒一轮，她睡着/切状态最坏要 2 秒侧车才知道，
+        // 这期间还在往她身上推动作。
+        private int monitorSeq;
+        private string monitorSig = "";
+        private string monitorLabel = "";
+        private volatile bool monitorDirty;
         private bool heartbeatOk = true;
         private bool probed;
 
@@ -600,10 +705,19 @@ if (Time.unscaledTime < nextAt) return;
             // brain uses it so her lines about the sky match the picture.
             sb.Append(",\"windowView\":\"").Append(Js(SceneProbe.CurrentWindowView())).Append('"');
             sb.Append(",\"busy\":").Append(GameBusy.IsBusy ? "true" : "false");
+            // hard = 游戏自己在演剧情/说话（story 场景 / 剧情文本 / 剧情语音）。
+            // 那时 DLL 连 pull 都不做，侧车要是还照常排戏，只会排进 feed 里过期。
+            sb.Append(",\"hard\":").Append(GameBusy.IsHard ? "true" : "false");
             sb.Append(",\"busyReason\":\"").Append(Js(GameBusy.Reason)).Append('"');
             sb.Append(",\"heroineReady\":").Append(heroine != null ? "true" : "false");
             sb.Append(",\"clips\":").Append(clipAssets.Count);
             sb.Append(",\"clip\":\"").Append(Js(clipName)).Append('"');
+            // 她在游戏里的真实状态与姿势族。侧车拿这两条挑"这一族里真有的动作"——
+            // 不带上，侧车只能事后丢掉跨族动作，等于她只剩表情。
+            string nativeAnim = CurrentNativeName();
+            sb.Append(",\"state\":\"").Append(Js(AiStateName())).Append('"');
+            sb.Append(",\"nativeAnim\":\"").Append(Js(nativeAnim)).Append('"');
+            sb.Append(",\"family\":\"").Append(Js(NativeBasePrefix(nativeAnim))).Append('"');
             sb.Append(",\"subtitle\":\"").Append(Js(subtitle)).Append('"');
             sb.Append(",\"mouth\":").Append(mouthActive ? "true" : "false");
             sb.Append(",\"audio\":").Append(audioSource != null && audioSource.isPlaying ? "true" : "false");
@@ -634,6 +748,13 @@ if (Time.unscaledTime < nextAt) return;
               .Append("\",\"base\":\"").Append(Js(activeBase)).Append("\",\"live\":\"").Append(Js(LiveClipName())).Append("\"}");
             sb.Append(",\"fps\":").Append(fps);
             sb.Append(",\"focus\":").Append(GameBusy.FocusMode ? "true" : "false");
+            // 她当前在演什么（HeroineAI.ActionStateType 的名字）。
+            // 侧车靠它判断"她已经睡了"——那是游戏按连续专注时长自己进入的，
+            // 那时候我们一拍都不能排，否则等于隔几秒把她从梦里拽出来。
+            sb.Append(",\"heroState\":\"").Append(Js(AiStateName())).Append('"');
+            sb.Append(",\"cam\":\"").Append(Js(camMode)).Append('"');
+            sb.Append(",\"camStory\":").Append(camStory ? "true" : "false");
+            sb.Append(",\"monitorSeq\":").Append(monitorSeq);
             sb.Append(",\"pomTexts\":").Append(GameBusy.PomodoroCandidates);
             sb.Append(",\"timer\":\"").Append(Js(GameBusy.TimerText)).Append('"');
             sb.Append(",\"tmp\":").Append(GameBusy.TmpCount);
@@ -690,33 +811,454 @@ if (Time.unscaledTime < nextAt) return;
                 yield return new WaitForSecondsRealtime(2f);
             }
         }
+        /// <summary>场景切换是真正的事件，Unity 自己会回调。挂事件而不是挂补丁：
+        /// 全插件不打任何 Harmony 补丁，游戏更新才不会失效。</summary>
+        private void OnSceneLoadedForMonitor(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+        {
+            monitorDirty = true;
+            Plugin.Log.LogInfo("monitor: 场景切换 → " + (scene.name == null ? "?" : scene.name));
+        }
 
+
+        /// <summary>会改变编排口径的字段拼成签名。fps / 队列深度不算，
+        /// 否则每一拍都变了，等于没做差分。</summary>
+        private string MonitorSignature()
+        {
+            // 这里必须覆盖 game-monitor.js 的 FIELDS 全集，否则"字段变了但签名没变"＝事件丢失。
+            // 反过来也别多放：倒计时（TimerText）每秒都变，放进来就是每秒一次上报。
+            RefreshCamera();
+            string hs = AiStateName();
+            return (hs == null ? "" : hs) + "|" + (GameBusy.FocusMode ? "1" : "0") + "|" +
+                   (GameBusy.IsBusy ? "1" : "0") + "|" + (GameBusy.IsHard ? "1" : "0") + "|" +
+                   (GameBusy.Reason == null ? "" : GameBusy.Reason) + "|" +
+                   (GameBusy.SceneName == null ? "" : GameBusy.SceneName) + "|" +
+                   (heroine != null ? "1" : "0") + "|" +
+                   camMode + "|" + (camStory ? "1" : "0");
+        }
+
+        // —— 机位 ——
+        // 游戏自己有一套 Cinemachine 机位（15 台 vcam：Initial/Base/Chair/Desk/CoffeeMaker/
+        // Window/StoryChairFaceToFace/StoryIntroduceBook/Sofa/DecorationEdit*/WallPaperLandscape/
+        // StoryLandscape/MobileInitial），另有五台单独开关的隐藏摄像机（装饰、壁纸布景、剧情布景）。
+        // 它同时回答两个我们以前只能猜的问题：
+        //   1. 玩家此刻看的是哪个构图 —— 决定一个全身动作是否在镜头里；
+        //   2. isPlayingStory —— 游戏自己说的"正在演剧情"，比我们从文本/语音 token 猜的 Reason 权威。
+        private static Type camMgrType;
+        private static System.Reflection.FieldInfo camTypeField;
+        private static System.Reflection.FieldInfo camStoryField;
+        private static object camMgr;
+        private static float nextCamFind;
+        private static string camMode = "";
+        private static bool camStory;
+
+        // 游戏自己的"无活动 vcam"状态下主相机的姿势。
+        // 关键：Cinemachine 在没有活动 vcam 时**不会把相机放回去**——它停在最后一次混合到的位置。
+        // 所以我们强制切过机位再全关，画面就卡在那台机位上看墙/看房间外，玩家看见的是"啥也没有"。
+        // 记住原姿势，退出强制机位时一并还原。
+        private static bool camHomeValid;
+        private static Vector3 camHomePos;
+        private static Quaternion camHomeRot;
+        private static bool camManual;
+        private static bool camDefaultApplied;
+        private static bool camSeatWarned;
+        private static int camDefaultFails;
+
+        private static bool ResolveCamera()
+        {
+            if (camTypeField != null && camStoryField != null) return true;
+            if (camMgrType == null)
+            {
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    camMgrType = asm.GetType("Bulbul.RoomCameraManager", false);
+                    if (camMgrType != null) break;
+                }
+                if (camMgrType == null) return false;
+            }
+            camTypeField = camMgrType.GetField("currentVirtualCameraType", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            camStoryField = camMgrType.GetField("isPlayingStory", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            return camTypeField != null && camStoryField != null;
+        }
+
+        private void RefreshCamera()
+        {
+            float now = Time.unscaledTime;
+            if (now < nextCamFind) return;
+            nextCamFind = now + 0.5f;
+            if (!ResolveCamera()) return;
+            try
+            {
+                if (camMgr == null) camMgr = UnityEngine.Object.FindObjectOfType(camMgrType);
+                if (camMgr == null) { camMode = ""; camStory = false; return; }
+                object v = camTypeField.GetValue(camMgr);
+                camMode = v == null ? "" : Convert.ToString(v);
+                object s = camStoryField.GetValue(camMgr);
+                camStory = (s is bool) && (bool)s;
+
+                // 默认机位：进场后定一次，之后不再管。
+                // 为什么是"一次"：这是开场视角的偏好。持续接管会和游戏自己的走动/剧情切镜打架，
+                // 而玩家手动点了别的机位也该算数——所以只在第一次解析到 manager 时做。
+                if (!camDefaultApplied)
+                {
+                    // 以前 camDefaultApplied 在 ChangeCameraTransform 之前置位，整块又被外层
+                    // catch { camMode=""; camStory=false; } 吞掉：反射失败一次就是"默认机位静默不生效、
+                    // 永不重试"，假值还进了心跳。现在只有真的切成功才置位。
+                    int seat = Plugin.CameraDefaultSeat == null ? 0 : Plugin.CameraDefaultSeat.Value;
+                    if (seat < 0) camDefaultApplied = true;
+                    else if (seat > 2)
+                    {
+                        if (!camSeatWarned) { camSeatWarned = true; Plugin.Log.LogWarning("camera: CameraDefaultSeat=" + seat + " 超出 0..2，忽略"); }
+                        camDefaultApplied = true;
+                    }
+                    else
+                    {
+                        var m0 = camMgrType.GetMethod("ChangeCameraTransform", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        if (m0 != null)
+                        {
+                            try
+                            {
+                                m0.Invoke(camMgr, new object[] { seat });
+                                camDefaultApplied = true;
+                                Plugin.Log.LogInfo("camera: 默认机位 seat=" + seat + " | " + MainCamPos());
+                            }
+                            catch (Exception e0)
+                            {
+                                if (camDefaultFails++ % 5 == 0) Plugin.Log.LogWarning("camera: 默认机位失败（会重试） " + e0.Message);
+                            }
+                        }
+                    }
+                }
+
+                // 没人强制机位、且 Cinemachine 手上没有活动 vcam —— 这就是游戏自己的静止姿势，记下来。
+                if (!camManual)
+                {
+                    var main = Camera.main;
+                    if (main != null)
+                    {
+                        string act = ActiveVcamName();
+                        if (act.IndexOf("无活动 vcam", StringComparison.Ordinal) >= 0)
+                        {
+                            camHomePos = main.transform.position;
+                            camHomeRot = main.transform.rotation;
+                            camHomeValid = true;
+                        }
+                    }
+                }
+            }
+            catch { camMode = ""; camStory = false; }
+        }
+
+        // —— 机位：给控制台点着看 ——
+        // 名字有两种，都认：
+        //   ① 15 台 vcam 的 VirtualCameraType 枚举名（Base / Desk / Window / StoryLandscape …）
+        //      交给游戏的 VirtualCameraSwitch，过渡由它的 Cinemachine 负责，比我们动 transform 好。
+        //   ② 五台隐藏摄像机的**字段名**（decorationCam / wallPaperLandscapeCam / storyLandscapeCam …）
+        //      它们不在 vcam 混合里，只靠 SetActive 开关，所以单独走 GameObject.SetActive。
+        //      注意真实字段名是 `_decorationCam` 这种短名，不是 _decorationCamera——实测找不到。
+        private static readonly string[] HiddenCams = {
+            "decorationCam", "decorationChairCam", "decorationDeskCam",
+            "wallPaperLandscapeCam", "storyLandscapeCam",
+        };
+
+        private void SwitchCamera(string want, bool on)
+        {
+            if (string.IsNullOrEmpty(want)) return;
+            if (!ResolveCamera()) { Plugin.Log.LogWarning("camera: 没找到 RoomCameraManager"); return; }
+            try
+            {
+                if (camMgr == null) camMgr = UnityEngine.Object.FindObjectOfType(camMgrType);
+                if (camMgr == null) { Plugin.Log.LogWarning("camera: manager 实例为空"); return; }
+                if (want == "?") { LogCameras(); return; }
+
+                // 游戏自己的三台固定机位：_camTransform[0..2]（椅 / 桌 / 沙发那一类）。
+                // 这才是日常切视角的正路——它由 RoomCameraManager 自己的 Animator 驱动，
+                // 不会像强开 vcam 那样把画面丢到空处。
+                if (want.StartsWith("seat:", StringComparison.OrdinalIgnoreCase))
+                {
+                    int idx;
+                    if (!int.TryParse(want.Substring(5), out idx)) { Plugin.Log.LogWarning("camera: seat 参数不对 " + want); return; }
+                    var m = camMgrType.GetMethod("ChangeCameraTransform", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (m == null) { Plugin.Log.LogWarning("camera: 没有 ChangeCameraTransform"); return; }
+                    string before = MainCamPos();
+                    m.Invoke(camMgr, new object[] { idx });
+                    camManual = true;
+                    // 记住这一帧的位姿，之后每帧续上（游戏下一帧就会把它拉回默认视角）。
+                    var seats = camMgrType.GetField("_camTransform", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    var seatArr = seats == null ? null : seats.GetValue(camMgr) as Array;
+                    if (seatArr != null && idx >= 0 && idx < seatArr.Length && seatArr.GetValue(idx) is Transform)
+                    {
+                        camSeatTr = (Transform)seatArr.GetValue(idx);
+                        camSeatPos = camSeatTr.position;
+                        camSeatRot = camSeatTr.rotation;
+                    }
+                    else
+                    {
+                        // 拿不到机位 Transform 就退一步：把刚才摆上去的位姿钉住。
+                        var main0 = Camera.main;
+                        if (main0 != null) { camSeatTr = main0.transform; camSeatPos = main0.transform.position; camSeatRot = main0.transform.rotation; }
+                    }
+                    Plugin.Log.LogInfo("camera: ChangeCameraTransform(" + idx + ") " + before + " -> " + MainCamPos() + "（已锁定）");
+                    return;
+                }
+
+                // "home"：不动 vcam，只把主相机摆回游戏自己的静止姿势。
+                if (string.Equals(want, "home", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!camHomeValid) { Plugin.Log.LogWarning("camera: 还没记下静止姿势"); return; }
+                    var main = Camera.main;
+                    if (main != null)
+                    {
+                        main.transform.position = camHomePos;
+                        main.transform.rotation = camHomeRot;
+                        Plugin.Log.LogInfo("camera: 回到静止姿势 " + MainCamPos());
+                    }
+                    camManual = false;
+                    camSeatTr = null;   // 解除每帧续位，把镜头还给游戏
+                    return;
+                }
+
+                // "all" / "off:all"：全部关掉，把机位还给游戏自己的逻辑。
+                // 面板上的「自动」走这条——这是从任何强制机位退出来的唯一保证。
+                if (string.Equals(want, "all", StringComparison.OrdinalIgnoreCase))
+                {
+                    var me = camMgr as Component;
+                    var rt = me == null ? null : me.transform.Find("Cameras/VirtualCameras");
+                    int n = 0;
+                    if (rt != null)
+                        for (int i = 0; i < rt.childCount; i++)
+                        {
+                            if (!rt.GetChild(i).gameObject.activeSelf && !on) continue;
+                            rt.GetChild(i).gameObject.SetActive(on);
+                            n++;
+                        }
+                    camManual = false;
+                    camSeatTr = null;   // 解除每帧续位，把镜头还给游戏
+                    // 关掉之后必须把主相机拎回去。
+                    // Cinemachine 在没有活动 vcam 时把相机停在最后一次混合到的位置——只关 vcam 不还原姿势，
+                    // 画面就永远卡在那台机位上看墙。玩家看到的就是"啥也看不到"。
+                    if (!on && camHomeValid)
+                    {
+                        var main = Camera.main;
+                        if (main != null)
+                        {
+                            main.transform.position = camHomePos;
+                            main.transform.rotation = camHomeRot;
+                            Plugin.Log.LogInfo("camera: 主相机归位 pos=" + camHomePos.ToString("F2"));
+                        }
+                    }
+                    Plugin.Log.LogInfo("camera: 全部 vcam " + (on ? "打开" : "关闭") + " (" + n + " 台) | " + ActiveVcamName());
+                    return;
+                }
+
+                string hit = null;
+                for (int i = 0; i < HiddenCams.Length; i++)
+                    if (string.Equals(HiddenCams[i], want, StringComparison.OrdinalIgnoreCase)) { hit = HiddenCams[i]; break; }
+
+                if (hit != null)
+                {
+                    string field = "_" + hit;
+                    var f = camMgrType.GetField(field, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    var go = f == null ? null : f.GetValue(camMgr) as GameObject;
+                    if (go == null) { Plugin.Log.LogWarning("camera: 找不到 " + field); return; }
+                    go.SetActive(on);
+                    Plugin.Log.LogInfo("camera: " + hit + (on ? " 开" : " 关") + " -> active=" + go.activeSelf);
+                    return;
+                }
+
+                var sw = camMgrType.GetMethod("VirtualCameraSwitch", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (sw == null) { Plugin.Log.LogWarning("camera: 没有 VirtualCameraSwitch"); return; }
+                object val;
+                try { val = Enum.Parse(sw.GetParameters()[0].ParameterType, want, true); }
+                catch { Plugin.Log.LogWarning("camera: 不是机位名 " + want); return; }
+
+                // 先叫游戏切（它自己知道该混多久、该不该写 currentVirtualCameraType）
+                try { sw.Invoke(camMgr, new object[] { val }); }
+                catch (Exception e) { Plugin.Log.LogWarning("camera: VirtualCameraSwitch 抛错 " + e.Message); }
+
+                // 再兜一手：实测 15 台 vcam 平时全是 off、currentCam 为空，此时 VirtualCameraSwitch
+                // 什么都不做（没有活动 vcam 可混）。直接把目标那台打开，Cinemachine 会自己接上。
+                var self = camMgr as Component;
+                var root = self == null ? null : self.transform.Find("Cameras/VirtualCameras");
+                if (root != null)
+                {
+                    Transform target = null;
+                    string want2 = want + "Camera";
+                    for (int i = 0; i < root.childCount; i++)
+                    {
+                        var c = root.GetChild(i);
+                        if (string.Equals(c.name, want2, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(c.name, want, StringComparison.OrdinalIgnoreCase)) { target = c; break; }
+                    }
+                    if (target == null) Plugin.Log.LogWarning("camera: 没有名为 " + want2 + " 的 vcam");
+                    else
+                    {
+                        // 独占：先关掉其它所有 vcam 再开这台。
+                        // 不这么做的话，游戏自己切活动时会把它的目标也打开，两台同时 active，
+                        // Cinemachine 按优先级挑一台——你看的是哪台就变成了运气。
+                        for (int i = 0; i < root.childCount; i++)
+                        {
+                            var c = root.GetChild(i);
+                            if (c != target && c.gameObject.activeSelf) c.gameObject.SetActive(false);
+                        }
+                        target.gameObject.SetActive(on);
+                        camManual = on;
+                        Plugin.Log.LogInfo("camera: vcam " + target.name + (on ? " 开（独占）" : " 关") +
+                            " -> active=" + target.gameObject.activeSelf + " | " + ActiveVcamName() +
+                            " pos=" + (Camera.main != null ? Camera.main.transform.position.ToString("F2") : "?"));
+                    }
+                }
+                else Plugin.Log.LogWarning("camera: 找不到 Cameras/VirtualCameras");
+
+                Plugin.Log.LogInfo("camera: 切到 " + want);
+            }
+            catch (Exception e) { Plugin.Log.LogWarning("camera: " + e.Message); }
+        }
+
+        /// <summary>Cinemachine 此刻真正在用的那台虚拟相机。这是"视角到底有没有换"的唯一硬证据。</summary>
+        private static string ActiveVcamName()
+        {
+            try
+            {
+                var main = Camera.main;
+                if (main == null) return "brain=(无 MainCamera)";
+                var comps = main.GetComponents<Component>();
+                for (int i = 0; i < comps.Length; i++)
+                {
+                    var c = comps[i];
+                    if (c == null || c.GetType().Name != "CinemachineBrain") continue;
+                    var p = c.GetType().GetProperty("ActiveVirtualCamera");
+                    var v = p == null ? null : p.GetValue(c, null);
+                    if (v == null) return "brain=(无活动 vcam)";
+                    var nf = v.GetType().GetProperty("Name");
+                    return "brain=" + (nf == null ? v.GetType().Name : Convert.ToString(nf.GetValue(v, null)));
+                }
+                return "brain=(MainCamera 上没有 CinemachineBrain)";
+            }
+            catch (Exception e) { return "brain=(" + e.Message + ")"; }
+        }
+
+        /// <summary>主相机此刻的位姿，一行字。排查"切了没变/画面空"全靠它。</summary>
+        private static string MainCamPos()
+        {
+            var c = Camera.main;
+            if (c == null) return "cam=(无)";
+            var p = c.transform.position;
+            var f = c.transform.forward;
+            return "cam=(" + p.x.ToString("F2") + "," + p.y.ToString("F2") + "," + p.z.ToString("F2") + ") 朝向=(" +
+                   f.x.ToString("F2") + "," + f.y.ToString("F2") + "," + f.z.ToString("F2") + ")";
+        }
+
+        /// <summary>把机位现场摊开打日志：当前是哪台、15 台 vcam 的开关、5 台隐藏相机的 active/enabled/depth。</summary>
+        private void LogCameras()
+        {
+            try
+            {
+                var curF = camMgrType.GetField("currentCam", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var prvF = camMgrType.GetField("prevCam", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var cur = curF == null ? null : curF.GetValue(camMgr) as Component;
+                var prv = prvF == null ? null : prvF.GetValue(camMgr) as Component;
+                Plugin.Log.LogInfo("camera 一览: current=" + camMode + " story=" + camStory +
+                    " currentCam=" + (cur == null ? "(空)" : cur.name) +
+                    " prevCam=" + (prv == null ? "(空)" : prv.name) + " | " + ActiveVcamName() + " | " + MainCamPos());
+
+                // 三台固定机位：位姿 + 跟前 6 米有没有东西。画面空不空看这个就知道。
+                var tf = camMgrType.GetField("_camTransform", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                var arr = tf == null ? null : tf.GetValue(camMgr) as Array;
+                if (arr != null)
+                {
+                    for (int i = 0; i < arr.Length; i++)
+                    {
+                        var tr = arr.GetValue(i) as Transform;
+                        if (tr == null) { Plugin.Log.LogInfo("camera seat[" + i + "] = (空)"); continue; }
+                        var fw = tr.forward;
+                        Plugin.Log.LogInfo("camera seat[" + i + "] " + tr.name + " pos=(" +
+                            tr.position.x.ToString("F2") + "," + tr.position.y.ToString("F2") + "," + tr.position.z.ToString("F2") +
+                            ") 朝向=(" + fw.x.ToString("F2") + "," + fw.y.ToString("F2") + "," + fw.z.ToString("F2") + ")");
+                    }
+                }
+
+                var self = camMgr as Component;
+                var root = self == null ? null : self.transform.Find("Cameras/VirtualCameras");
+                if (root != null)
+                {
+                    var sb = new System.Text.StringBuilder("camera vcams:");
+                    for (int i = 0; i < root.childCount; i++)
+                        sb.Append(' ').Append(root.GetChild(i).name)
+                          .Append(root.GetChild(i).gameObject.activeSelf ? "=on" : "=off");
+                    Plugin.Log.LogInfo(sb.ToString());
+                }
+
+                for (int i = 0; i < HiddenCams.Length; i++)
+                {
+                    var f = camMgrType.GetField("_" + HiddenCams[i], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    var go = f == null ? null : f.GetValue(camMgr) as GameObject;
+                    if (go == null) { Plugin.Log.LogInfo("camera 隐藏: " + HiddenCams[i] + " = (无此字段)"); continue; }
+                    var cam = go.GetComponent<Camera>();
+                    Plugin.Log.LogInfo("camera 隐藏: " + HiddenCams[i] + " active=" + go.activeSelf +
+                        " cam=" + (cam == null ? "(无 Camera 组件)" : ("enabled=" + cam.enabled + " depth=" + cam.depth)));
+                }
+            }
+            catch (Exception e) { Plugin.Log.LogWarning("camera: " + e.Message); }
+        }
+        private string MonitorLabel()
+        {
+            string hs = AiStateName();
+            return (hs == null ? "" : hs) + " focus=" + (GameBusy.FocusMode ? "1" : "0") +
+                   (GameBusy.IsHard ? " 剧情中" : "") + " @" + (GameBusy.SceneName == null ? "" : GameBusy.SceneName);
+        }
+
+        /// <summary>低频监测 + 切换即报。
+        /// 每秒只做一次字段比对（纯本地读，不发请求）；只有**变了**那一刻才 POST，
+        /// 或者到了 HeartbeatMs 该发一次存活性心跳。玩家的切换（开始专注 / 她切状态 /
+        /// 场景加载）都落在"变了"这一支上，所以是切换驱动，不是轮询上报。</summary>
         private IEnumerator HeartbeatLoop()
         {
+            float lastPush = 0f;
             while (true)
             {
-                int wait = Plugin.HeartbeatMs == null ? 2000 : Mathf.Clamp(Plugin.HeartbeatMs.Value, 500, 30000);
-                yield return new WaitForSecondsRealtime(wait / 1000f);
+                yield return new WaitForSecondsRealtime(1.0f);
                 if (Plugin.Heartbeat != null && !Plugin.Heartbeat.Value) continue;
+                int every = Plugin.HeartbeatMs == null ? 2000 : Mathf.Clamp(Plugin.HeartbeatMs.Value, 500, 30000);
+                float nowSec = Time.realtimeSinceStartup;
+                string label = MonitorLabel();
+                string sig = MonitorSignature();
+                bool changed = sig != monitorSig || monitorDirty;
+                bool due = (nowSec - lastPush) * 1000f >= every;
+                if (!changed && !due) continue;
+                // 同一个切换可能连着触发两次（场景 + 状态），250ms 内合并成一次。
+                if (changed && (nowSec - lastPush) * 1000f < 250f) continue;
+                monitorDirty = false;
+                if (changed && monitorSig.Length > 0)
+                    Plugin.Log.LogInfo("monitor: " + monitorLabel + " -> " + label);
+                monitorSig = sig;
+                monitorLabel = label;
+                if (changed) monitorSeq++;
+                lastPush = nowSec;
                 string url = BaseUrl + "/game";
                 string body = BuildStateJson();
-                var req = new UnityWebRequest(url, "POST");
-                req.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(body));
-                req.downloadHandler = new DownloadHandlerBuffer();
-                req.SetRequestHeader("Content-Type", "application/json");
-                if (!string.IsNullOrEmpty(Plugin.ApiToken.Value))
-                    req.SetRequestHeader("Authorization", "Bearer " + Plugin.ApiToken.Value);
-                req.timeout = 6;
-                yield return req.SendWebRequest();
-                if (req.isNetworkError || req.isHttpError)
+                // using：SendWebRequest 抛异常时（换场景销毁连接、域名解析失败）以前 req 连同
+                // 两个 handler 与 native 句柄一起漏，每 2 秒一个。
+                string hbError = "";
+                bool hbOk = false;
+                using (var req = new UnityWebRequest(url, "POST"))
                 {
-                    heartbeatOk = false;
-                    if (heartbeatFails++ % 15 == 0) Plugin.Log.LogWarning("heartbeat: " + req.error);
+                    req.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(body));
+                    req.downloadHandler = new DownloadHandlerBuffer();
+                    req.SetRequestHeader("Content-Type", "application/json");
+                    if (!string.IsNullOrEmpty(Plugin.ApiToken.Value))
+                        req.SetRequestHeader("Authorization", "Bearer " + Plugin.ApiToken.Value);
+                    req.timeout = 6;
+                    yield return req.SendWebRequest();
+                    if (req.isNetworkError || req.isHttpError)
+                    {
+                        hbOk = false;
+                        if (heartbeatFails++ % 15 == 0) Plugin.Log.LogWarning("heartbeat: " + req.error);
+                    }
+                    else { heartbeatFails = 0; hbOk = true; }
+                    // 先取错误再 Dispose：Dispose 之后 req.error 读不稳
+                    if (req.isNetworkError || req.isHttpError) hbError = req.error;
                 }
-                else { heartbeatFails = 0; heartbeatOk = true; }
-                // 先取错误再 Dispose：Dispose 之后 req.error 读不稳
-                string hbError = (req.isNetworkError || req.isHttpError) ? req.error : "";
-                req.Dispose();
+                heartbeatOk = hbOk;
                 if (!heartbeatOk) lastError = "heartbeat: " + (string.IsNullOrEmpty(hbError) ? "failed" : hbError);
             }
         }
@@ -863,21 +1405,73 @@ if (Time.unscaledTime < nextAt) return;
             dto.voice.audioUrl = audio;
             dto.voice.lang = "ja";
 
-            // 口型：扁平数组 [a,i,u,e,o,n] × N 帧
+            // 口型：扁平数组，每帧 mouthChannels.Length 个数
             var flat = JsonLite.AsList(JsonLite.Get(root, "mouthFlat"));
             dto.mouthFlat = new List<double>();
             if (flat != null)
                 for (int i = 0; i < flat.Count; i++) dto.mouthFlat.Add(JsonLite.Num(flat[i]));
+            dto.mouthChannels = new List<string>();
+            var chans = JsonLite.AsList(JsonLite.Get(root, "mouthChannels"));
+            if (chans != null)
+                for (int i = 0; i < chans.Count; i++)
+                {
+                    string c = JsonLite.Str(chans[i]);
+                    if (!string.IsNullOrEmpty(c)) dto.mouthChannels.Add(c);
+                }
             dto.mouthFps = JsonLite.Int(JsonLite.Get(root, "mouthFps"));
-            dto.mouthFrames = dto.mouthFlat.Count / 6;
+            dto.mouthFrames = dto.mouthChannels.Count > 0
+                ? dto.mouthFlat.Count / dto.mouthChannels.Count
+                : dto.mouthFlat.Count / 6;
             var scopeRaw = JsonLite.Get(root, "motionScope");
             dto.motionScope = scopeRaw == null ? "full" : JsonLite.Str(scopeRaw);
             var durRaw = JsonLite.Get(root, "durationMs");
             dto.durationMs = durRaw == null ? 0.0 : JsonLite.Num(durRaw);
 
             var cues = new List<CueDto>();
+            // 首选通道：cuesJson —— 一条字符串数组，每项是 cue 的 JSON 文本。
+            //
+            // 为什么是字符串而不是对象数组：JsonUtility 对「对象数组」解析不可靠，
+            // 但对 string[] 没问题。而 cue 一多，平行数组就要维护 N 条
+            // （slots/ids/ats/durations/holds/nativeNames/nativeSubs/nativeAlsos/
+            //   stateNames/facials），加一个字段要同步五处，漏一处就是静默失效。
+            // 走这里之后：加字段 = CueDto 加一行 + 下面加一行读取，两处。
+            //
+            // 老的平行数组保留在下面做兜底，老版本 DLL 不受影响。
+            var packed = JsonLite.AsList(JsonLite.Get(root, "cuesJson"));
+            if (packed != null && packed.Count > 0)
+            {
+                for (int k = 0; k < packed.Count; k++)
+                {
+                    var cue = new CueDto();
+                    string one = JsonLite.Str(packed[k]);
+                    if (!string.IsNullOrEmpty(one))
+                    {
+                        var cd = JsonLite.AsDict(JsonLite.Parse(one));
+                        if (cd != null)
+                        {
+                            cue.slot = JsonLite.Str(JsonLite.Get(cd, "slot"));
+                            cue.id = JsonLite.Str(JsonLite.Get(cd, "id"));
+                            cue.at = JsonLite.Int(JsonLite.Get(cd, "at"));
+                            cue.durationMs = JsonLite.Int(JsonLite.Get(cd, "durationMs"));
+                            cue.holdMs = JsonLite.Int(JsonLite.Get(cd, "holdMs"));
+                            cue.nativeName = JsonLite.Str(JsonLite.Get(cd, "nativeName"));
+                            cue.nativeId = JsonLite.Int(JsonLite.Get(cd, "nativeId"));
+                            cue.nativeSub = JsonLite.Str(JsonLite.Get(cd, "nativeSub"));
+                            cue.nativeAlso = JsonLite.Str(JsonLite.Get(cd, "nativeAlso"));
+                            cue.stateName = JsonLite.Str(JsonLite.Get(cd, "stateName"));
+                            cue.facial = JsonLite.Str(JsonLite.Get(cd, "facial"));
+                        }
+                    }
+                    cues.Add(cue);
+                }
+                if (Plugin.VerboseCues.Value && cues.Count > 0)
+                    Plugin.Log.LogInfo("cues: 走 cuesJson，共 " + cues.Count + " 条");
+            }
             var perf = JsonLite.AsList(JsonLite.Get(root, "performance"));
-            if (perf != null)
+            // cuesJson 已经解析出东西就**不要再解析 performance**：那两个是同一批 cue 的两种形态。
+            // 以前两段都跑，等于每句话的每个动作演两遍（日志里 `cues=2` 而 slots 只有 1，
+            // 同一条 cue 的 `cue in` 打两次就是这么来的）。
+            if (perf != null && cues.Count == 0)
             {
                 foreach (var o in perf)
                 {
@@ -893,30 +1487,19 @@ if (Time.unscaledTime < nextAt) return;
                     // 线上字段名是 durationMs（cue.log 里缩写成 d 只是日志格式）
                     cue.durationMs = JsonLite.Int(JsonLite.Get(d, "durationMs"));
                     cue.holdMs = JsonLite.Int(JsonLite.Get(d, "holdMs"));
+                    // 原生路径标记。这里要是漏了，brain 那边写了也白写——
+                    // 手写解析器不会自己认识新字段，表现就是"改了半天没反应"。
+                    cue.nativeName = JsonLite.Str(JsonLite.Get(d, "nativeName"));
+                    cue.nativeId = JsonLite.Int(JsonLite.Get(d, "nativeId"));
+                    cue.nativeSub = JsonLite.Str(JsonLite.Get(d, "nativeSub"));
+                    cue.nativeAlso = JsonLite.Str(JsonLite.Get(d, "nativeAlso"));
+                    cue.stateName = JsonLite.Str(JsonLite.Get(d, "stateName"));
+                    cue.facial = JsonLite.Str(JsonLite.Get(d, "facial"));
                     cues.Add(cue);
                 }
             }
-            if (cues.Count == 0)
-            {
-                var ids = JsonLite.AsList(JsonLite.Get(root, "ids"));
-                var slots = JsonLite.AsList(JsonLite.Get(root, "slots"));
-                var ats = JsonLite.AsList(JsonLite.Get(root, "ats"));
-                if (ids != null)
-                {
-                    for (int k = 0; k < ids.Count; k++)
-                    {
-                        var cue = new CueDto();
-                        cue.id = JsonLite.Str(ids[k]);
-                        cue.slot = (slots != null && k < slots.Count) ? JsonLite.Str(slots[k]) : "animations";
-                        cue.at = (ats != null && k < ats.Count) ? JsonLite.Int(ats[k]) : 0;
-                        var durs = JsonLite.AsList(JsonLite.Get(root, "durations"));
-                        cue.durationMs = (durs != null && k < durs.Count) ? JsonLite.Int(durs[k]) : 0;
-                        var holds = JsonLite.AsList(JsonLite.Get(root, "holds"));
-                        cue.holdMs = (holds != null && k < holds.Count) ? JsonLite.Int(holds[k]) : 0;
-                        cues.Add(cue);
-                    }
-                }
-            }
+            if (cues.Count == 0 && Plugin.VerboseCues.Value)
+                Plugin.Log.LogInfo("cues: 这一条既没有 cuesJson 也没有 performance，按空处理");
             dto.performance = cues.ToArray();
             // 条目级 TTL：离座长途预排的「回来」那一条要在队里等几分钟，
             // 全局 queue.TtlMs（45s）会把它当过期丢掉。
@@ -958,6 +1541,10 @@ if (Time.unscaledTime < nextAt) return;
             int bestCount = -1;
             clipOwners.Clear();
             clipNames.Clear();
+            // 这里以前只清 clipOwners/clipNames，clipExtraOwners 一轮轮攒下去：
+            // 每次重新发现（换场景、重进剧情）都会把同一个 Animator 重新记一遍，
+            // 而它按 clip 名索引，clip 名上百个——字典里留着已经销毁的旧 Animator。
+            clipExtraOwners.Clear();
             var all = Resources.FindObjectsOfTypeAll<Animator>();
             int scanned = 0;
             foreach (var a in all)
@@ -1005,8 +1592,79 @@ if (Time.unscaledTime < nextAt) return;
             yield return null;
         }
         // 口型驱动：每帧按音频播放时间在扁平帧上插值，写回六个母音 blendshape
+        // 手动机位要每帧续上。
+        //
+        // ChangeCameraTransform 只摆一下——游戏自己的相机逻辑（Animator / 活动切换）下一帧
+        // 就把主相机拉回去，实测 <1 秒复位成书桌。所以手动锁定期间每帧覆盖一次位姿，
+        // 放在 LateUpdate 里最后一个动作的位置，赢了这一帧就算数。
+        private static Transform camSeatTr;
+        private static Vector3 camSeatPos;
+        private static Quaternion camSeatRot;
+
+        private void ApplyCameraOverride()
+        {
+            if (!camManual || camSeatTr == null) return;
+            if (camStory) return;                       // 剧情里让位给游戏自己的镜头
+            var main = Camera.main;
+            if (main == null) return;
+            var t = main.transform;
+            if (t.position != camSeatPos) t.position = camSeatPos;
+            if (t.rotation != camSeatRot) t.rotation = camSeatRot;
+            if (!camLockLogged) { camLockLogged = true; Plugin.Log.LogInfo("camera: 锁定生效 " + MainCamPos()); }
+        }
+
+        // LateUpdate 的先后顺序不由我们定：游戏自己的相机逻辑很可能排在我们后面，
+        // 每帧把我们写的位姿又覆盖掉（实测切完一秒内就复位）。onPreCull 在所有
+        // LateUpdate 之后、渲染之前回调，这里写的位置才是这一帧真正用到的位置。
+        private void CameraPreCull(Camera c)
+        {
+            if (c == null) return;
+            if (camManual && camSeatTr != null && c == Camera.main) ApplyCameraOverride();
+        }
+
+        private static bool camLockLogged;
+
+        private void OnEnable()
+        {
+            // 手动机位：渲染前最后一次写入机会（见 CameraPreCull 的说明）。
+            Camera.onPreCull += CameraPreCull;
+        }
+
+        private void OnDisable()
+        {
+            Camera.onPreCull -= CameraPreCull;
+        }
+
         private void LateUpdate()
         {
+            // 口型先走：原生路径接管的是 L0 骨骼，脸不在它的管辖范围内。
+            // 她说着话同时打哈欠的时候，嘴必须还在动。
+            UpdateMouth();
+            // 手动机位：每帧续一次，并放在最前面（后面有几条早退路径，
+            // 放末尾会被 return 跳过，机位就又会被游戏拉回去）。
+            ApplyCameraOverride();
+            // 姿势追踪必须放在 nativeBusy 之前：要抓的"归位抽动"正好发生在
+            // nativeBusy 从 true 翻回 false 的那几帧里，放后面就正好看不见。
+            TraceTick();
+            // 原生路径接管期间，采样层完全不碰骨骼：两条路同时写同一个 Layer 会打架
+            // （实测骨骼由我们 LateUpdate 覆盖，而游戏状态机以为自己在演别的动作）。
+            if (nativeBusy) { ApplyCameraOverride(); return; }
+            // 软着陆：游戏刚把动作交回来时会用一两帧 CrossFade 回待机，那一下是"啪"。
+            // 这里把上一帧的姿势和游戏这一帧写的值再做一次 Slerp，等于把整个过程摊到 200ms。
+            // 只接管移动量、不改终值：k 到 1 时就是游戏自己的姿势，之后彻底撒手。
+            if (nativeExitUntil > 0f)
+            {
+                if (Time.unscaledTime >= nativeExitUntil) nativeExitUntil = 0f;
+                else if (bones != null && nativeExitRot != null && !clipActive)
+                {
+                    float k = Mathf.Clamp01(1f - (nativeExitUntil - Time.unscaledTime) / NativeExitBlend);
+                    for (int i = 0; i < bones.Length && i < nativeExitRot.Length; i++)
+                    {
+                        if (bones[i] == null) continue;
+                        bones[i].localRotation = Quaternion.Slerp(nativeExitRot[i], bones[i].localRotation, k);
+                    }
+                }
+            }
             if (clipActive && activeClip != null && clipTarget != null)
             {
                 float ct = Time.time - clipT0;
@@ -1070,6 +1728,16 @@ if (Time.unscaledTime < nextAt) return;
                     catch (Exception e) { clipActive = false; ReleaseBaseGameCache(); Plugin.Log.LogWarning("sample failed: " + e.Message); }
                 }
             }
+        }
+
+        // 口型：每帧按音频播放时间在扁平帧上插值，写回六个母音 blendshape。
+        //
+        // 这一块必须跑在 nativeBusy 之前。她说话的时候经常同时在做一个原生动作
+        // （打哈欠、点头、伸懒腰），那时候 L0 骨骼归游戏状态机管，但脸不归它管——
+        // 嘴该照动。原来它排在 LateUpdate 最后，被 `if (nativeBusy) return` 一刀切掉，
+        // 表现就是"原生动作一播，嘴就不动了"。
+        private void UpdateMouth()
+        {
             if (faceSmr == null || mouthIdx[0] < 0) return;
             if (Plugin.LipsyncEnabled != null && !Plugin.LipsyncEnabled.Value) { if (mouthActive) ClearMouth(); return; }
             if (!mouthActive) return;
@@ -1084,10 +1752,11 @@ if (Time.unscaledTime < nextAt) return;
             float fadeOut = Mathf.Clamp01((mouthDur + 0.08f - t) / 0.1f);
             float gain = Plugin.LipsyncGain == null ? 1f : Plugin.LipsyncGain.Value;
             float env = Mathf.Min(fadeIn, fadeOut) * gain;
-            for (int c = 0; c < 6; c++)
+            int chN = mouthChannels.Length;
+            for (int c = 0; c < chN; c++)
             {
                 if (mouthIdx[c] < 0) continue;
-                float v = Mathf.Lerp(mouthW[i0 * 6 + c], mouthW[i1 * 6 + c], k) * env;
+                float v = Mathf.Lerp(mouthW[i0 * chN + c], mouthW[i1 * chN + c], k) * env;
                 faceSmr.SetBlendShapeWeight(mouthIdx[c], Mathf.Clamp01(v) * 100f);
             }
         }
@@ -1095,7 +1764,7 @@ if (Time.unscaledTime < nextAt) return;
         private void ClearMouth()
         {
             if (faceSmr == null) return;
-            for (int c = 0; c < 6; c++)
+            for (int c = 0; c < mouthIdx.Length; c++)
                 if (mouthIdx[c] >= 0) faceSmr.SetBlendShapeWeight(mouthIdx[c], 0f);
         }
 
@@ -1103,58 +1772,127 @@ if (Time.unscaledTime < nextAt) return;
         {
             mouthActive = false;
             mouthT0 = -1f;
-            if (dto == null || dto.mouthFlat == null || dto.mouthFlat.Count < 12) { mouthW = new float[0]; mouthCount = 0; return; }
+            mouthChannels = dto != null && dto.mouthChannels != null && dto.mouthChannels.Count > 0
+                ? dto.mouthChannels.ToArray()
+                : DefaultMouthChannels;
+            mouthIdx = new int[mouthChannels.Length];
+            for (int c = 0; c < mouthIdx.Length; c++) mouthIdx[c] = -1;
+            // 先绑脸再判数据：口型数据有没有（TTS 挂掉时没有）和"脸的 blendshape 好不好绑"
+            // 是两件事，混在一起会让绑定的失败也被一并藏起来。
+            if (faceSmr == null || mouthIdx.Length == 0 || mouthIdx[0] < 0) FindFace();
+            if (dto == null || dto.mouthFlat == null || dto.mouthFlat.Count < mouthChannels.Length * 2) { mouthW = new float[0]; mouthCount = 0; return; }
             mouthW = new float[dto.mouthFlat.Count];
             for (int i = 0; i < mouthW.Length; i++) mouthW[i] = (float)dto.mouthFlat[i];
-            mouthCount = dto.mouthFlat.Count / 6;
+            mouthCount = dto.mouthFlat.Count / mouthChannels.Length;
             mouthFps = dto.mouthFps > 0 ? dto.mouthFps : 30;
         }
 
-        // 找到脸：Face 网格上有 Mouth_a/i/u/e/o/n 六个 blendshape
+        private static readonly string[] DefaultMouthChannels = new string[] { "a", "i", "u", "e", "o", "n" };
+
+        // 判断某个 blendshape 名是不是"母音 ch"，不写死整串名字。
+        //
+        // 只认结尾：字母本身，且前一个字符是分隔符。这样
+        //   mouth_a / Mouth_A / vowel_a / v.a / A            → 命中
+        //   Mouth_narrow / Mouth_wide / Mouth_smile          → 不命中
+        // 最后一条很关键：Mouth_wide 以 'e' 结尾，天真的"以字母结尾"会把 e 认错。
+        private static bool IsChannelShape(string lowName, string ch)
+        {
+            if (string.IsNullOrEmpty(lowName) || string.IsNullOrEmpty(ch)) return false;
+            if (ch.Length != 1) return lowName.EndsWith(ch, StringComparison.Ordinal);
+            if (lowName[lowName.Length - 1] != ch[0]) return false;
+            if (lowName.Length == 1) return true;
+            char prev = lowName[lowName.Length - 2];
+            return prev == '_' || prev == '.' || prev == '-' || prev == ' ';
+        }
+
+        private static bool NameLooksLikeFace(SkinnedMeshRenderer s)
+        {
+            string n = (s.name ?? "").ToLowerInvariant();
+            string m = s.sharedMesh != null ? (s.sharedMesh.name ?? "").ToLowerInvariant() : "";
+            return n.IndexOf("face") >= 0 || m.IndexOf("face") >= 0;
+        }
+
+        // 找脸：判据是"这个网格上能对上几个母音通道"，不是"它叫不叫 Face"。
+        // 名字只用来在匹配数相同时排序，这样网格改名不会让口型直接失效。
         private void FindFace()
         {
             var smrs = Resources.FindObjectsOfTypeAll<SkinnedMeshRenderer>();
+            SkinnedMeshRenderer best = null;
+            int bestHit = 0;
+            bool bestNamed = false;
             foreach (var smr in smrs)
             {
                 if (smr == null || smr.sharedMesh == null) continue;
-                if (smr.sharedMesh.name != "Face" && smr.name != "Face") continue;
                 int n = smr.sharedMesh.blendShapeCount;
-                if (n < 6) continue;
-                faceSmr = smr;
-                var found = new StringBuilder();
-                for (int i = 0; i < n; i++)
+                if (n < mouthChannels.Length) continue;
+                int hit = 0;
+                for (int c = 0; c < mouthChannels.Length; c++)
                 {
-                    string nm = smr.sharedMesh.GetBlendShapeName(i);
-                    string low = nm.ToLowerInvariant();
-                    for (int c = 0; c < 6; c++)
+                    for (int i = 0; i < n; i++)
                     {
-                        if (mouthIdx[c] >= 0) continue;
-                        if (low.EndsWith(MOUTH_KEYS[c])) { mouthIdx[c] = i; found.Append(MOUTH_KEYS[c]).Append('=').Append(i).Append(' '); }
+                        if (IsChannelShape(smr.sharedMesh.GetBlendShapeName(i).ToLowerInvariant(), mouthChannels[c])) { hit++; break; }
                     }
                 }
-                Plugin.Log.LogInfo("face bound: " + smr.transform.parent.name + "/" + smr.name + " shapes=" + n + " mouth[" + found + "]");
+                bool named = NameLooksLikeFace(smr);
+                // 命中数优先；并列时"名字像脸"的优先；再并列就保持先找到的
+                if (hit > bestHit || (hit == bestHit && hit > 0 && named && !bestNamed))
+                {
+                    best = smr; bestHit = hit; bestNamed = named;
+                }
+            }
+            if (best == null)
+            {
+                faceSmr = null;
+                Plugin.Log.LogWarning("face not found (no skinned mesh with mouth blendshapes for channels " + string.Join(",", mouthChannels) + ")");
                 return;
             }
-            Plugin.Log.LogWarning("face not found (no Face skinned mesh)");
+            faceSmr = best;
+            var mesh = best.sharedMesh;
+            int total = mesh.blendShapeCount;
+            var found = new StringBuilder();
+            for (int c = 0; c < mouthChannels.Length; c++)
+            {
+                mouthIdx[c] = -1;
+                for (int i = 0; i < total; i++)
+                {
+                    if (IsChannelShape(mesh.GetBlendShapeName(i).ToLowerInvariant(), mouthChannels[c])) { mouthIdx[c] = i; break; }
+                }
+                found.Append(mouthChannels[c]).Append('=').Append(mouthIdx[c]).Append(' ');
+            }
+            Plugin.Log.LogInfo("face bound: " + best.transform.parent.name + "/" + best.name + " shapes=" + total
+                + " hit=" + bestHit + "/" + mouthChannels.Length + " mouth[" + found + "]");
+            // 绑不全要喊出来。以前这里只打 Info，嘴不动也不报错，
+            // 和"语音引擎没装自动降级"长得一样，很难查。
+            if (bestHit < mouthChannels.Length)
+            {
+                var names = new StringBuilder();
+                int show = Mathf.Min(total, 24);
+                for (int i = 0; i < show; i++) names.Append(mesh.GetBlendShapeName(i)).Append(i == show - 1 ? "" : " | ");
+                Plugin.Log.LogWarning("mouth bind incomplete " + bestHit + "/" + mouthChannels.Length
+                    + " on " + best.name + "; shapes=" + total + " [" + names + "]");
+            }
         }
 
-        // 自检：合成五个母音轮流张一下嘴，配合 AutoShoot 截图确认 blendshape 真的在动
+        // 自检：合成五个母音轮流张一下嘴，配合 AutoShot 截图确认 blendshape 真的在动
         private IEnumerator TestSweep()
         {
             yield return new WaitForSecondsRealtime(2.5f);
             int n = 90;
+            int chN = mouthChannels.Length > 0 ? mouthChannels.Length : DefaultMouthChannels.Length;
+            if (mouthChannels.Length == 0) mouthChannels = DefaultMouthChannels;
+            if (mouthIdx.Length != chN) { mouthIdx = new int[chN]; for (int c = 0; c < chN; c++) mouthIdx[c] = -1; FindFace(); }
             mouthCount = n;
             mouthFps = 30;
-            mouthW = new float[n * 6];
+            mouthW = new float[n * chN];
             for (int i = 0; i < n; i++)
             {
-                int c = (i / 12) % 5;
-                mouthW[i * 6 + c] = 1f;
+                int c = (i / 12) % chN;
+                mouthW[i * chN + c] = 1f;
             }
             mouthDur = n / 30f;
             mouthT0 = Time.time;
-            mouthActive = mouthIdx[0] >= 0;
-            Plugin.Log.LogInfo("test sweep: frames=" + mouthCount + " dur=" + mouthDur.ToString("F2") + " active=" + mouthActive);
+            mouthActive = mouthIdx.Length > 0 && mouthIdx[0] >= 0;
+            Plugin.Log.LogInfo("test sweep: frames=" + mouthCount + " ch=" + chN + " dur=" + mouthDur.ToString("F2") + " active=" + mouthActive);
             if (mouthActive) StartCoroutine(AutoShoot(mouthDur));
         }
 
@@ -1173,6 +1911,10 @@ if (Time.unscaledTime < nextAt) return;
         {
             Plugin.WatchTick();
             GameBusy.Tick();
+            ReflectConsole.Host = this;
+            ReflectConsole.Tick(Plugin.Log);
+                GameVoiceGate.Tick();
+                TryFlushTrip();
             // 换场景后旧的 heroine / Animator / SkinnedMesh 全部失效，不重建就会永久静默
             string sc = GameBusy.SceneName;
             if (!string.IsNullOrEmpty(sc) && sc != lastSceneBound)
@@ -1273,6 +2015,7 @@ if (Time.unscaledTime < nextAt) return;
             Plugin.Log.LogInfo("motion scope: " + (upperOnly ? "upper (head/neck only)" : "full") + " dto=" + dto.motionScope + " focus=" + GameBusy.FocusMode);
             BindMouth(dto);
             var cues = dto.performance ?? new CueDto[0];
+            if (Plugin.VerboseCues.Value) foreach (var cc in cues) Plugin.Log.LogInfo("cue in: slot=" + cc.slot + " id=" + cc.id + " sub=[" + cc.nativeSub + "] name=[" + cc.nativeName + "]");
             Array.Sort(cues, delegate (CueDto a, CueDto b) { return a.at.CompareTo(b.at); });
             float t0 = Time.unscaledTime;
             int lastAt = -10000;
@@ -1287,12 +2030,806 @@ if (Time.unscaledTime < nextAt) return;
                 // 必须用真实时间：timeScale=0（暂停/菜单）时 WaitForSeconds 永不返回，整条 pull 链会永久卡死
                 float wait = cue.at / 1000f - (Time.unscaledTime - t0);
                 if (wait > 0f) yield return new WaitForSecondsRealtime(wait);
-                if (cue.slot == "animations") PlayAnim(cue.id, cue.durationMs, cue.holdMs);
+
+                // 表情独立于动作：它落在 L2（Facial），身体动作在 L0（Base），是两层。
+                // 所以「只换脸、不改姿势」是合法的——说完一句话表情变了，身体还端着原来的样子。
+                // 放在状态机分支之外，一次性动作（点头、打哈欠）也才能带表情。
+                if (!string.IsNullOrEmpty(cue.facial))
+                {
+                    object fsvc = NativeService();
+                    if (fsvc != null) ChangeFacial(cue.facial, fsvc);
+                    else Plugin.Log.LogWarning("facial: 没有 HeroineService，跳过 " + cue.facial);
+                }
+
+                // 持续状态优先：这是最贴合官方路径的一条——不写骨骼，只切状态。
+                if (!string.IsNullOrEmpty(cue.stateName))
+                {
+                    yield return SwitchState(cue.stateName);
+                    // 表情在上面已经统一换过一遍（挪到了 focus 判断之前），这里不再重复调：
+                    // 同一张脸被同一个 id 连设两次，日志会出两条 facial ->，也不好排查。
+                    continue;
+                }
+                if (cue.slot == "animations")
+                {
+                    // 专注时她在敲键盘/写字/看报告：那是游戏的 ActionState。
+                    // 我们的"动作"要么切状态（打断手上的事），要么写骨骼（把她冻住）。
+                    // 游戏原生没有"边干活边点头"这种东西，所以这里不造：
+                    // 只让表情层和嘴形层回应，身体一直是游戏自己的。
+                    if (GameBusy.FocusMode && (Plugin.FocusNativeOnly == null || Plugin.FocusNativeOnly.Value))
+                    {
+                        Plugin.Log.LogInfo("focus: 跳过动作 " + cue.id + "，只走原生表情/嘴形");
+                        continue;
+                    }
+                    // 原生优先：游戏自己有动作就用它，过渡质量交给 Unity。
+                    // 但采样还在演的时候不能直接调：ChangeAnimation 会把游戏状态机整个切走，
+                    // 而我们这边 clipActive 还是 true，等于把一个正在演的动作从中间切断。
+                    // 实测 trace 里能看到 nb=1 和 clip=1 同时为真的帧，那就是"被打断插入"。
+                    if (!string.IsNullOrEmpty(cue.nativeSub) || !string.IsNullOrEmpty(cue.nativeName))
+                    {
+                        // 子动作按她此刻的基底拼：BreakBase004_DrinkTea / WorkBase002_DrinkTea …
+                        // 游戏在每个基底下各实现了一遍同名子动作，姿势基准不同。
+                        // 少了这个上下文，手臂会落到错的位置——实测两只手摆成交叉。
+                        string nativeWant = cue.nativeName;
+                        if (!string.IsNullOrEmpty(cue.nativeSub))
+                        {
+                            string sub = ResolveNativeSub(cue.nativeSub, cue.nativeAlso, NativeService());
+                            if (!string.IsNullOrEmpty(sub))
+                            {
+                                nativeWant = sub;
+                                Plugin.Log.LogInfo("native sub " + cue.nativeSub + " -> " + sub);
+                            }
+                            else
+                            {
+                                // 她此刻的基底里没有这个子动作 —— **不做**，而不是换一个基底去做。
+                                //
+                                // 以前这里会跨基底找（她在 BreakBase001 看电影，找不到 DrinkTea 就用
+                                // BreakBase004_DrinkTea），结果是她从看电影被整个搬到喝茶的姿势族里，
+                                // 再回电影——一次明显的"打断"。游戏每个基底下各实现一遍同名子动作，
+                                // 正是因为这个：换基底不是换个动作，是换一套姿势基准。
+                                //
+                                // 跨基底采样同样不行：把别族的 clip 采样到当前姿势上，实测两只手摆成交叉。
+                                // 所以这里直接跳过这一条，让下一个 cue 过来。
+                                Plugin.Log.LogInfo("native sub " + cue.nativeSub +
+                                    " 不在当前基底（" + CurrentNativeName() + "），跳过这一条动作");
+                                continue;
+                            }
+                        }
+                        if (!string.IsNullOrEmpty(nativeWant))
+                        {
+                            // nativeName 是具体枚举名，同样可能跨族（Base001_Motion5_Shy 播在 BreakBase003 上）。
+                            // 换算到她此刻的族里；换算不出来就只留表情和嘴形——和子动作那条一个道理。
+                            string curBase2 = NativeBasePrefix(CurrentNativeName());
+                            string mapped = SameFamilyNative(nativeWant, curBase2);
+                            Plugin.Log.LogInfo("native name " + nativeWant + " 族=" + (curBase2.Length == 0 ? "(未知)" : curBase2) +
+                                " -> " + (mapped ?? "(无同族等价)"));
+                            if (!string.IsNullOrEmpty(mapped))
+                            {
+                                nativeWant = mapped;
+                            }
+                            else if (Plugin.CrossFamilyNative != null && Plugin.CrossFamilyNative.Value)
+                            {
+                                Plugin.Log.LogInfo("native name " + nativeWant + " 族不匹配（" + curBase2 + "），按宽松模式照播");
+                            }
+                            else
+                            {
+                                Plugin.Log.LogInfo("native name " + nativeWant + " 在自己这一族（" + curBase2 +
+                                    "）里没有对应动作，只留表情和嘴形");
+                                continue;
+                            }
+                            float waitClipBy = Time.unscaledTime + 3f;
+                            while (clipActive && Time.unscaledTime < waitClipBy)
+                                yield return null;
+                            yield return PlayNative(nativeWant, cue.durationMs);
+                            if (nativeLastStarted)
+                            {
+                                // 原生演完了，但游戏可能还在收尾。等它落地再让下一条 cue 起手，
+                                // 否则采样层会插进收尾过渡里，看起来像原生动作被人切走。
+                                yield return WaitNativeSettled(0.25f);
+                                continue;
+                            }
+                            // 原生没接上（枚举名变了 / 状态机拒收）：回落到采样，
+                            // 这一次至少还有动作，而不是什么都不演。
+                            Plugin.Log.LogWarning("native fallback to clip: " + cue.id);
+                        }
+                    }
+                    // 上一条动作还没演完就插新的，等于从中间切断：身体要走一次
+                    // "归还姿势 → 重新淡入"，观感就是抽一下。这里等它落地再起手。
+                    // 兜底 3 秒：万一 clipActive 因为别的原因没清，不能把整条链卡死。
+                    float idleBy = Time.unscaledTime + 3f;
+                    while (clipActive && Time.unscaledTime < idleBy)
+                        yield return null;
+                    // 采样也不能跨族：clip 是按某族的姿势基准做的，套到别的族上手臂会错位。
+                    string clipFam = ClipFamily(cue.id);
+                    string hereFam = NativeBasePrefix(CurrentNativeName());
+                    if (clipFam.Length > 0 && hereFam.Length > 0 && !string.Equals(clipFam, hereFam, StringComparison.OrdinalIgnoreCase)
+                        && (Plugin.CrossFamilyNative == null || !Plugin.CrossFamilyNative.Value))
+                    {
+                        Plugin.Log.LogInfo("采样 " + cue.id + " 属于 " + clipFam + "，她此刻在 " + hereFam + "，跳过这一条动作");
+                        continue;
+                    }
+                    PlayAnim(cue.id, cue.durationMs, cue.holdMs);
+                }
+                else if (cue.slot == "trip") TriggerLeaveChair(cue.id, cue.durationMs);
+                // 控制台点机位：id 是机位名，"off:" 前缀表示关掉那台隐藏相机
+                else if (cue.slot == "dump" && string.Equals(cue.id, "anims", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 把 180 条原生动作名一次吐到日志里，供离线分组（native-gestures.json）。
+                    // 走 cue 通道而不是新开控制台动词：这条路已经通了，不用再加一层协议。
+                    var all = EnumNames();
+                    Plugin.Log.LogInfo("anims n=" + all.Length + " :: " + string.Join(",", all));
+                }
+                else if (cue.slot == "camera")
+                {
+                    string want = cue.id ?? "";
+                    bool on = true;
+                    if (want.StartsWith("off:", StringComparison.OrdinalIgnoreCase)) { on = false; want = want.Substring(4); }
+                    SwitchCamera(want, on);
+                }
                 else if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("cue skipped: " + cue.slot + ":" + cue.id);
             }
             // 语音已在开头起播，这里不再重复
         }
 
+        // ── 原生路径 ───────────────────────────────────────────────────
+        // 游戏自己有完整的动画状态机（Character_Animator_ForScript，5 层：
+        // 身体 / 视线 / 表情 / 说话 / 抖动）。直接调 ChangeAnimation 让 Unity 去转载、
+        // 混合、演完收尾、回落待机——这三件事我们手搓了一整晚也没搓平。
+        private bool nativeBusy;
+        // 最近一次原生播放有没有真的开始。没起来就不能当成演完了——
+        // 静默丢掉一个动作比演得难看更难查。
+        private bool nativeLastStarted;
+        private static Type nativeEnumType;
+        private static System.Reflection.FieldInfo nativeCurrentField;
+        private static System.Reflection.MethodInfo nativeChangeMethod;
+
+        private static bool ResolveNative()
+        {
+            if (nativeChangeMethod != null) return true;
+            Type hsType = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                hsType = asm.GetType("Bulbul.HeroineService", false);
+                if (hsType != null) break;
+            }
+            if (hsType == null) return false;
+            nativeCurrentField = hsType.GetField("_currentAnimationType",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Type[] nest = hsType.GetNestedTypes(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            for (int i = 0; i < nest.Length; i++)
+                if (nest[i].Name == "AnimationType") nativeEnumType = nest[i];
+            if (nativeEnumType == null) return false;
+            nativeChangeMethod = hsType.GetMethod("ChangeAnimation", new Type[] { nativeEnumType });
+            return nativeChangeMethod != null;
+        }
+
+        private static object NativeService()
+        {
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type t = asm.GetType("Bulbul.HeroineService", false);
+                if (t == null) continue;
+                UnityEngine.Object o = UnityEngine.Object.FindObjectOfType(t);
+                if (o != null) return o;
+            }
+            return null;
+        }
+
+        private static string NativeCurrentName(object svc)
+        {
+            if (svc == null || nativeCurrentField == null) return "";
+            try { return Convert.ToString(nativeCurrentField.GetValue(svc)); } catch { return ""; }
+        }
+
+        /// <summary>
+        /// 她此刻的动作名，带兜底。
+        ///
+        /// `NativeService()` 是按类名找的（Bulbul.HeroineService），类名一改就返回 null，
+        /// 于是"她此刻在哪一族"变成未知——跨族判定就会悄悄失效（实测：日志里 `族=(未知)`
+        /// 而动作照样跨族播出去了）。
+        ///
+        /// 兜底是全场景扫一遍：谁的类里有 `_currentAnimationType` 就是谁，不依赖任何类名字符串。
+        /// 扫到就缓存下来，之后每帧只做一次字段读取。
+        /// </summary>
+        private static string CurrentNativeName()
+        {
+            // 先把这个枚举和字段解析出来。少了这一句，nativeEnumType 还是 null，
+            // 下面"只认字段类型相符的对象"这道过滤会失效，于是抓到 DeskObject 那个同名字段。
+            ResolveNative();
+            string n = NativeCurrentName(NativeService());
+            if (!string.IsNullOrEmpty(n)) return n;
+            try
+            {
+                if (nativeSvcCache == null)
+                {
+                    // 整场景扫一遍 MonoBehaviour 不便宜，而"她此刻在哪一族"每帧都问。
+                    // 扫不到时以前是每帧都重扫（几十上百个对象的 GetType + GetField 反射）；
+                    // 现在 5 秒扫一次，扫到就永久缓存（换场景时缓存对象会变成 null，走 else 分支重扫）。
+                    if (Time.unscaledTime < nativeScanAt) return "";
+                    nativeScanAt = Time.unscaledTime + 5f;
+                    var all = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>();
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        var mb = all[i];
+                        if (mb == null) continue;
+                        var f = mb.GetType().GetField("_currentAnimationType",
+                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        if (f == null) continue;
+                        // 只认字段类型正好是那个枚举的对象。场景里还有别的类也叫 _currentAnimationType
+                        // （HeroineUseObjectController 的 DeskObjectAnimationType，值是 FromBookToPc 之类），
+                        // 不校验类型就会抓到它，于是"她此刻在哪一族"读成 FromBookToPc。
+                        if (nativeEnumType != null && f.FieldType != nativeEnumType) continue;
+                        string s = Convert.ToString(f.GetValue(mb));
+                        if (string.IsNullOrEmpty(s) || s == "None") continue;
+                        nativeSvcCache = mb;
+                        n = s;
+                        break;
+                    }
+                    if (nativeSvcCache == null) return "";
+                }
+                // 缓存的对象被销毁（换场景 / 重开一局）时引用会变成 null：以前这里直接
+                // 往 NativeCurrentName(null) 里传，然后一直返回空（"族未知"）直到重启游戏。
+                var cachedMb = nativeSvcCache as UnityEngine.Object;
+                if (cachedMb == null || !cachedMb) { nativeSvcCache = null; nativeScanAt = 0f; return ""; }
+                if (n.Length == 0) n = NativeCurrentName(nativeSvcCache);
+            }
+            catch (Exception eCn)
+            {
+                // 以前是裸 catch {}：返回空串，下游当成"族未知"就直接放行跨族
+                // （SameFamilyNative / ResolveNativeSub），正好是注释里记过的"族=(未知) 却照样跨族播"。
+                if (nativeNameFails++ % 20 == 0)
+                    Plugin.Log.LogWarning("native: 读不到当前族名（第 " + nativeNameFails + " 次） " + eCn.GetType().Name + ": " + eCn.Message);
+            }
+            return n;
+        }
+
+        // 她此刻站在哪套动作里 —— 取 _currentAnimationType 的下划线前缀。
+        //   BreakBase004_DrinkTea -> "BreakBase004"
+        //   WorkBase002           -> "WorkBase002"
+        // 拼子动作全靠这个：游戏在每个基底下各实现了一遍 DrinkTea / Thinking 之类，
+        // 少了基底上下文，姿势基准就不对（实测会把手摆成交叉）。
+        private static string NativeBasePrefix(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            int i = name.IndexOf('_');
+            return i > 0 ? name.Substring(0, i) : name;
+        }
+
+        // 按当前基底拼子动作名。拼不出来返回 null，让调用方退回 nativeName。
+        // 只认枚举里真有的名字：游戏加了新基底就自动能用，删了也不会炸。
+        // 枚举全表只取一次。游戏更新后名字变了，靠这份缓存对比出来。
+        private static string[] enumNamesCache;
+        private static float enumRetryAt;
+        private static float nativeScanAt;
+        private static bool enumWarned;
+        private static int nativeNameFails;
+        private static object nativeSvcCache;
+        private static bool enumDiffed;
+
+        private static string[] EnumNames()
+        {
+            if (enumNamesCache != null && enumNamesCache.Length > 0) return enumNamesCache;
+            // 空表不当有效缓存：以前一次失败（场景还没加载完 / 原生类型还没解析到）
+            // 就把 new string[0] 永久写进缓存，之后所有原生动作静默降级，只有最早一条 warn。
+            if (enumNamesCache != null && Time.unscaledTime < enumRetryAt) return enumNamesCache;
+            if (!ResolveNative())
+            {
+                enumRetryAt = Time.unscaledTime + 60f;
+                enumNamesCache = new string[0];
+                return enumNamesCache;
+            }
+            try
+            {
+                var names = Enum.GetNames(nativeEnumType);
+                if (names != null && names.Length > 0)
+                {
+                    enumNamesCache = names;
+                    return enumNamesCache;
+                }
+                if (!enumWarned) { enumWarned = true; Plugin.Log.LogError("enum names: 拿到空表，60 秒后重试"); }
+            }
+            catch (Exception e)
+            {
+                if (!enumWarned) { enumWarned = true; Plugin.Log.LogError("enum names: " + e.Message + "，60 秒后重试"); }
+            }
+            enumRetryAt = Time.unscaledTime + 60f;
+            if (enumNamesCache == null) enumNamesCache = new string[0];
+            return enumNamesCache;
+        }
+
+        private static int EnumIndexOf(string name)
+        {
+            var names = EnumNames();
+            for (int i = 0; i < names.Length; i++)
+                if (string.Equals(names[i], name, StringComparison.OrdinalIgnoreCase)) return i;
+            return -1;
+        }
+
+        /// <summary>
+        /// 采样 clip 属于哪一族。没有原生名的 cue 走采样，采样同样跨不得族
+        /// （实测：work_pc 的 thinking clip 采到休息姿势上，两只手摆成交叉）。
+        /// 名字规律从 assets.seed.json / 实际日志里来的，纯字符串判断，缺一条不影响别条。
+        /// </summary>
+        private static string ClipFamily(string clipId)
+        {
+            if (string.IsNullOrEmpty(clipId)) return "";
+            string s = clipId.ToLowerInvariant();
+            if (s.Contains("work_pc")) return "WorkBase002";
+            if (s.Contains("work_book")) return "WorkBase002";
+            if (s.Contains("work_report")) return "WorkBase003";
+            if (s.Contains("break_movie")) return "BreakBase001";
+            if (s.Contains("break_novel")) return "BreakBase002";
+            if (s.Contains("break_music")) return "BreakBase003";
+            if (s.Contains("break_tea")) return "BreakBase004";
+            if (s.Contains("break_sleep")) return "BreakBase005";
+            if (s.Contains("break_forward")) return "BreakBase006";
+            if (s.Contains("story") || s.Contains("base001")) return "Base001";
+            if (s.Contains("wild")) return "Wild";
+            return "";
+        }
+
+        /// <summary>
+        /// 把动作名换算到她**此刻的姿势族**里。
+        ///
+        /// 游戏那 180 条原生动作按族命名：Base001_… / BreakBase001_… / WorkBase001_… 等。
+        /// 族的差别不是前缀好看，是**姿势基准不同**（坐着/靠着/拿着东西），
+        /// 跨族播等于把她从当前姿势里搬走，再回来就是一次可见的打断。
+        ///
+        /// 所以：同族直接用；跨族就在当前族里找同名后缀；都没有就返回 null，让调用方只留表情和嘴形。
+        /// </summary>
+        private static string SameFamilyNative(string want, string curBase)
+        {
+            if (string.IsNullOrEmpty(want)) return null;
+            if (string.IsNullOrEmpty(curBase)) return want;
+            string wBase = NativeBasePrefix(want);
+            if (!string.IsNullOrEmpty(wBase) && string.Equals(wBase, curBase, StringComparison.OrdinalIgnoreCase))
+                return want;
+
+            int cut = want.IndexOf('_');
+            string suffix = cut >= 0 ? want.Substring(cut + 1) : want;      // Motion5_Shy
+            var names = EnumNames();
+
+            // ① 同后缀，换族
+            string exact = curBase + "_" + suffix;
+            if (EnumIndexOf(exact) >= 0) return exact;
+
+            // ② 同族里带同一个尾关键词：Shy / Drink / Stretch …
+            string key = suffix;
+            int lastCut = suffix.LastIndexOf('_');
+            if (lastCut >= 0 && lastCut < suffix.Length - 1) key = suffix.Substring(lastCut + 1);
+            if (key.Length >= 3)
+            {
+                string hit = FindInFamily(names, curBase, key);
+                if (hit != null) return hit;
+            }
+
+            // ③ 近义：族里没有"Shy"，但有"Laugh"/"Interest"——她此刻在看的电影里就这么几个动作。
+            // 这一层是查表，不是猜：候选词全部来自 native-gestures.json 里各族的实际动作名。
+            string[] alt = SynonymsFor(key);
+            for (int k = 0; k < alt.Length; k++)
+            {
+                string hit = FindInFamily(names, curBase, alt[k]);
+                if (hit != null) return hit;
+            }
+            return null;
+        }
+
+        private static string FindInFamily(string[] names, string curBase, string key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            for (int i = 0; i < names.Length; i++)
+            {
+                if (!names[i].StartsWith(curBase + "_", StringComparison.OrdinalIgnoreCase)) continue;
+                if (names[i].IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0) return names[i];
+            }
+            return null;
+        }
+
+        /// <summary>近义动作词。游戏各族的动作表很小（休息族 2~6 条），所以要按它真有的词去找。</summary>
+        private static string[] SynonymsFor(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return new string[0];
+            switch (key.ToLowerInvariant())
+            {
+                case "shy": case "smile": case "happy": case "fun": case "laugh": case "cheer":
+                    return new[] { "Laugh", "Interest", "Smile" };
+                case "think": case "thinking": case "curious": case "wonder":
+                    return new[] { "Interest", "Suspenseful" };
+                case "surprise": case "fear": case "worry": case "nervous":
+                    return new[] { "Suspenseful", "Interest" };
+                case "drink": case "tea": case "sip":
+                    return new[] { "DrinkTea", "DrinkHot", "CoolingDrinkTea" };
+                case "stretch": case "relax":
+                    return new[] { "Stretch", "Laugh" };
+                case "read": case "page":
+                    return new[] { "NextPage", "Interest" };
+                default:
+                    return new string[0];
+            }
+        }
+
+        private static bool EnumExists(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return EnumIndexOf(name) >= 0;
+        }
+
+        // 游戏更新会改动作名。这里留一份上次的快照，第一次拿到枚举时对比，
+        // 只用日志报差异——不改行为，因为我们本来就不会因为找不到名字而崩。
+        // 但"静默退化"最难查（动作还在演，只是退回了采样），所以变化必须留痕。
+        private static void DiffEnumSnapshot()
+        {
+            if (enumDiffed) return;
+            enumDiffed = true;
+            var names = EnumNames();
+            if (names.Length == 0) return;
+            string path = System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, "chill-enum.txt");
+            try
+            {
+                string[] prev = System.IO.File.Exists(path) ? System.IO.File.ReadAllLines(path) : new string[0];
+                var prevSet = new HashSet<string>(prev);
+                var nowSet = new HashSet<string>(names);
+                int added = 0, gone = 0;
+                var addList = new List<string>();
+                var goneList = new List<string>();
+                for (int i = 0; i < names.Length; i++)
+                    if (!prevSet.Contains(names[i])) { added++; if (addList.Count < 20) addList.Add(names[i]); }
+                for (int i = 0; i < prev.Length; i++)
+                    if (prev[i].Length > 0 && !nowSet.Contains(prev[i])) { gone++; if (goneList.Count < 20) goneList.Add(prev[i]); }
+                if (prev.Length == 0) Plugin.Log.LogInfo("enum: 首次记录 " + names.Length + " 个动作名");
+                else if (added == 0 && gone == 0) Plugin.Log.LogInfo("enum: " + names.Length + " 个动作名，与上次一致");
+                else
+                {
+                    Plugin.Log.LogWarning("enum: 动作表变了 共" + names.Length + " 新增" + added + " 消失" + gone);
+                    for (int i = 0; i < addList.Count; i++) Plugin.Log.LogWarning("  + " + addList[i]);
+                    for (int i = 0; i < goneList.Count; i++) Plugin.Log.LogWarning("  - " + goneList[i]);
+                }
+                System.IO.File.WriteAllLines(path, names);
+            }
+            catch (Exception e) { Plugin.Log.LogWarning("enum snapshot: " + e.Message); }
+        }
+
+        // 子动作解析：绝不写死全名。
+        //
+        // 游戏更新最可能动两处：基底名、子动作名。所以按"语义链"找，四层逐级放宽：
+        //   ① <基底>_<子动作>      精确
+        //   ② <基底>_<备选>        精确（服务端可以给一串同义写法）
+        //   ③ <基底>_<子动作>      前缀（DrinkTea 改成 DrinkTeaCup 也能命中）
+        //   ④ <基底>_*<子动作>*    包含（DrinkTea 被挪到 DrinkTea_Slow 也能命中）
+        // 每层都先在"她此刻的基底"里找，再依次试备选基底。
+        // 全落空才返回 null，让调用方回落采样——降级而不是报错。
+        private string ResolveNativeSub(string sub, string also, object svc)
+        {
+            if (string.IsNullOrEmpty(sub) && string.IsNullOrEmpty(also)) return null;
+            if (!ResolveNative()) return null;
+            var names = EnumNames();
+            if (names.Length == 0) return null;
+            DiffEnumSnapshot();
+
+            string cur = NativeCurrentName(svc);
+            string baseName = NativeBasePrefix(cur);
+
+            var subs = new List<string>();
+            if (!string.IsNullOrEmpty(sub)) subs.Add(sub);
+            if (!string.IsNullOrEmpty(also))
+                foreach (var raw in also.Split(','))
+                {
+                    string t = raw.Trim();
+                    if (t.Length > 0 && !subs.Contains(t)) subs.Add(t);
+                }
+
+            var bases = new List<string>();
+            // 只用她此刻的基底。跨基底"找一个能演的"等于换姿势族——见调用处的说明。
+            // 只有在拿不到当前基底（还没进任何动作）时才退回默认几族。
+            if (!string.IsNullOrEmpty(baseName)) bases.Add(baseName);
+            else
+                for (int i = 0; i < SubFallbackBases.Length; i++)
+                    if (!bases.Contains(SubFallbackBases[i])) bases.Add(SubFallbackBases[i]);
+
+            // ① 精确
+            for (int bi = 0; bi < bases.Count; bi++)
+                for (int si = 0; si < subs.Count; si++)
+                {
+                    string cand = bases[bi] + "_" + subs[si];
+                    if (EnumIndexOf(cand) >= 0) return LandSub(cur, baseName, cand);
+                }
+            // ② 前缀
+            for (int bi = 0; bi < bases.Count; bi++)
+                for (int si = 0; si < subs.Count; si++)
+                {
+                    string pfx = bases[bi] + "_" + subs[si];
+                    for (int n = 0; n < names.Length; n++)
+                        if (names[n].StartsWith(pfx, StringComparison.OrdinalIgnoreCase))
+                            return LandSub(cur, baseName, names[n]);
+                }
+            // ③ 包含
+            for (int bi = 0; bi < bases.Count; bi++)
+                for (int si = 0; si < subs.Count; si++)
+                {
+                    string pfx = bases[bi] + "_";
+                    for (int n = 0; n < names.Length; n++)
+                        if (names[n].StartsWith(pfx, StringComparison.OrdinalIgnoreCase)
+                            && names[n].IndexOf(subs[si], StringComparison.OrdinalIgnoreCase) >= 0)
+                            return LandSub(cur, baseName, names[n]);
+                }
+
+            Plugin.Log.LogInfo("native sub: 当前基底（" + (string.IsNullOrEmpty(baseName) ? "未知" : baseName) +
+                "）里找不到 " + sub + "（枚举 " + names.Length + " 条，跨族不算）");
+            return null;
+        }
+
+        private static string LandSub(string cur, string curBase, string hit)
+        {
+            int us = hit.IndexOf('_');
+            string hitBase = us > 0 ? hit.Substring(0, us) : hit;
+            if (!string.IsNullOrEmpty(curBase) && !string.Equals(hitBase, curBase, StringComparison.OrdinalIgnoreCase))
+                Plugin.Log.LogInfo("native sub: 她在 " + cur + "，改用 " + hit);
+            else
+                Plugin.Log.LogInfo("native sub -> " + hit);
+            return hit;
+        }
+
+        // ── 官方状态机 ─────────────────────────────────────────────
+        // 她的"正在做什么"是 HeroineAI.ActionStateType 的一个显式值，不是我们从骨骼反推的。
+        // 持续状态（写代码 / 看书 / 看电影 / 听歌 / 睡）直接切过去，
+        // 游戏的 base_start -> base_loop -> base_end 全程它自己管：
+        // 循环点、归还姿势、跟别的层抢骨骼，一件都不用我们操心。
+        //
+        // 这是"贴合官方路径"的核心：不写骨骼，只告诉状态机"她该去干什么"。
+        private static Type aiType;
+        private static MethodInfo aiChangeState;
+        private static MethodInfo aiGetState;
+        private static MethodInfo aiIsPossible;
+
+        private static bool ResolveAi()
+        {
+            if (aiChangeState != null) return true;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type t = null;
+                try { t = asm.GetType("Bulbul.HeroineAI", false); } catch { }
+                if (t == null)
+                {
+                    // 全名不一定是 Bulbul.HeroineAI —— dump 是按 Type.Name 匹配的，
+                    // 看着像全名其实不是。所以按 Name 再找一遍。
+                    try
+                    {
+                        Type[] all = null;
+                        try { all = asm.GetTypes(); }
+                        catch (ReflectionTypeLoadException rtle) { all = rtle.Types; }
+                        catch { all = null; }
+                        if (all != null)
+                            for (int i = 0; i < all.Length; i++)
+                                if (all[i] != null && all[i].Name == "HeroineAI") { t = all[i]; break; }
+                    }
+                    catch { }
+                }
+                if (t == null) continue;
+                aiType = t;
+                aiChangeState = t.GetMethod("DebugChangeState", BindingFlags.Public | BindingFlags.Instance);
+                aiGetState = t.GetMethod("GetCurrentState", BindingFlags.Public | BindingFlags.Instance);
+                aiIsPossible = t.GetMethod("IsPossibleChangeAction", BindingFlags.Public | BindingFlags.Instance);
+                if (aiChangeState != null) return true;
+            }
+            return false;
+        }
+
+        private static object AiInstance()
+        {
+            if (!ResolveAi()) return null;
+            try
+            {
+                var all = UnityEngine.Object.FindObjectsOfType(aiType);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    var c = all[i] as Component;
+                    if (c != null && c.gameObject.activeInHierarchy) return c;
+                }
+                return all.Length > 0 ? all[0] : null;
+            }
+            catch { return null; }
+        }
+
+        private string AiStateName()
+        {
+            object ai = AiInstance();
+            if (ai == null || aiGetState == null) return "";
+            try { return Convert.ToString(aiGetState.Invoke(ai, null)); } catch { return ""; }
+        }
+
+        // 表情：L2 层，跟身体动作互不干扰。
+        // ChangeHeroineFacialAnimation 的参数是 Int32 而不是枚举，得自己按 FacialType 换。
+        // 表是实测出来的（enum FacialType），游戏加新表情就退化成"查不到就跳过"。
+        private static readonly Dictionary<string, int> FacialIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "None", 0 }, { "Shy_Rest", 1 }, { "Shy_Fun", 2 }, { "Shy_Anger", 3 },
+            { "Shy_Sad", 4 }, { "Shy_Joy", 5 }, { "Shy_Surprise", 6 }, { "Open_Eye", 18 },
+        };
+        private static MethodInfo facialChange;
+
+        private static void ChangeFacial(string name, object svc)
+        {
+            if (svc == null || string.IsNullOrEmpty(name)) return;
+            if (facialChange == null)
+                facialChange = svc.GetType().GetMethod("ChangeHeroineFacialAnimation", BindingFlags.Public | BindingFlags.Instance);
+            if (facialChange == null) { Plugin.Log.LogWarning("facial: 没有 ChangeHeroineFacialAnimation"); return; }
+            int id;
+            if (!FacialIds.TryGetValue(name, out id))
+            {
+                if (!int.TryParse(name, NumberStyles.Integer, CultureInfo.InvariantCulture, out id))
+                {
+                    Plugin.Log.LogWarning("facial: 不认识 " + name);
+                    return;
+                }
+            }
+            try
+            {
+                facialChange.Invoke(svc, new object[] { id });
+                Plugin.Log.LogInfo("facial -> " + name + "(" + id + ")");
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning("facial: " + (e.InnerException != null ? e.InnerException.Message : e.Message));
+            }
+        }
+        // 切状态。这是整个"原生表演"里最有性价比的一条：
+        // 一条 DebugChangeState 换掉整段逐帧采样。
+        private static bool IsWorkState(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            return name.Equals("WorkPC", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("WorkBook", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("WorkReport", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private IEnumerator SwitchState(string stateName)
+        {
+            object ai = AiInstance();
+            if (ai == null) { Plugin.Log.LogWarning("state: 没有 HeroineAI 实例"); yield break; }
+            string before = AiStateName();
+            // 不替游戏决定她累不累：BreakSleep 由游戏按连续专注时长自己进入。
+            // 曾经这里强行置 ActivateSleepFlg 再 DebugChangeState(BreakSleep)，
+            // 那是改游戏自己的状态位，已移除（2026-11-19）。
+            //
+            // 同理，她已经睡着了就不要再用指令吵醒她。游戏送她进 BreakSleep 是长时间
+            // 专注的结果，属于游戏自己的节奏；我们每来一句话就切一次状态，
+            // 等于每隔几秒把她从睡梦里拽出来——比不演还糟。
+            if (string.Equals(before, "BreakSleep", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
+                    Plugin.Log.LogInfo("state: 她在睡（游戏按专注时长送的），本轮不切 " + stateName);
+                yield break;
+            }
+            // 工作态（WorkPC / WorkBook / WorkReport）只能专注时切。
+            //
+            // 这一条是硬规矩，理由不在我们这边：**"她在敲键盘"本身就是游戏的番茄钟语义**。
+            // 非专注时把她按进工作态，她就对着键盘敲，可现实里没有会话在跑——玩家看到的是
+            // "我没开始专注，她自己在打字"，而且之后再开番茄钟她也只是从已经敲着的状态继续，
+            // 等于把"开始专注"这个动作的效果提前偷走了。
+            // 所以：非专注时她的身体状态归游戏，我们只做表情、嘴形和手边的小动作。
+            if (!GameBusy.FocusMode && IsWorkState(stateName))
+            {
+                Plugin.Log.LogInfo("state: 非专注，不切工作态 " + stateName + "（她此刻是 " + before + "）");
+                yield break;
+            }
+            if (string.Equals(before, stateName, StringComparison.OrdinalIgnoreCase))
+            {
+                Plugin.Log.LogInfo("state: 已经在 " + stateName);
+                yield break;
+            }
+            // 她能接受指令才发，否则等一会儿。等不到也照发——被拒总比不动强。
+            float waitBy = Time.unscaledTime + 3f;
+            if (aiIsPossible != null)
+                while (Time.unscaledTime < waitBy)
+                {
+                    bool ok = true;
+                    try { ok = (bool)aiIsPossible.Invoke(ai, null); } catch { ok = true; }
+                    if (ok) break;
+                    yield return null;
+                }
+            object val;
+            try { val = Enum.Parse(aiChangeState.GetParameters()[0].ParameterType, stateName, true); }
+            catch { Plugin.Log.LogWarning("state: 动作表里没有 " + stateName); yield break; }
+            try { aiChangeState.Invoke(ai, new object[] { val }); }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning("state: " + stateName + " 调用失败 " + (e.InnerException != null ? e.InnerException.Message : e.Message));
+                yield break;
+            }
+            // 等它真的切过去。切不过去就如实记下来，别假装成功。
+            float deadline = Time.unscaledTime + 4f;
+            while (Time.unscaledTime < deadline)
+            {
+                yield return null;
+                if (string.Equals(AiStateName(), stateName, StringComparison.OrdinalIgnoreCase)) break;
+            }
+            string after = AiStateName();
+            if (string.Equals(after, stateName, StringComparison.OrdinalIgnoreCase))
+                Plugin.Log.LogInfo("state: " + before + " -> " + after);
+            else
+                Plugin.Log.LogWarning("state: 想切 " + stateName + " 但现在是 " + after + "（被状态机拒了）");
+        }
+
+        // 发一条 ChangeAnimation，然后等它自己演完。
+        // 结束判据 = _currentAnimationType 不再是这个动作（游戏演完会回落 Base001 / BreakBase*）。
+        // startBy 兜一周：游戏先播当前动作的 _end，再起新的，中间有一两秒。
+        private IEnumerator PlayNative(string typeName, int durationMs)
+        {
+            if (!ResolveNative())
+            {
+                Plugin.Log.LogWarning("native unavailable: " + typeName);
+                yield break;
+            }
+            object svc = NativeService();
+            if (svc == null) { Plugin.Log.LogWarning("native: no HeroineService"); yield break; }
+            object val;
+            try { val = Enum.Parse(nativeEnumType, typeName, true); }
+            catch { Plugin.Log.LogWarning("native: bad enum " + typeName); yield break; }
+
+            nativeBusy = true;
+            try
+            {
+                nativeChangeMethod.Invoke(svc, new object[] { val });
+                Plugin.Log.LogInfo("native play " + typeName);
+                // 起手窗口：游戏开新动作前会先把当前动作的 _end 播完。
+                // 实测"看电影"收尾 1.00s、"看小说"收尾 3.19s——2 秒会把后者判成没接上，
+                // 然后回落采样，和还在跑的状态机抢骨骼。4.5 秒覆盖最长的收尾。
+                float startBy = Time.unscaledTime + 4.5f;
+                // 总时长按这条 cue 自己的长度算，别用固定值：
+                // 哈欠 5.33s + 收尾就要 7 秒以上，9 秒的硬顶对长动作不够。
+                float dsec = Mathf.Clamp(durationMs / 1000f, 1f, 20f);
+                float deadline = Time.unscaledTime + dsec + 6f;
+                bool started = false;
+                while (Time.unscaledTime < deadline)
+                {
+                    string now = NativeCurrentName(svc);
+                    if (!started)
+                    {
+                        if (now == typeName) started = true;
+                        else if (Time.unscaledTime > startBy) break;
+                    }
+                    else if (now != typeName) break;
+                    yield return null;
+                }
+                nativeLastStarted = started;
+                Plugin.Log.LogInfo("native done " + typeName + " started=" + started);
+                // 放手前先把姿势拍下来。原生动作演完时游戏会自己 CrossFade 回待机，
+                // 那个过渡只有一两帧：实测右前臂 105.6° / 67ms ≈ 1576°/s，眼睛看到的就是"啪"一下归位。
+                // 这不是我们写出来的（那一刻 native=0 且 clip=0），但可以把它拖慢。
+                EnsureBones();
+                if (bones != null && bones.Length > 0)
+                {
+                    if (nativeExitRot == null || nativeExitRot.Length != bones.Length) nativeExitRot = new Quaternion[bones.Length];
+                    for (int i = 0; i < bones.Length; i++)
+                        nativeExitRot[i] = bones[i] != null ? bones[i].localRotation : Quaternion.identity;
+                    nativeExitUntil = Time.unscaledTime + NativeExitBlend;
+                }
+            }
+            finally { nativeBusy = false; }
+        }
+
+        // 等游戏把收尾过渡走完。
+        //
+        // PlayNative 一看到动作名变了就返回，但"名字变了"只是收尾的开始：
+        // 游戏还要用一两帧 CrossFade 回到待机。这时候如果下一条 cue 立刻 PlayAnim，
+        // 采样层就开始写骨骼，正好插在收尾中间——观感是原生动作被切开、换了个动作。
+        // 判据用"动作名连续 stableSec 秒不再变"，不是等固定时长：
+        // 短动作收尾快，长动作收尾慢，固定值两头都不对。
+        private IEnumerator WaitNativeSettled(float stableSec)
+        {
+            object svc = NativeService();
+            if (svc == null) yield break;
+            string last = NativeCurrentName(svc);
+            float stableAt = Time.unscaledTime;
+            float hardStop = Time.unscaledTime + 2.5f;
+            while (Time.unscaledTime < hardStop)
+            {
+                yield return null;
+                string now = NativeCurrentName(svc);
+                if (now != last) { last = now; stableAt = Time.unscaledTime; }
+                else if (Time.unscaledTime - stableAt >= stableSec) yield break;
+            }
+            Plugin.Log.LogInfo("native settle timeout, last=" + last);
+        }
         // 把所有控制器里的 clip 收进一张表，采样播放要用 clip 本身
         private void IndexClipAssets()
         {
@@ -1344,16 +2881,8 @@ if (Time.unscaledTime < nextAt) return;
         private int hipsIdx = -1;
         private Vector3 hipsAtStart;
         // 沙发锚点：按名字现找（离座动画是原地动画，位移得我们自己给）
-        private Transform tripAnchor;
         // 房间相机：游戏靠切换它们换视角（Camera_Desk / Camera_Sofa / Camera_Bed）
-        private Camera camDesk;
-        private Camera camSofa;
-        private Camera camBed;
         private bool roomCamCached;
-        private bool tripAnchorSearched;
-        private bool tripWalking;
-        private Vector3 tripFromWorld;
-        private Vector3 tripToWorld;
         private Vector3 chairHomeWorld;
         private bool chairHomeValid;
         private bool heldPosValid;
@@ -1466,6 +2995,9 @@ if (Time.unscaledTime < nextAt) return;
                         for (int i = 0; i < reps; i++) { names.Add(baseName + "_loop"); clips.Add(loop); }
                     }
                 }
+                // _end 必须播：没有 loop 的族里，_start 末帧是动作最高点（哈欠=手举在嘴边），
+                // 只播 _start 会停在那帧上不动，画面上就是"手臂一直举着"——比交界跳一帧糟得多。
+                // 交界那一帧的跳变交给限速器摊平（实测 12° 分两帧走完）。
                 if (end != null) { names.Add(baseName + "_end"); clips.Add(end); }
             }
             else
@@ -1517,6 +3049,8 @@ if (Time.unscaledTime < nextAt) return;
             planSamples = 0;
             planWBody = 1f; planWHead = 1f; planSpeed = 1f;
             planBodyPeakDeg = 0f; planHeadPeakDeg = 0f; planBodyPeakSpd = 0f; planHeadPeakSpd = 0f;
+            if (bonePeak == null || bonePeak.Length != n) bonePeak = new float[n];
+            for (int bi = 0; bi < n; bi++) bonePeak[bi] = 0f;
             if (n == 0 || segClips == null || segClips.Length == 0 || segTotal < 0.05f) return;
             int samples = Mathf.Clamp(Mathf.CeilToInt(segTotal / 0.033f), 6, 90);
             float step = segTotal / Mathf.Max(1, samples - 1);
@@ -1540,12 +3074,34 @@ if (Time.unscaledTime < nextAt) return;
                     float dev = Quaternion.Angle(baseRot[i], q);
                     float sp = step > 0.0001f ? Quaternion.Angle(prevRot[i], q) / step : 0f;
                     bool isHead = upperAllowed != null && i < upperAllowed.Length && upperAllowed[i];
+                    if (dev > bonePeak[i]) bonePeak[i] = dev;
                     if (isHead) { if (dev > headDeg) headDeg = dev; if (sp > headSpd) headSpd = sp; }
                     else { if (dev > bodyDeg) bodyDeg = dev; if (sp > bodySpd) bodySpd = sp; }
                     prevRot[i] = q;
                 }
             }
             for (int i = 0; i < n; i++) bones[i].localRotation = snap[i];
+            // 哪几根骨头真的会动：低于阈值的整段都不写，交还给游戏。
+            if (boneDrive == null || boneDrive.Length != n) boneDrive = new bool[n];
+            boneDriveCount = 0;
+            for (int bi = 0; bi < n; bi++)
+            {
+                boneDrive[bi] = bonePeak[bi] >= BoneDriveMinDeg;
+                if (boneDrive[bi]) boneDriveCount++;
+            }
+            if (Plugin.VerboseCues != null && Plugin.VerboseCues.Value)
+            {
+                int armDriven = 0;
+                for (int bi = 0; bi < n; bi++)
+                {
+                    if (!boneDrive[bi]) continue;
+                    string nm = bones[bi] == null ? "" : (bones[bi].name ?? "");
+                    if (nm.IndexOf("Arm", StringComparison.OrdinalIgnoreCase) >= 0
+                        || nm.IndexOf("Hand", StringComparison.OrdinalIgnoreCase) >= 0
+                        || nm.IndexOf("Finger", StringComparison.OrdinalIgnoreCase) >= 0) armDriven++;
+                }
+                Plugin.Log.LogInfo("drive: " + boneDriveCount + "/" + n + " bones, 手臂类 " + armDriven + " 根");
+            }
             if (clipBaseRot == null || clipBaseRot.Length != n) clipBaseRot = new Quaternion[n];
             // 同族续演（X_start > X_loop > X_end）时必须沿用上一条的起始姿势：
             // 每段都拿自己的首帧当基准，offset 目标会在段边界跳一次，
@@ -1601,20 +3157,31 @@ if (Time.unscaledTime < nextAt) return;
             familyPeakHead[planFamily] = peakHeadFam;
             float limitBody = Mathf.Min(peakBodyFam, degBudgetBody * burstBody);
             float limitHead = Mathf.Min(peakHeadFam, degBudgetHead * burstHead);
-            float gainBody;
-            if (!familyGainBody.TryGetValue(planFamily, out gainBody))
-            {
-                gainBody = peakBodyFam > 0.05f ? Mathf.Clamp(limitBody / peakBodyFam, 0f, gainBodyCap) : gainBodyCap;
-                familyGainBody[planFamily] = gainBody;
-            }
-            float gainHead;
-            if (!familyGainHead.TryGetValue(planFamily, out gainHead))
-            {
-                gainHead = peakHeadFam > 0.05f ? Mathf.Clamp(limitHead / peakHeadFam, 0f, gainHeadCap) : gainHeadCap;
-                familyGainHead[planFamily] = gainHead;
-            }
+            // 增益必须每帧重算，不能"第一次算完就缓存"：
+            // 第一次演某族时 peakBodyFam 只量到开场那几帧（实测 0.2°），算出的 gain 是 1.0，
+            // 缓存之后永远压不下来——149° 的哈欠被当成合理幅度全量播放，画面上就是手臂举过头顶。
+            // peakBodyFam 只增不减，重算的结果单调收敛，不会来回抖。
+            float gainBody = peakBodyFam > 0.05f
+                ? Mathf.Clamp(limitBody / peakBodyFam, 0f, gainBodyCap)
+                : gainBodyCap;
+            familyGainBody[planFamily] = gainBody;
+            float gainHead = peakHeadFam > 0.05f
+                ? Mathf.Clamp(limitHead / peakHeadFam, 0f, gainHeadCap)
+                : gainHeadCap;
+            familyGainHead[planFamily] = gainHead;
             planWBody = gainBody;
             planWHead = gainHead;
+            // 硬上限兜底：不管增益链路怎么算，身体都不允许按 149° 演。
+            // BodyDegBudget(26) × BodyBurstScale(3) = 78° 是"大动作能到的最大幅度"，
+            // 149° 在画面上就是把手举过头顶，不是打哈欠。
+            {
+                float bodyCeil = profile.BodyDeg * Mathf.Max(1f, profile.BodyBurst);
+                if (bodyCeil > 1f && planBodyPeakDeg > bodyCeil)
+                    planWBody = Mathf.Min(planWBody, bodyCeil / planBodyPeakDeg);
+                float headCeil = profile.HeadDeg * Mathf.Max(1f, profile.HeadBurst);
+                if (headCeil > 1f && planHeadPeakDeg > headCeil)
+                    planWHead = Mathf.Min(planWHead, headCeil / planHeadPeakDeg);
+            }
             float factor = 1f;
             if (clipSpeedAllowed(profile) && bodySpd > spdBudgetBody) factor = Mathf.Min(factor, spdBudgetBody / bodySpd);
             if (clipSpeedAllowed(profile) && headSpd > spdBudgetHead) factor = Mathf.Min(factor, spdBudgetHead / headSpd);
@@ -1782,16 +3349,8 @@ if (Time.unscaledTime < nextAt) return;
             // 归还期间不再重采样：cts 越过 clipLen 后，循环类片段会取到回卷/收尾帧，
             // 姿势在那一帧跳一下（实测颈部 24°），随后全交给限速器去抹。
             // 归还的本质是"停止表演、把身体还回去"，姿势就停在最后一帧。
-            if (tripWalking && bones != null && bones.Length > 0)
-            {
-                // 用 clip 进度当时间轴：走位和脚步同一节奏；smoothstep 起步收尾都不硬
-                float ud = segTotal > 0.01f ? Mathf.Clamp01(Mathf.Min(ct, segTotal) / segTotal) : 1f;
-                float k = ud * ud * (3f - 2f * ud);
-                bones[0].position = Vector3.Lerp(tripFromWorld, tripToWorld, k);
-                if (segHoldTotal > 0f) heldPos = bones[0].position;
-            }
             bool exiting0 = !clipLoop && ct > clipLen;
-            if (!exiting0) SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
+            if (!exiting0) SampleChainClip(segClips[idx], clipTarget, ts - segStarts[idx], 0);
             if (!exiting0 && (propClips.Count > 0 || lastPropClips.Count > 0))
             {
                 if (propClips.Count > 0)
@@ -1904,12 +3463,23 @@ if (Time.unscaledTime < nextAt) return;
             headDevDeg = 0f;
             float wBody = planWBody * EnvelopeAt(ct, false);
             float wHead = planWHead * EnvelopeAt(ct, true);
-            float switchMs = Mathf.Clamp(switchMsFromClass, 80f, 900f);
+            // 上限放到 1.6s：幅度大的动作（哈欠整族身体峰值 94°）在 900ms 内起来，
+            // 看起来就是"猛一下"。淡入时长由动作自己多大决定，见 StartClip 里的按幅度补偿。
+            float switchMs = Mathf.Clamp(switchMsFromClass, 80f, 1600f);
             float kSwitch = switchMs <= 1f ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Time.time - switchT0) / (switchMs / 1000f)));
             float dt = Mathf.Max(0.0001f, Time.deltaTime);
             for (int i = 0; i < n; i++)
             {
                 var tr = bones[i];
+                // 叠加式（专注/只叠不搬）演出里，这段 clip 没动的骨头一根都不写。
+                // 她在敲键盘时，手臂属于这一类：交回游戏的状态机，敲击就不会停。
+                // 以前所有骨头都写，基底又是"开演那一刻冻结的游戏姿势"，
+                // 于是手臂被冻在起手那一帧 —— 这就是"一说话敲字就断"的来源。
+                if ((profile.Additive || upperOnly) && boneDrive != null && i < boneDrive.Length && !boneDrive[i])
+                {
+                    lastRot[i] = tr.localRotation;
+                    continue;
+                }
                 bool isHead = upperAllowed != null && i < upperAllowed.Length && upperAllowed[i];
                 // 说明：这里不再"只放行头骨"。upper 的正确语义是"只叠加、不搬身体"，
                 // 由下方 useAdditive 实现 —— 硬锁非头骨会把抬手/前倾这些手臂动作一起吞掉，
@@ -1936,7 +3506,10 @@ if (Time.unscaledTime < nextAt) return;
                 {
                     // 道具/姿态/位移类：必须真的到她该去的位置，所以向绝对姿势过渡，
                     // 过渡时长由分类决定（600~900ms），不是瞬间覆盖。
-                    float rampW = profile.RampMs <= 1f ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Time.time - absRampT0) / (profile.RampMs / 1000f)));
+                    // 绝对姿势斜坡才是实际生效的那个淡入（abs=True 时不走 kSwitch）。
+                    // 只改 switchMsFromClass 会出现日志写 1500ms、实际还是 profile 里的 900ms。
+                    float rampMsEff = Mathf.Max(profile.RampMs, switchMsFromClass);
+                    float rampW = rampMsEff <= 1f ? 1f : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((Time.time - absRampT0) / (rampMsEff / 1000f)));
                     // 归还期间 baseNow 必须继续用"开演时冻结的游戏基准"，不能切成此刻的活姿势：
 // kOut 起点是 1（= 完全用我们的输出），这时候换基底等于在这一帧直接跳过去。
 // 实测右前臂一帧跳 77°，全靠限速器才没看出来。交给归还斜坡去做，它本来就是干这个的。
@@ -1946,6 +3519,23 @@ if (Time.unscaledTime < nextAt) return;
                 // 起手：从"插入那一刻的姿势"过渡进来
                 if (kSwitch < 1f && prevPoseValid && prevPose != null && i < prevPose.Length)
                     q = Quaternion.Slerp(prevPose[i], q, kSwitch);
+                // 幅度天花板：任何一根骨头相对"游戏此刻姿势"的偏移都不许超过上限。
+                // 增益链路（planWBody）在某些族上会算成 1.0，149° 的哈欠就被全量演出来——
+                // 画面上是把手举过头顶。这里是写入端最后一道闸，只看几何，不看权重。
+                // 身体 78°（26×3）、头颈 22.5°（15×1.5），按骨骼链归属分别收口。
+                if (baseGameRot != null && i < baseGameRot.Length)
+                {
+                    float ceilDeg = isHead ? 22.5f : 78f;
+                    float off = Quaternion.Angle(baseGameRot[i], q);
+                    if (off > ceilDeg)
+                    {
+                        q = Quaternion.Slerp(baseGameRot[i], q, ceilDeg / off);
+                        dbgClamped++;
+                        if (dbgClamped == 1) { dbgClampFirst = ct; dbgClampBone = tr.name ?? ""; }
+                        dbgClampAt = ct;
+                        if (off > dbgClampMax) dbgClampMax = off;
+                    }
+                }
                 // 归还：交回游戏此刻的姿势，而不是硬切
                 // 归还：只做一件事 —— 从"她最后被写下去的那个姿势"交回"游戏此刻的姿势"。
                 // 期间不再叠加采样、包络、增益：段尾这几样都会抖（实测颈部单帧 39°），
@@ -2012,68 +3602,313 @@ if (Time.unscaledTime < nextAt) return;
             return Quaternion.AngleAxis(ang * w, axis);
         }
 
-private void CacheRoomCameras()
-{
-    if (roomCamCached) return;
-    roomCamCached = true;
-    try
-    {
-        foreach (var c in Resources.FindObjectsOfTypeAll<Camera>())
+        // ── 离座：按游戏自己的开关，不再自己排演出 ───────────────────
+        // 2026-11-15 实测（WatchTick + 反射通道）：
+        //   Character 根全程 (2.74, 0.00, 1.70) 不动；
+        //   HeroineService._currentPlace 全程 Desk（她正在播沙发动画时也是 Desk）；
+        //   _heroineTransform 是空表 —— 游戏里没有可切换的摆位点；
+        //   变的只有 AnimationType，由 HeroineStateLeaveChairGoSofa 的权重 + 秒表
+        //   在 thinking(40~70s) / lookOutside(40~70s) / headphone(15~20s) 之间轮转，
+        //   最后自己播 comeback。
+        // 所以位移、镜头、时长从来不是我们的活：这里只按下开始。
+        // 请求入口：游戏可能在泡茶/翻书，这时候调会被吞掉，所以先挂起等它闲下来。
+        internal static void TriggerLeaveChair(string planName, int holdMs)
         {
-            if (c == null || !c.gameObject.scene.IsValid()) continue;
-            string nm = c.gameObject.name ?? "";
-            if (nm.IndexOf("Camera_Desk", StringComparison.OrdinalIgnoreCase) >= 0) camDesk = c;
-            else if (nm.IndexOf("Camera_Sofa", StringComparison.OrdinalIgnoreCase) >= 0) camSofa = c;
-            else if (nm.IndexOf("Camera_Bed", StringComparison.OrdinalIgnoreCase) >= 0) camBed = c;
+            if (!Plugin.TripGuard.TryBegin(planName)) return;
+            pendingPlan = planName;
+            pendingHoldMs = holdMs;
+            pendingUntil = Time.unscaledTime + 30f;
+            if (!TryFlushTrip())
+                Plugin.Log.LogInfo("trip: " + planName + " 已挂起，等她回到待机再走（最多等 30s）");
         }
-        Plugin.Log.LogInfo("room cams: desk=" + (camDesk != null) + " sofa=" + (camSofa != null) + " bed=" + (camBed != null));
-    }
-    catch (Exception ex) { Plugin.Log.LogInfo("room cams failed: " + ex.Message); }
-}
-
-// 换房间视角。用游戏自己的相机，不碰任何位置参数
-private void SetRoomView(string view)
-{
-    CacheRoomCameras();
-    bool sofa = view == "sofa";
-    bool bed = view == "bed";
-    if (camSofa == null && camBed == null) return; // 没有这些相机就什么都别做
-    try
-    {
-        if (camSofa != null) camSofa.gameObject.SetActive(sofa);
-        if (camBed != null) camBed.gameObject.SetActive(bed);
-        var main = Camera.main;
-        if (main != null && (camSofa != null || camBed != null)) main.enabled = !(sofa || bed);
-        if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("room view: " + view);
-    }
-    catch (Exception ex) { Plugin.Log.LogInfo("room view failed: " + ex.Message); }
-}
-
-private Transform FindTripAnchor()
-{
-    if (tripAnchorSearched) return tripAnchor;
-    tripAnchorSearched = true;
-    try
-    {
-        foreach (var tr in Resources.FindObjectsOfTypeAll<Transform>())
+        
+        // 每帧试一次：空闲就点火
+        internal static bool TryFlushTrip()
         {
-            if (tr == null || !tr.gameObject.scene.IsValid()) continue;
-            string nm = tr.name ?? "";
-            if (nm.IndexOf("couch", StringComparison.OrdinalIgnoreCase) < 0
-                && nm.IndexOf("sofa", StringComparison.OrdinalIgnoreCase) < 0) continue;
-            if (nm.IndexOf("side", StringComparison.OrdinalIgnoreCase) >= 0) continue;
-            if (!tr.gameObject.activeInHierarchy) continue;
-            tripAnchor = tr;
-            Plugin.Log.LogInfo("trip anchor: " + nm + " world=" + tr.position.ToString("F2"));
-            break;
+            if (pendingPlan == null) return true;
+            if (Time.unscaledTime > pendingUntil)
+            {
+                Plugin.Log.LogWarning("trip: " + pendingPlan + " 等空闲超时，丢掉这次请求");
+                pendingPlan = null;
+                return true;
+            }
+            if (!IsGameIdle()) return false;
+            string plan = pendingPlan;
+            pendingPlan = null;
+            FireLeaveChair(plan, pendingHoldMs);
+            return true;
         }
-        if (tripAnchor == null) Plugin.Log.LogInfo("trip anchor: 没找到沙发，离座只做原地动作");
-    }
-    catch (Exception ex) { Plugin.Log.LogInfo("trip anchor failed: " + ex.Message); }
-    return tripAnchor;
-}
+        
+        // 只看动画名：base/idle 结尾才算闲，_sub_ 这类子动作（泡茶、翻页、喝东西）算忙
+        private static bool IsGameIdle()
+        {
+            var h = Plugin.FindHeroineForWatch();
+            if (h == null) return true;
+            var infos = h.GetCurrentAnimatorClipInfo(0);
+            if (infos == null || infos.Length == 0 || infos[0].clip == null) return true;
+            string n = infos[0].clip.name;
+            if (n.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (n.IndexOf("_sub_", StringComparison.OrdinalIgnoreCase) >= 0
+                && n.IndexOf("_end", StringComparison.OrdinalIgnoreCase) < 0) return false;
+            return n.EndsWith("_base_loop", StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith("_base", StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith("_base_end", StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith("_idle", StringComparison.OrdinalIgnoreCase)
+                || n.StartsWith("anim_story_base", StringComparison.OrdinalIgnoreCase);
+        }
+        
+        private static void FireLeaveChair(string planName, int holdMs)
+        {
+            try
+            {
+                Type aiType = null;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    var t = asm.GetType("HeroineAI", false);
+                    if (t != null) { aiType = t; break; }
+                }
+                if (aiType == null) { Plugin.Log.LogWarning("trip: 找不到 HeroineAI，游戏版本可能变了"); return; }
 
-private void EnsureBones()
+                UnityEngine.Object ai = null;
+                var found = Resources.FindObjectsOfTypeAll(aiType);
+                if (found != null && found.Length > 0) ai = found[0];
+                if (ai == null) { Plugin.Log.LogWarning("trip: HeroineAI 实例不存在"); return; }
+
+                var mi = aiType.GetMethod("DebugForceLeaveChair",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (mi == null) { Plugin.Log.LogWarning("trip: HeroineAI.DebugForceLeaveChair 不存在"); return; }
+                var ps = mi.GetParameters();
+                if (ps.Length != 1 || !ps[0].ParameterType.IsEnum)
+                {
+                    Plugin.Log.LogWarning("trip: DebugForceLeaveChair 签名变了: " + (ps.Length > 0 ? ps[0].ParameterType.Name : "无参"));
+                    return;
+                }
+                Type planType = ps[0].ParameterType;
+                object plan = null;
+                foreach (var n in Enum.GetNames(planType))
+                {
+                    if (string.Equals(n, planName, StringComparison.OrdinalIgnoreCase)) { plan = Enum.Parse(planType, n); break; }
+                }
+                if (plan == null)
+                {
+                    plan = Enum.GetValues(planType).GetValue(0);
+                    Plugin.Log.LogWarning("trip: plan '" + planName + "' 不在游戏枚举里（"
+                        + string.Join(",", Enum.GetNames(planType)) + "），回退到 " + plan);
+                }
+                // 先把闸门关上再让它动：游戏是"先播离座语音再走"，晚了就抢不过它。
+                float holdSec = holdMs > 0 ? Mathf.Clamp(holdMs / 1000f, 5f, 60f) : 30f;
+                GameVoiceGate.Enter("trip " + planName, holdSec);
+                mi.Invoke(ai, new object[] { plan });
+                Plugin.Log.LogInfo("trip: 已交给游戏自己的状态机 DebugForceLeaveChair(" + plan + ")");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.LogWarning("trip: 调用失败 " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
+
+        // ── 演出期间让游戏闭嘴 ──────────────────────────────────────
+        // 我们的字幕和语音在播的时候，游戏自己的"自言自语"（弹幕）和她自己的语音
+        // 会一起出来，两套台词打架。这两个开关实测都能在运行时改：
+        //   HeroineSelfTalkController._selfTalkProbability  int，默认 75
+        //   HeroineAI._heroineVoiceController.CancelVoice() / ChangeEnableHeroineTalkAnimation(bool)
+        // 演出开始关掉，结束恢复；depth 计数 + 超时兜底，免得协程被中断后一直关着。
+        internal static class GameVoiceGate
+        {
+            private static int depth;
+            private static float expireAt;
+            private static float nextCancelAt;
+            private static bool active;
+            private static int savedProbability = -1;
+            private static object selfTalk;
+            private static object voice;
+
+            public static void Enter(string why, float holdSeconds)
+            {
+                depth++;
+                expireAt = Time.unscaledTime + Mathf.Max(5f, holdSeconds);
+                if (active) return;
+                if (!Resolve()) return;
+                try
+                {
+                    var pf = Field(selfTalk, "_selfTalkProbability");
+                    if (pf != null)
+                    {
+                        savedProbability = (int)pf.GetValue(selfTalk);
+                        pf.SetValue(selfTalk, 0);
+                    }
+                    Invoke0(voice, "CancelVoice", null);
+                    active = true;
+                    Plugin.Log.LogInfo("voice gate: 演出开始，游戏自言自语/语音已关（" + why + "）");
+                }
+                catch (Exception ex) { Plugin.Log.LogWarning("voice gate enter: " + ex.Message); }
+            }
+
+            public static void Exit()
+            {
+                depth--;
+                if (depth > 0) return;
+                depth = 0;
+                expireAt = 0f;
+                Restore("演出结束");
+            }
+
+            // 每帧兜底：协程被停掉时没人调 Exit，靠这里恢复
+            public static void Tick()
+            {
+                if (!active) return;
+                // 游戏可能在我们关闸之后才起播（离座语音就是这样），所以压住期间持续打断。
+                if (Time.unscaledTime >= nextCancelAt)
+                {
+                    nextCancelAt = Time.unscaledTime + 0.5f;
+                }
+                if (Time.unscaledTime < expireAt) return;
+                depth = 0;
+                Restore("到点恢复");
+            }
+
+            private static void Restore(string why)
+            {
+                if (!active) return;
+                try
+                {
+                    if (selfTalk != null && savedProbability >= 0)
+                    {
+                        var pf = Field(selfTalk, "_selfTalkProbability");
+                        if (pf != null) pf.SetValue(selfTalk, savedProbability);
+                    }
+                    Plugin.Log.LogInfo("voice gate: 恢复游戏语音（" + why + "）");
+                }
+                catch (Exception ex) { Plugin.Log.LogWarning("voice gate restore: " + ex.Message); }
+                finally { active = false; savedProbability = -1; }
+            }
+
+            private static FieldInfo Field(object target, string name)
+            {
+                if (target == null) return null;
+                return target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            }
+
+            
+            private static void Invoke0(object target, string name, object arg)
+            {
+                if (target == null) return;
+                var mi = target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (mi != null && mi.GetParameters().Length == 0) mi.Invoke(target, null);
+            }
+
+            private static void Invoke1(object target, string name, bool arg)
+            {
+                if (target == null) return;
+                var mi = target.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (mi == null) return;
+                var ps = mi.GetParameters();
+                if (ps.Length == 1 && ps[0].ParameterType == typeof(bool)) mi.Invoke(target, new object[] { arg });
+            }
+
+            private static bool Resolve()
+            {
+                if (selfTalk != null) return true;
+                try
+                {
+                    Type aiType = null;
+                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        var t = asm.GetType("HeroineAI", false);
+                        if (t != null) { aiType = t; break; }
+                    }
+                    if (aiType == null) return false;
+                    var found = Resources.FindObjectsOfTypeAll(aiType);
+                    if (found == null || found.Length == 0) return false;
+                    object ai = found[0];
+                    var f1 = aiType.GetField("_selfTalkController", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    var f2 = aiType.GetField("_heroineVoiceController", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (f1 != null) selfTalk = f1.GetValue(ai);
+                    if (f2 != null) voice = f2.GetValue(ai);
+                    if (selfTalk == null) Plugin.Log.LogWarning("voice gate: 拿不到 HeroineSelfTalkController");
+                    return selfTalk != null;
+                }
+                catch (Exception ex) { Plugin.Log.LogWarning("voice gate resolve: " + ex.Message); return false; }
+            }
+        }
+
+        public static string TracePath { get { return System.IO.Path.Combine(BepInEx.Paths.BepInExRootPath, "chill-trace.txt"); } }
+
+        // 开始记录姿势。外部按 50ms 一行读，用来找"归位抽动"发生在哪一帧、多少度。
+        public void StartTrace(float sec)
+        {
+            traceBones = null;
+            traceBuf = new System.Text.StringBuilder();
+            traceUntil = Time.unscaledTime + Mathf.Clamp(sec, 1f, 60f);
+            traceNextAt = 0f;
+            Plugin.Log.LogInfo("trace start " + traceUntil.ToString("F2") + " -> " + TracePath);
+        }
+
+        private void TraceTick()
+        {
+            if (traceUntil <= 0f || traceBuf == null) return;
+            float now = Time.unscaledTime;
+            if (now > traceUntil)
+            {
+                try { System.IO.File.WriteAllText(TracePath, traceBuf.ToString(), new System.Text.UTF8Encoding(false)); }
+                catch (Exception e) { Plugin.Log.LogWarning("trace write: " + e.Message); }
+                Plugin.Log.LogInfo("trace done lines=" + (traceBuf.ToString().Split('\n').Length - 1));
+                traceUntil = 0f;
+                return;
+            }
+            if (now < traceNextAt) return;
+            traceNextAt = now + TraceDt;
+            var root = clipTarget != null ? clipTarget.transform : (heroine != null ? heroine.transform : null);
+            if (root == null) return;
+            if (traceBones == null)
+            {
+                var all = root.GetComponentsInChildren<Transform>(true);
+                traceBones = new Transform[TraceWanted.Length];
+                for (int w = 0; w < TraceWanted.Length; w++)
+                {
+                    for (int i = 0; i < all.Length; i++)
+                    {
+                        if (all[i] == null) continue;
+                        if (all[i].name.IndexOf(TraceWanted[w], StringComparison.OrdinalIgnoreCase) >= 0) { traceBones[w] = all[i]; break; }
+                    }
+                }
+                traceBuf.Append("t|anim|native|clip|");
+                for (int w = 0; w < TraceWanted.Length; w++)
+                    traceBuf.Append(traceBones[w] == null ? TraceWanted[w] : traceBones[w].name).Append(w == TraceWanted.Length - 1 ? "" : "|");
+                traceBuf.Append('\n');
+            }
+            traceBuf.Append(now.ToString("F3")).Append('|')
+                .Append(NativeCurrentNameSafe()).Append('|')
+                .Append(nativeBusy ? '1' : '0').Append('|')
+                .Append(clipActive ? '1' : '0').Append('|');
+            for (int w = 0; w < traceBones.Length; w++)
+            {
+                if (traceBones[w] == null) { traceBuf.Append('-'); }
+                else
+                {
+                    // 记四元数不记欧拉角：欧拉角在 x 接近 ±90° 时会 gimbal 耦合，
+                    // 同一个微小旋转能算出 120° 的"跳变"，追这种假尖峰纯属浪费。
+                    // 角速度用 2*acos(|dot(q1,q2)|) 算，没有环绕和耦合问题。
+                    Quaternion q = traceBones[w].localRotation;
+                    traceBuf.Append(q.w.ToString("F4")).Append(',').Append(q.x.ToString("F4"))
+                        .Append(',').Append(q.y.ToString("F4")).Append(',').Append(q.z.ToString("F4"));
+                }
+                if (w != traceBones.Length - 1) traceBuf.Append('|');
+            }
+            traceBuf.Append('\n');
+        }
+
+        private string NativeCurrentNameSafe()
+        {
+            try
+            {
+                object svc = NativeService();
+                return svc == null ? "-" : (NativeCurrentName(svc) ?? "-");
+            }
+            catch { return "-"; }
+        }
+
+        private void EnsureBones()
         {
             if (bones != null && bones.Length > 0) return;
             var root = clipTarget != null ? clipTarget.transform : (heroine != null ? heroine.transform : null);
@@ -2086,16 +3921,49 @@ private void EnsureBones()
             for (int i = 0; i < list.Length; i++) lastRot[i] = list[i].localRotation;
             upperAllowed = new bool[list.Length];
             headIdx = -1;
+            int namedUpper = 0;
             for (int i = 0; i < list.Length; i++)
             {
                 string nm = list[i].name ?? "";
-                upperAllowed[i] = nm.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0
+                // 这个池子的语义是「头颈」，不是「上半身」——它决定 headDeg/headSpd 这半边账，
+                // 另一半是 bodyDeg/bodySpd。往里加手臂手指会把肢体的幅度算进头部预算，
+                // 实测会让 clamp 从 1° 涨到 1673°，动作被削得面目全非。别加宽。
+                bool named = nm.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0
                     || nm.IndexOf("Neck", StringComparison.OrdinalIgnoreCase) >= 0;
+                upperAllowed[i] = named;
+                if (named) namedUpper++;
                 if (nm.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0
                     && (headIdx < 0 || nm.Length < (list[headIdx].name ?? "").Length)) headIdx = i;
             }
+            // 名字一个都没命中 = 游戏换了命名风格或换了骨架。退到"世界高度高于躯干中线"：
+            // 粗，但至少能把头和身体分开，限幅账不至于全记在身体上。
+            // 只在名字全军覆没时才启用——正常情况名字比高度准得多（躺下时头会低于骨盆）。
+            string upperHow = "name";
+            if (namedUpper == 0 && list.Length > 0)
+            {
+                float lo = float.MaxValue, hi = float.MinValue;
+                for (int i = 0; i < list.Length; i++)
+                {
+                    float y = list[i].position.y;
+                    if (y < lo) lo = y;
+                    if (y > hi) hi = y;
+                }
+                float cut = lo + (hi - lo) * 0.55f;
+                int byHeight = 0;
+                for (int i = 0; i < list.Length; i++)
+                {
+                    if (list[i].position.y > cut) { upperAllowed[i] = true; byHeight++; }
+                }
+                upperHow = "height>" + cut.ToString("F2") + "(" + byHeight + ")";
+                for (int i = 0; i < list.Length; i++)
+                {
+                    if (list[i].name != null && list[i].name.IndexOf("Head", StringComparison.OrdinalIgnoreCase) >= 0)
+                    { headIdx = i; break; }
+                }
+            }
             if (headIdx < 0) for (int i = 0; i < list.Length; i++) if (upperAllowed[i]) { headIdx = i; break; }
-            Plugin.Log.LogInfo("head bone: idx=" + headIdx + " name=" + (headIdx >= 0 ? list[headIdx].name : "(none)") + " upper=" + System.Array.FindAll(upperAllowed, b => b).Length);
+            Plugin.Log.LogInfo("head bone: idx=" + headIdx + " name=" + (headIdx >= 0 ? list[headIdx].name : "(none)")
+                + " upper=" + System.Array.FindAll(upperAllowed, b => b).Length + "/" + list.Length + " via=" + upperHow);
 
             // cam scan：房间里有几台相机、谁管切换
             try
@@ -2183,8 +4051,15 @@ private void EnsureBones()
             EnsureBones();
             if (clipAssets.Count == 0) return;
             // 名字归一：大脑点名 `X_loop`，资产里可能是 `anim_X_loop` 或大小写不同
-            string normName;
-            AnimationClip normClip = LookupLoose(clipName, out normName);
+            // 基名（一族，如 anim_break_yawn_1）**不能**归一：宽松匹配会把它接到 _end 上，
+            // 于是"整族"变成"只播收尾那一段"——哈欠只演闭嘴，观感就是抖一下。
+            // 基名要原样交给 BuildSequence 去拼 start→loop→end。
+            string normName = clipName;
+            bool looksBase = !clipName.EndsWith("_start", StringComparison.OrdinalIgnoreCase)
+                && !clipName.EndsWith("_loop", StringComparison.OrdinalIgnoreCase)
+                && !clipName.EndsWith("_end", StringComparison.OrdinalIgnoreCase)
+                && !clipName.EndsWith("_single", StringComparison.OrdinalIgnoreCase);
+            AnimationClip normClip = looksBase ? null : LookupLoose(clipName, out normName);
             if (normClip != null && !string.Equals(normName, clipName, StringComparison.Ordinal))
             {
                 if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("clip name normalized: " + clipName + " -> " + normName);
@@ -2211,8 +4086,24 @@ private void EnsureBones()
                 if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("anim skip: repeat " + clipName + " within " + Mathf.RoundToInt((nowWall - clipStartWall) * 1000f) + "ms");
                 return;
             }
-            // 同族续演：X_start -> X_loop -> X_end 是同一条动作，不该每段都重新淡入
+            // 同族还没演完：接着演，别重新起手。
+            // 以前只比 clipName == activeClip.name，可上游下发的是**基名**（一族一条），
+            // 段名 _start/_loop/_end 永远对不上这个比较——闸门形同虚设，
+            // 于是每条新 cue 都从 _start 第 0 帧重新淡入：动作演到一半被拽回起点再重来，
+            // 观感就是"抽一下"。这里按族名比，第一次就拦住。
             string fam = StripSuffix(clipName);
+            bool sameFamily = clipActive && string.Equals(fam, activeBase, StringComparison.OrdinalIgnoreCase);
+            if (stillPlaying && sameFamily)
+            {
+                skippedRepeat++;
+                // 新 cue 只是要求演更久时，把总时长往后推；进度一秒不动。
+                float wantLonger = durationMs > 0 ? durationMs / 1000f : 0f;
+                if (wantLonger > clipLen) clipLen = wantLonger;
+                if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("anim skip: 同族续演 " + fam
+                    + " 已演 " + Mathf.RoundToInt((nowWall - clipStartWall) * 1000f) + "ms / " + Mathf.RoundToInt(clipLen * 1000f) + "ms");
+                return;
+            }
+            // 同族续演：X_start -> X_loop -> X_end 是同一条动作，不该每段都重新淡入
             bool inFamily = clipActive && string.Equals(activeBase, fam, StringComparison.OrdinalIgnoreCase)
                 || (fam == activeBase && (nowWall - lastFamilyEnd) < (Plugin.FamilyGraceMs == null ? 1.5f : Plugin.FamilyGraceMs.Value / 1000f));
             // chainEntry 只作标记（日志用）：淡入时长交给下面的距离公式，
@@ -2284,46 +4175,6 @@ private void EnsureBones()
             }
             // 普通坐姿动作开始时清掉"她走开了"的记忆，免得一直冻在沙发
             if (!posFree && holdMs <= 0) heldPosValid = false;
-            // 走位：去程送到沙发，回程送回椅子，按住段原地待在沙发上
-            tripWalking = false;
-            bool isGo = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
-                && (clipName.IndexOf("_go", StringComparison.OrdinalIgnoreCase) >= 0
-                    || clipName.IndexOf("_start", StringComparison.OrdinalIgnoreCase) >= 0);
-            bool isBack = clipName.IndexOf("leavechair", StringComparison.OrdinalIgnoreCase) >= 0
-                && clipName.IndexOf("comeback", StringComparison.OrdinalIgnoreCase) >= 0;
-            // 换房间视角：游戏自己就是靠 Camera_Sofa / Camera_Bed 切的
-            bool isSofa = clipName.IndexOf("_sofa", StringComparison.OrdinalIgnoreCase) >= 0;
-            bool isBed = clipName.IndexOf("_bed", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (Plugin.RoomView != null && Plugin.RoomView.Value && isGo && (isSofa || isBed)) SetRoomView(isSofa ? "sofa" : "bed");
-            if (Plugin.RoomView != null && Plugin.RoomView.Value && isBack) SetRoomView("desk");
-            if ((isGo || isBack) && bones != null && bones.Length > 0)
-            {
-                var anchor = FindTripAnchor();
-                if (anchor != null)
-                {
-                    // 有对应的房间相机时，位置必须跟上——否则镜头切过去拍到的是空沙发
-                tripWalking = (Plugin.TripWalk != null && Plugin.TripWalk.Value);
-                    tripFromWorld = bones[0].position;
-                    if (isGo)
-                    {
-                        Vector3 c = anchor.position;
-                        // 站哪由镜头决定：沙发往相机那边让 0.35m，别站进坐垫里、也别怼到镜头上
-                        Camera roomCam = isBed ? camBed : camSofa;
-                        Vector3 toward = roomCam != null ? (roomCam.transform.position - c) : (tripFromWorld - c);
-                        toward.y = 0f;
-                        if (toward.sqrMagnitude < 0.01f) toward = Vector3.forward;
-                        tripToWorld = c + toward.normalized * 0.35f;
-                        tripToWorld.y = tripFromWorld.y;
-                    }
-                    else
-                    {
-                        if (heldPosValid) tripFromWorld = heldPos;
-                        tripToWorld = chairHomeValid ? chairHomeWorld : tripFromWorld;
-                    }
-                    if (Plugin.VerboseCues.Value)
-                        Plugin.Log.LogInfo("trip walk: " + (isGo ? "go" : "back") + " from=" + tripFromWorld.ToString("F2") + " to=" + tripToWorld.ToString("F2"));
-                }
-            }
             // 分类：决定这一段的合成方式（叠加 / 绝对过渡）、预算与是否独占
             ClipClass cls = MotionRules.Classify(clipName);
             float transMs = MotionRules.TransitionMs(currentClass, cls);
@@ -2361,6 +4212,15 @@ private void EnsureBones()
             }
             switchT0 = Time.time;
             MeasureAndPlan(spd);
+            // 起手时长按"这一类动作有多大"给，不按测量值：测量值在第一次演某族时是 0，
+            // 而第一次恰恰最抽。身体大动作（哈欠整族实测 107°）900ms 起来 = 一秒转一百度，
+            // 观感就是"抽一下再正常"；小动作（点头 520ms）不受影响。
+            {
+                string clsLabel = MotionRules.Label(cls);
+                if (clsLabel == "posture") switchMsFromClass = Mathf.Max(switchMsFromClass, 1500f);
+                else if (clsLabel == "prop") switchMsFromClass = Mathf.Max(switchMsFromClass, 1200f);
+                if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("fade in " + switchMsFromClass.ToString("F0") + "ms (" + clsLabel + "): " + clipName);
+            }
             spd *= planSpeed;
             clipSpeed = Mathf.Max(0.05f, spd);
             // 按住段按真实时长待着：速度缩放只该作用于"演"，不该作用于"等"
@@ -2420,6 +4280,31 @@ private void EnsureBones()
                         target = kv.Value;
                         playName = kv.Key;
                         break;
+                    }
+                }
+            }
+            if (target == null)
+            {
+                // 基名（一整族，如 anim_break_yawn_1）不会出现在任何 controller 里：
+                // 它只是 _start/_loop/_end 的统称。上游把整族当一条下发时，
+                // 就拿 _start 段找 owner——段由 BuildSequence 自己拼成一条时间线。
+                // 这样整族一次起手、段间不归还姿势，演出开头才不会抽一下。
+                string probe = name + "_start";
+                if (clipOwners.TryGetValue(probe, out target) && target != null)
+                {
+                    playName = name;
+                }
+                else
+                {
+                    target = null;
+                    foreach (var kv in clipOwners)
+                    {
+                        if (kv.Key.EndsWith(probe, StringComparison.OrdinalIgnoreCase) && kv.Value != null)
+                        {
+                            target = kv.Value;
+                            playName = name;
+                            break;
+                        }
                     }
                 }
             }
@@ -2594,6 +4479,14 @@ private void EnsureBones()
             {
                 if (pending.Count == 0) { yield return new WaitForSecondsRealtime(0.2f); continue; }
                 PruneExpired();
+                // performing 卡死兜底：Perform 里任何一次异常都会让这个标志留在 true，
+                // 以前就是队列永久不演、心跳还报在线。90 秒没复位就当它已经挂了。
+                if (performing && Time.unscaledTime - performingSince > 90f)
+                {
+                    Plugin.Log.LogError("queue: performing 卡了 " + (Time.unscaledTime - performingSince).ToString("F0") + "s，强制复位");
+                    performing = false;
+                    GameVoiceGate.Exit();
+                }
                 if (performing) { yield return new WaitForSecondsRealtime(0.1f); continue; }
                 // 上一句还在响或动作还没收尾：等它，绝不打断
                 if (audioSource != null && audioSource.isPlaying) { yield return new WaitForSecondsRealtime(0.1f); continue; }
@@ -2609,8 +4502,10 @@ private void EnsureBones()
                 var item = pending[0];
                 pending.RemoveAt(0);
                 performing = true;
+                performingSince = Time.unscaledTime;
                 qPlayed++;
                 string subText = (item.dto.subtitle == null || string.IsNullOrEmpty(item.dto.subtitle.text)) ? "-" : item.dto.subtitle.text;
+                GameVoiceGate.Enter("queue seq=" + item.seq, 30f);
                 Plugin.Log.LogInfo("queue: play seq=" + item.seq + " depth=" + pending.Count + " waited=" + (Time.unscaledTime - item.at).ToString("F1") + "s cues=" + (item.dto.performance == null ? 0 : item.dto.performance.Length) + " sub=" + subText);
                 yield return StartCoroutine(Perform(item.dto));
                 // 等这一条真的演完（语音播完 + 动作收尾），30 秒兜底防卡死
@@ -2621,6 +4516,7 @@ private void EnsureBones()
                 int gap = pending.Count > 0 ? 0 : (Plugin.QueueGapMs == null ? 250 : Mathf.Max(0, Plugin.QueueGapMs.Value));
                 if (gap > 0) yield return new WaitForSecondsRealtime(gap / 1000f);
                 performing = false;
+                GameVoiceGate.Exit();
             }
         }
 

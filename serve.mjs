@@ -12,6 +12,8 @@
  */
 import http from 'node:http'
 import { readFileSync } from 'node:fs'
+import { createAuth } from './lib/http.mjs'
+import { resolveToken } from './lib/config.mjs'
 
 const HERE = new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
 const PORT = Number(process.env.CHILL_BRAIN_PORT || process.env.PORT || 10723)
@@ -81,22 +83,22 @@ const ctx = {
 }
 
 const { apply } = await import('./brain.mjs')
-apply(ctx, readConfig())
+const sidecarCfg = readConfig()
+// 自重启这条以前只看 CHILL_API_TOKEN，而全仓只有这里用到那个变量名，
+// 宿主注入的是 CHILL_TOKEN / token 文件——于是它实际上永远免鉴权，本机任何进程
+// POST 一下就能让侧车退出（宿主会拉回，但在跑的对话与长轮询全断）。
+// 改成和其余路由同一套 token，口径由 resolveToken 统一。
+const restartAuth = createAuth({ token: resolveToken({ explicit: sidecarCfg.token, dataDir: sidecarCfg.dataDir }) })
+apply(ctx, sidecarCfg)
 
 // 自重启：侧车自己退出，由父进程（DSH 插件）拉回来。独立运行时也能靠这条手动换代。
 routes.push({
   kind: 'exact',
   path: '/chill/v1/admin/restart',
   handler: (req, res) => {
-    // 配了 token 就要带；没配时维持原来的"本机回环随便调"，不改变现有行为。
-    const want = String(process.env.CHILL_API_TOKEN || '').trim()
-    if (want) {
-      const got = String(req.headers['authorization'] || '') === 'Bearer ' + want ||
-        String(req.headers['x-chill-token'] || '') === want
-      if (!got) {
-        res.writeHead(401, { 'content-type': 'application/json; charset=utf-8' })
-        return res.end(JSON.stringify({ ok: false, error: 'unauthorized' }))
-      }
+    if (!restartAuth(req)) {
+      res.writeHead(401, { 'content-type': 'application/json; charset=utf-8' })
+      return res.end(JSON.stringify({ ok: false, error: 'unauthorized' }))
     }
     if (req.method !== 'POST') {
       res.writeHead(405, { 'content-type': 'application/json; charset=utf-8' })

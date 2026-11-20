@@ -74,14 +74,29 @@ check('注册的路由没有重复（meta 描述表不算注册）', () => {
 })
 
 
+// secrets.test.mjs 会临时在 test/ 下放一个假密钥文件来验证闸门本身抓得到它。
+// 两条测试并行跑时，这里的扫描正好会撞上那个探针——只放过这一处，别的一律算失败。
+function scanOrProbeOnly(args) {
+  try {
+    return execFileSync(process.execPath, [join(ROOT, 'tools/scan-secrets.mjs'), ...args],
+      { encoding: 'utf8', timeout: 180000 })
+  } catch (e) {
+    const out = String(e.stdout || '')
+    const stray = out.split('\n')
+      .filter((l) => /^\s+\S+:\d+\s/.test(l) && !/_secret_probe\.txt/.test(l))
+    assert.deepEqual(stray, [], '除临时探针外还有明文密钥：\n' + out)
+    return out
+  }
+}
+
 check('密钥闸门能跑，且工作树干净', () => {
-  const out = execFileSync(process.execPath, [join(ROOT, "tools/scan-secrets.mjs")], { encoding: "utf8", timeout: 120000 })
-  assert.match(out, /没有明文密钥/)
+  const out = scanOrProbeOnly([])
+  assert.ok(/没有明文密钥|_secret_probe\.txt/.test(out), out)
 })
 
 check('密钥闸门 --history 能读 git 历史（不是静默跳过）', () => {
-  const out = execFileSync(process.execPath, [join(ROOT, "tools/scan-secrets.mjs"), "--history"], { encoding: "utf8", timeout: 180000 })
-  assert.match(out, /没有明文密钥/)
+  const out = scanOrProbeOnly(['--history'])
+  assert.ok(/没有明文密钥|_secret_probe\.txt/.test(out), out)
   assert.doesNotMatch(out, /历史读取失败/)
 })
 

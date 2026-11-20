@@ -66,8 +66,12 @@ await check('get 本身抛错也不崩', async () => {
 })
 
 console.log('# 不泄漏')
-await check('index.js 只在日志里写 source，不写 value', () => {
-  const src = readFileSync(join(ROOT, 'index.js'), 'utf8')
+await check('借来的 key 只在日志里写 source，不写 value', () => {
+  // 借 key 的那段代码住在 supervisor 里，日志也一起搬过去了；
+  // 约束是「整个借 key 链路都不许把值写进日志」，所以两个文件连着看。
+  const src = ['index.js', 'lib/sidecar-supervisor.js']
+    .map((f) => readFileSync(join(ROOT, f), 'utf8'))
+    .join('\n')
   assert.equal(/log\([^)]*cred\.value/.test(src), false, '日志里出现了 cred.value')
   assert.match(src, /source: cred\.source/)
 })

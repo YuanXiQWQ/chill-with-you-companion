@@ -10,10 +10,10 @@
  *   POST /chill/v1/chat/completions   OpenAI 兼容（现成 AIChat 插件可直接指过来，零改造）
  *   POST /chill/v1/act                原生指令（带 actions[]/state/meta，供自研表演端使用）
  */
-import { readFileSync, writeFileSync, rmSync, existsSync, appendFileSync, openSync, closeSync, mkdirSync, copyFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, rmSync, existsSync, appendFileSync, openSync, closeSync, mkdirSync, copyFileSync, statSync, renameSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, writeFile, stat, appendFile, rename } from 'node:fs/promises'
-import { mouthFrames, wavDuration } from './lib/lipsync.mjs'
+import { mkdir, readFile, writeFile, stat, appendFile, rename, readdir, rm } from 'node:fs/promises'
+import { mouthFrames, wavDuration, CHANNELS } from './lib/lipsync.mjs'
 import { createLlm } from './lib/llm.mjs'
 import { createStateFile } from './lib/state-file.mjs'
 import { createModelClient } from './lib/model-client.mjs'
@@ -50,6 +50,7 @@ import {
   topicDrift,
   topicScore,
   emotionTier,
+  facialForEmotion,
   MOTIFS,
 } from './lib/core.js'
 import { createMemoryStore } from './lib/memory-store.mjs'
@@ -68,17 +69,22 @@ import {
 } from './lib/assets.js'
 
 import { planSequence, classifyClip, enforceContentClass, isOffChair, offSeatIdle, seatGuard, MOTION_CLASS } from './lib/motion-class.js'
-import { buildSuite } from './lib/core-action.js'
-import { decideTrip, tripWindow, cooldownMs } from './lib/seat-trip.js'
+import { applyFamily, familyOfClip, familyOfState, gesturesIn, tableError } from './lib/gestures.mjs'
+import { extractNeeds } from './lib/needs.js'
+import { arrange, describeArrangement } from './lib/arrange.js'
+import { describeNative } from './lib/anim-type.js'
+import { decideTrip, awayWindow, cooldownMs } from './lib/seat-trip.js'
 import { familyOf as grammarFamilyFn, layerOf } from './lib/game-grammar.js'
 import { resolveConfig } from './lib/config.mjs'
 import { createAuth, readBinary, readBody, sendJson, sendText } from './lib/http.mjs'
 import { createFeed } from './lib/feed.mjs'
 import { createGame } from './lib/game.mjs'
+import { createMonitor } from './lib/game-monitor.js'
+import { modeOf } from './lib/director-mode.js'
 import { createVoice } from './lib/voice.mjs'
 import { createCapabilities } from './lib/capabilities.mjs'
 
-const VERSION = '0.10.1'
+const VERSION = '0.11.0'
 
 const execFileAsync = promisify(execFile)
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -130,6 +136,39 @@ export function apply(ctx, rawConfig = {}) {
   const ensureDirs = async () => {
     await mkdir(cfg.dataDir, { recursive: true })
     await mkdir(audioDir, { recursive: true })
+    // 语音缓存以前只写不删，实测已经 558 MB / 1,843 个文件。
+    // 启动时按最久未用裁到上限，删掉的只是下次重新合成，没有数据损失。
+    void trimAudioCache()
+  }
+
+  const AUDIO_CACHE_MAX_MB = Number(cfg.audioCacheMaxMB) > 0 ? Number(cfg.audioCacheMaxMB) : 512
+  let audioTrimBusy = false
+  async function trimAudioCache() {
+    if (audioTrimBusy) return
+    audioTrimBusy = true
+    try {
+      const names = await readdir(audioDir).catch(() => [])
+      if (!names.length) return
+      const rows = []
+      let total = 0
+      for (const name of names) {
+        if (!/\.wav$/i.test(name)) continue
+        const st = await stat(join(audioDir, name)).catch(() => null)
+        if (!st) continue
+        total += st.size
+        rows.push({ name, size: st.size, at: st.mtimeMs })
+      }
+      const limit = AUDIO_CACHE_MAX_MB * 1024 * 1024
+      if (total <= limit) return
+      rows.sort((a, b) => a.at - b.at)
+      let freed = 0
+      let dropped = 0
+      for (const row of rows) {
+        if (total - freed <= limit * 0.8) break
+        try { await rm(join(audioDir, row.name), { force: true }); freed += row.size; dropped += 1 } catch { /* 删不掉就算了 */ }
+      }
+      if (dropped) log('[tts] 缓存裁剪：删 ' + dropped + ' 条，释放 ' + Math.round(freed / 1048576) + ' MB（上限 ' + AUDIO_CACHE_MAX_MB + ' MB）')
+    } catch { /* 裁剪失败不影响合成 */ } finally { audioTrimBusy = false }
   }
 
   // 角色卡：人设 + 剧情 + 声音 + 动作覆盖都装在 data/characters/<id>.json 里。
@@ -265,7 +304,7 @@ export function apply(ctx, rawConfig = {}) {
       miss: Number(usage.prompt_cache_miss_tokens) || 0,
       out: Number(usage.completion_tokens) || 0,
     }
-    try { appendFileSync(USAGE_LOG, JSON.stringify(row) + '\n') } catch { /* 记账失败不该影响对话 */ }
+    try { appendRotating(USAGE_LOG, JSON.stringify(row) + '\n') } catch { /* 记账失败不该影响对话 */ }
   }
 
   /** 模型调用：交给 lib/model-client.mjs（重试 + 跨 provider 降级都在里面，依赖注入）。 */
@@ -283,7 +322,7 @@ const PERSPECTIVE = '（下面背景里提到的「他」，指的就是你现�
   // 45 秒内不重复拉，避免连续几轮把人叫起来三次。本轮仍只出字幕，下一轮就有声音。
   const noteTtsFailure = (voiceText, elapsedMs, reason) => {
     try {
-      appendFileSync(join(cfg.dataDir, 'tts.log'), '[' + new Date().toISOString().slice(11, 23) + '] len=' + voiceText.length + ' ms=' + elapsedMs + ' ' + reason + ' | ' + voiceText.slice(0, 60).replace(/\s+/g, ' ') + '\n')
+      appendRotating(join(cfg.dataDir, 'tts.log'), '[' + new Date().toISOString().slice(11, 23) + '] len=' + voiceText.length + ' ms=' + elapsedMs + ' ' + reason + ' | ' + voiceText.slice(0, 60).replace(/\s+/g, ' ') + '\n')
     } catch { /* 写日志失败不影响主流程 */ }
   }
 
@@ -387,12 +426,60 @@ let lastGestureTurn = -99
  *   still 情绪不动手（低落时乱挥手反而破坏氛围）
  * 冷却只对 soft 生效，且默认 1 轮；strong 情绪无视冷却。
  */
+/**
+ * 她这一族里"随手能做一下"的一个动作，给兜底用。
+ *
+ * 为什么要按族挑：Rest 族很小（读纸书族只有 NextPage / PreviousPage / Interest），
+ * 兜底时塞一个 Story 族的点头，下一段 applyFamily 会因为跨族把整条丢掉，
+ * 结果"兜底"反而成了 0 条。这里直接从清单里挑 familyOfClip 判给她这一族的动作。
+ */
+function familyWantedCue() {
+  try {
+    const fresh = !state.gameFamilyAt || (Date.now() - state.gameFamilyAt) < 60 * 1000
+    const fam = fresh ? String(state.gameFamily || '') : ''
+    if (!fam) return null
+    const all = (manifest?.animations || []).map((a) => String(a?.id || '')).filter(Boolean)
+    const mine = all.filter((id) => String(familyOfClip(id)).toLowerCase() === fam.toLowerCase())
+    if (mine.length) {
+      // 优先挑有实体手势的那类（sub_xxx），避开 base_start/base_end 这种进出场
+      const gestures = mine.filter((id) => !/_(start|end|loop\d?)$/.test(id))
+      const pool = gestures.length ? gestures : mine
+      const pick = pool[Number(state.turnCount || 0) % pool.length]
+      return { slot: 'animations', id: pick, at: 0, durationMs: animDurationMs(pick), why: '兜底：本族动作' }
+    }
+    // 有族但没有对应的 clip —— 实测专注时她处在 WorkBase001，而游戏里根本没有 work_base001_* 这样的 clip
+    // （ClipFamily 把 work_pc / work_book 都判给 WorkBase002）。这时走**原生手势**：
+    // 给 DLL 一个她这一族真有的手势名（WorkBase001_Thinking 这种），由游戏自己的状态机去演，
+    // 不经过 clip 名查找，也就不会被"clip missing → 丢掉"。
+    const gl = gesturesIn(fam)
+    if (!gl.length) return null
+    const pick = gl[Number(state.turnCount || 0) % gl.length]
+    return {
+      slot: 'animations', id: '', nativeName: pick, at: 0,
+      durationMs: animDurationMs(pick), why: '兜底：本族原生手势',
+    }
+  } catch { return null }
+}
+
 function gateCues(cues, emotion, cfg, actionMap) {
-  if (!cues || cues.length === 0) return cues
   const mode = String(cfg.motionMode || 'gentle')
-  if (mode === 'off') return []
   // turnCount 在本轮结束才 +1，这里 +1 才是"当前第几轮"
   const turn = Number(state.turnCount || 0) + 1
+  const headOnly = (cfg.microHeadCues || ['anim_story_base001_sub_nod', 'anim_story_base001_sub_thinking1_start'])
+  if (!cues || cues.length === 0) {
+    // 模型没给动作、情绪又没有签名动作（Tired / Agree 这类不在 actionMap 里的）时，
+    // 以前直接返回空：这一句就一条 cue 都没有 —— 她站着把台词说完，连点一下头都没有，
+    // 和"她没反应"在观感上没区别。
+    // still 档（Sad / Drink / Idle）保持完全不动，那是刻意的。
+    if (mode === 'off' || emotionTier(emotion) === 'still') return []
+    // 兜底动作必须是**她这一族里真有的**。以前这里直接塞 anim_story_base001_sub_nod，
+    // 她在读纸书族（BreakBase002，只有 NextPage / PreviousPage / Interest 三条）时，
+    // 这个动作在下一段 applyFamily 里被整条丢掉 —— 兜底等于没兜，还是 0 条。
+    const want = familyWantedCue()
+    if (want) return [want]
+    const id = headOnly[turn % headOnly.length]
+    return [{ slot: 'animations', id, at: 0, durationMs: animDurationMs(id), why: '兜底头部微动' }]
+  }
   let allowAnim = true
   if (mode === 'gentle') {
     const tier = emotionTier(emotion)
@@ -414,7 +501,7 @@ function gateCues(cues, emotion, cfg, actionMap) {
   const cap = Math.max(1, cfg.maxCues == null ? 1 : Number(cfg.maxCues))
   // soft 档没抽中时不是"完全静止"，而是降级成点头/偏头这类头部微动：
   // 说话时有细微反应，比一动不动更像活着，也不会夸张。
-  const headOnly = (cfg.microHeadCues || ['anim_story_base001_sub_nod', 'anim_story_base001_sub_thinking1_start'])
+  // （headOnly 已在函数开头取好，这里不再重复声明）
   const kept = []
   let anims = 0
   let usedHead = false
@@ -538,8 +625,44 @@ const CUE_LOG = join(cfg.dataDir, 'cue.log')
 const CUE_TEST_LOG = join(cfg.dataDir, 'cue.test.log')
 const CUE_LOG_MAX_BYTES = 200 * 1024
 let cuePushes = 0
-// /play 的去重闸门：记住最后一条的内容指纹与时间
+// /play 的去重闸门：3 秒窗口内最近几条的指纹（以前只有一条 lastCue，
+// spark/observe 一推就把它顶掉，真正的重复 /play 反而拦不住）
+const recentCues = []
+function cueSignature(json) {
+  try {
+    const perf = (Array.isArray(json?.performance) ? json.performance : [])
+      .map((c) => String(c?.slot || '') + ':' + String(c?.id || '') + '@' + (Number(c?.at) || 0))
+      .join(',')
+    const sub = String(json?.subtitle || '')
+    const audio = String(json?.audioUrl || '')
+    const src = String(json?.source || '')
+    // 全空说明这条本来就没有内容，交给后面的 400 分支处理，不参与去重
+    if (!perf && !sub && !audio) return ''
+    return [src, audio, sub, perf].join('|')
+  } catch { return '' }
+}
+function rememberCue(sig, seq) {  if (!sig) return
+  recentCues.push({ sig, seq, at: Date.now() })
+  while (recentCues.length > 12) recentCues.shift()
+  const cut = Date.now() - 10000
+  while (recentCues.length && recentCues[0].at < cut) recentCues.shift()
+}
+// 旧名字保留：pushCue 里仍会更新它（面板/日志读它看"最后一条"）
 let lastCue = { sig: '', at: 0, seq: 0 }
+
+/**
+ * 写操作的请求体读取：畸形 JSON 直接 400，别让空 body 一路走到底。
+ * 返回 null 表示已经回过 400，调用方直接 return。
+ */
+async function readJsonStrict(req, res, where) {
+  const { json, parseError } = await readBody(req)
+  if (parseError) {
+    log('[body] ' + (where || '') + ' 请求体不是合法 JSON', { error: parseError })
+    sendJson(res, 400, { error: '请求体不是合法 JSON', detail: parseError })
+    return null
+  }
+  return json
+}
 
 function logCue(item, seq) {
   try {
@@ -583,11 +706,30 @@ function pruneCueLog() {
   for (const path of [CUE_LOG, CUE_TEST_LOG]) {
     try {
       if (!existsSync(path)) continue
-      if (readFileSync(path, 'utf8').length < CUE_LOG_MAX_BYTES) continue
+      // 先看大小再说：以前每次都把整份读两遍（只为了比一个长度）
+      let size = 0
+      try { size = statSync(path).size } catch { continue }
+      if (size < CUE_LOG_MAX_BYTES) continue
       const lines = readFileSync(path, 'utf8').trimEnd().split('\n')
       writeFileSync(path, lines.slice(-200).join('\n') + '\n')
     } catch { /* 同上 */ }
   }
+}
+
+/**
+ * 带大小上限的追加：超过就把旧内容挪成 `.1`（只留一份），再继续写。
+ * gate.log / tts.log / trip.log / usage.log 以前都是裸 appendFileSync 无上限，
+ * gate.log 每轮 1~2 行、usage.log 每次模型调用 1 行，跑几个月会把同步 IO 一起拖慢。
+ */
+function appendRotating(path, text, maxBytes = 512 * 1024) {
+  try {
+    let size = 0
+    try { size = statSync(path).size } catch { /* 还没有这个文件 */ }
+    if (size > maxBytes) {
+      try { renameSync(path, path + '.1') } catch { /* 挪不动就继续追加 */ }
+    }
+    appendFileSync(path, text)
+  } catch { /* 记日志失败不能影响主流程 */ }
 }
 
 /**
@@ -632,7 +774,7 @@ let pendingTripCues = []
 function tripLog(obj) {
   try {
     const line = JSON.stringify(Object.assign({ t: localClock() }, obj)) + '\n'
-    appendFileSync(((cfg && cfg.dataDir) || '.') + '/trip.log', line, 'utf8')
+    appendRotating(((cfg && cfg.dataDir) || '.') + '/trip.log', line)
   } catch { /* 记不了也不影响演出 */ }
 }
 
@@ -644,10 +786,11 @@ function pushCue(item) {
   logCue(item, seq)
   // 指纹记在这里而不是各调用点，否则 /act 推完不更新它，紧接着的 /play 就拦不住
   lastCue = {
-    sig: String(item?.audioUrl || '') + '|' + String(item?.subtitle || '').slice(0, 40),
+    sig: cueSignature(item),
     at: Date.now(),
     seq,
   }
+  rememberCue(lastCue.sig, seq)
   // 记住这一轮用了什么动作，下一轮 prompt 里列给模型，免得它连着用同一个姿势
   try {
     const seen = new Set()
@@ -662,26 +805,41 @@ function pushCue(item) {
   } catch { /* 记动作失败不影响演出 */ }
   cuePushes += 1
   if (cuePushes % 50 === 0) pruneCueLog()
-  // 离座长途：这一句排完了，把行程条目按顺序接上。
-  if (pendingTripCues.length) {
-    const queue = pendingTripCues
-    pendingTripCues = []
-    for (const t of queue) {
-      const tripItem = buildCueItem({
-        raw: true,
-        subtitle: '',
-        audioUrl: '',
-        performance: [{ slot: 'animations', id: t.id, at: 0, holdMs: t.holdMs }],
-        durationMs: t.holdMs > 0 ? t.holdMs : t.spanMs,
-        ttlMs: t.ttlMs,
-        source: 'trip',
-      })
-      const tseq = feed.push(tripItem)
-      logCue(tripItem, tseq)
-      log('[perf] trip item: ' + String(t.id).replace(/^anim_/, '') + (t.holdMs ? ' hold=' + Math.round(t.holdMs / 1000) + 's' : '') + ' ttl=' + Math.round(t.ttlMs / 1000) + 's')
-    }
-  }
+  flushTripCues()
   return seq
+}
+
+/**
+ * 把"离座"指令真的下发出去。
+ *
+ * 以前这段只长在 pushCue 里面，于是任何"武装了 trip 但没有推 cue"的入口
+ * （典型是 /chill/v1/chat/completions：它走完整 runTurn，会设 state.away、
+ * 写 nextTripAt、塞 pendingTripCues，但从不 pushCue）就会两头错：
+ *   · 游戏端永远收不到 slot=trip，而 brain 认为她离座 3~5 分钟，tripLocked
+ *     把这个窗口里所有 animations 全过滤掉——她就一动不动；
+ *   · pendingTripCues 留在原地，下一次任意 push（可能十几分钟后）突然把过期的离座指令发出去。
+ */
+function flushTripCues() {
+  // 离座：这一句排完了，把"起身"那条指令接上。
+  // 只有一条——slot=trip 的 cue 不带 clip，游戏端收到它就去调自己的离座状态机
+  // （HeroineAI.DebugForceLeaveChair）。走出去、坐下、待着、回来全在游戏那边。
+  if (!pendingTripCues.length) return
+  const queue = pendingTripCues
+  pendingTripCues = []
+  for (const t of queue) {
+    const tripItem = buildCueItem({
+      raw: true,
+      subtitle: '',
+      audioUrl: '',
+      performance: [{ slot: 'trip', id: t.plan, at: 0, durationMs: t.spanMs }],
+      durationMs: 0,
+      ttlMs: t.ttlMs,
+      source: 'trip',
+    })
+    const tseq = feed.push(tripItem)
+    logCue(tripItem, tseq)
+    log('[perf] trip: 交给游戏自己的状态机 plan=' + t.plan + ' ttl=' + Math.round(t.ttlMs / 1000) + 's')
+  }
 }
 
 /** 把一轮结果推给游戏并返回摘要。spark / 番茄钟播报共用。 */
@@ -828,8 +986,13 @@ const runTurn = async (userText, options = {}) => {
     const promptMemory = memory.map(asPromptTurn).filter(Boolean)
     // 窗外的景：和画面保持一致，她说"天黑了"才不是在瞎编。
     // 启动早期 game 可能还没建好，拿不到就不提。
+    // 必须判 age：快照带的是"最后一次心跳时窗外是什么样"，游戏关掉两小时后
+    // 它仍是"窗外正黄昏"，模型会照着说一句跟真实时间对不上的话。
     let windowViewNow = ''
-    try { windowViewNow = String(game.snapshot()?.windowView || '') } catch { /* 早期没有心跳 */ }
+    try {
+      const snapW = game.snapshot() || {}
+      if (!snapW.stale) windowViewNow = String(snapW.windowView || '')
+    } catch { /* 早期没有心跳 */ }
     const messages = buildMessages({
       persona: currentPersona,
       memory: (sandbox && !withHistory) ? [] : promptMemory,
@@ -986,38 +1149,15 @@ const runTurn = async (userText, options = {}) => {
           })
         }
       }
-      // 番茄钟/专注态：原来这里把所有动画无条件换成点头，可游戏绝大部分时间都在
-      // focus/break 里，于是她永远只会点头——编什么情绪都白搭（2026-11-13 修）。
-      // 现在只降级"没有情绪签名"的动作；shy / frustration / jump 这类照演，
-      // 它们本来就是坐着做的小动作，不会打断专注。
-      if (state.phase === 'focus' || state.phase === 'break') {
-        // 只替换"动作"，不要把 sfx/scene 强转成动画；并且必须在清单里存在才能下发
-        const animIds = indexManifest(manifest).get('animations')
-        const headOnly = ['anim_story_base001_sub_nod', 'anim_story_base001_sub_thinking1_start']
-          .filter((id) => animIds && animIds.has(id))
-        // 情绪签名动作白名单：这些是按这张脸做的子动作，留着比点头更有戏
-        const signature = new Set(
-          Object.values(turnActionMap || {})
-            .map((id) => String(id || ''))
-            .filter((id) => /sub_(shy|frustration|joy|fun|guts|sad|deep|presshands|dropshoulders|jump|shakehead|laugh|confidence|thinking)/.test(id)),
-        )
-        let ai = 0
-        if (cues.length > 0) {
-          cues = cues.map((c) => {
-            if (!c || c.slot !== 'animations') return c
-            if (signature.has(c.id)) return c
-            if (headOnly.length === 0) return c
-            const id = headOnly[ai % headOnly.length]
-            ai += 1
-            return Object.assign({}, c, { id })
-          })
-          if (headOnly.length > 0 && !cues.some((c) => c && c.slot === 'animations')) {
-            cues = cues.concat([{ slot: 'animations', id: headOnly[0], at: 0 }])
-          }
-        } else if (headOnly.length > 0) {
-          cues = [{ slot: 'animations', id: headOnly[0], at: 0 }]
-        }
-      }
+      // 曾经这里在 focus / break 期把"没有情绪签名"的动作一律换成点头，
+      // 理由是"专注时只该做头部动作"。这条已经被后来两层取代，而且**有害**：
+      //   · 姿势族：点头属于 Base001，她此刻在 WorkBase001 / BreakBase002 时，
+      //     applyFamily 拼不出同族等价动作，整条丢掉 —— 那一轮 0 条 cue；
+      //   · 游戏端：DLL 的 FocusMode 会把身体动作整条跳过（只留表情/嘴形）。
+      // 实测 30 分钟观察：8 次演出里 5 次是同一个 anim_story_base001_sub_nod，
+      // 连「那要重新泡一杯吗」（句子里有「茶」）也落到点头。
+      // 现在交给族过滤（applyFamily）+ 族内兜底（familyWantedCue）+ 专注期表情通道，
+      // 不再在这里改写模型给的动作。
     }
     // 沙箱轮次完全不落地：历史、事实、摘要、状态一律不碰
     if (!sandbox) {
@@ -1083,6 +1223,8 @@ const runTurn = async (userText, options = {}) => {
     // 而是接管十几到三十秒：起身 → 走开 → 做那件事 → 回来坐下。
     // 接管期内她不在椅子上，这段时间的对话一律不排动作，只出字幕与语音。
     let tripLocked = false
+    // 这一轮的需求（extractNeeds 的产出）。null = 离座中，本轮不编排。
+    let needsOut = null
     {
       const nowMs = Date.now()
       if (state.away && Number(state.away.until) <= nowMs) {
@@ -1090,7 +1232,25 @@ const runTurn = async (userText, options = {}) => {
         try { saveState() } catch { /* 清理失败不影响演出 */ }
       }
       const away = state.away && Number(state.away.until) > nowMs ? state.away : null
-      if (away) {
+      // 窗口是估计值（3~5 分钟），游戏自己往往一分多钟就回来了。
+      // 她回来以后窗口还挂着，这一整段时间的动作都会被吞掉——实测连吞了两分多钟。
+      // 所以拿游戏当前的动画复核：已经不在 leavechair 里就提前解锁。
+      // 留 20 秒余量，避开"刚起身、动画还没切过去"的那一帧。
+      let awayLive = !!away
+      if (away && nowMs - Number(away.from || 0) > 20000) {
+        try {
+          const snap0 = liveSnap()
+          const live0 = String((snap0.motion && snap0.motion.live) || '')
+          if (live0 && !/leavechair/i.test(live0)) {
+            tripLog({ ev: 'back', trip: away.trip })
+            log('[perf] 她已经回到椅子上（' + live0 + '），离座窗口提前解锁')
+            awayLive = false
+            state.away = null
+            try { saveState() } catch { /* 清理失败不影响演出 */ }
+          }
+        } catch { /* 拿不到快照就按原窗口算 */ }
+      }
+      if (awayLive) {
         tripLocked = true
         const had = (cues || []).filter((c) => c && c.slot === 'animations').map((c) => c.id)
         cues = (cues || []).filter((c) => c && c.slot !== 'animations')
@@ -1107,7 +1267,7 @@ const runTurn = async (userText, options = {}) => {
         const cooling = nowMs < nextTripAt || (lastTripAt && nowMs - lastTripAt < 3 * 60 * 1000)
         let idleNow = true
         try {
-          const s0 = game.snapshot() || {}
+          const s0 = liveSnap()
           const q0 = s0.queue || {}
           const m0 = s0.motion || {}
           idleNow = !(Number(m0.remainingMs) > 0) && !(Number(q0.depth) > 0) && !q0.performing
@@ -1119,60 +1279,57 @@ const runTurn = async (userText, options = {}) => {
         }
         if (allowed) {
           tripLocked = true
-          // 一趟行程按"一条动作一个队列条目"下发：出去 / 按住 / 回来。
-          // 按住那一条要独占队列，否则它在演的时候下一条会被 Exclusive 挡掉或打断。
-          const win = tripWindow(trip)
-          // 条目排在这一句之后（先说话，再起身）：pushCue 把这一轮推完会接着把这几条排上。
-          pendingTripCues = win.items.map((it) => ({
-            id: it.id,
-            holdMs: it.holdMs,
-            spanMs: it.spanMs,
-            ttlMs: Math.round(win.totalMs) + 120000,
-          }))
+          // 一句话说完再起身：先出字幕和语音，然后把这件事交给游戏。
           const speechMs = Math.round(Number(audio?.duration) * 1000) || 0
+          const win = awayWindow(trip, nowMs + speechMs)
+          // 一条指令，不带任何 clip。游戏端收到 slot=trip 就去调自己的离座状态机：
+          // go → (thinking / lookOutside / headphone 轮转) → comeback，时长它自己定。
+          // 我们只负责"这段时间别插动作"。
+          pendingTripCues = [{ plan: win.plan, label: win.label, spanMs: win.spanMs, ttlMs: 2 * 60 * 1000 }]
           state.away = {
-            from: nowMs + speechMs,
-            until: nowMs + speechMs + win.awayMs,
-            trip: trip.label,
-            holdMs: win.items.find((x) => x.holdMs > 0)?.holdMs || 0,
+            from: win.from,
+            until: win.until,
+            trip: win.label,
+            plan: win.plan,
           }
           state.lastTripAt = nowMs
           state.nextTripAt = nowMs + cooldownMs()
           try { saveState() } catch { /* 存盘失败不影响这次演出 */ }
-          tripLog({ ev: 'start', key: trip.key, totalMs: Math.round(win.totalMs), holdMs: state.away.holdMs, items: win.items.map((x) => ({ id: x.id, holdMs: x.holdMs })) })
-          log('[perf] 离座长途启动: ' + trip.key + ' 共 ' + Math.round(win.totalMs / 1000) + 's（含按住 '
-            + Math.round((state.away.holdMs || 0) / 1000) + 's） → '
-            + win.items.map((x) => String(x.id).replace(/^anim_wild_leavechair_/, '') + (x.holdMs ? '(hold)' : '')).join(' → '))
-          // 这一轮的动作已经作为条目推完了，本轮的 cues 清空（这句台词在第一条上）
+          tripLog({ ev: 'start', key: trip.key, plan: win.plan, awayMs: win.spanMs })
+          log('[perf] 离座启动: ' + win.label + ' plan=' + win.plan + ' 交给游戏自己演，窗口 '
+            + Math.round(win.spanMs / 1000) + 's（这段时间不排动作）')
+          // 这一轮的动作全部作废——主戏是「离开」，坐着的那套已经没有落点。
           cues = (cues || []).filter((c) => c && c.slot !== 'animations')
         }
       }
     }
-    // 核心动作机制（先于闸门与编排）：这句话的核心行为由语句决定，跟模型给没给动作无关。
-    // 模型那两次一条动作都没给（cues 空），如果放在后面的块里就永远轮不到它。
+    // 需求层（先于闸门与编排）：把"他这一句 + 模型给的动作"翻成这一轮她欠世界哪几件事。
+    // 这里只判需求、不排时间——真正排在哪、演多久在语音时长出来之后交给 arrange。
+    // 模型那两次一条动作都没给（cues 空）也要跑：核心行为是由语句决定的，跟模型给没给动作无关。
     if (!tripLocked) try {
       // 注意：cues 可能是 null（模型没给动作），别把它改成 []——下游用 null 区分
       // "走情绪兜底" 与 "真的没有动作"，改了就丢兜底动作（smoke 测试就是这么挂的）。
-      const suite = buildSuite(Array.isArray(cues) ? cues : [], userText)
-      if (suite.core) {
-        log('[perf] core: ' + suite.core.verb + ' → ' + suite.core.family + ' [' + suite.from + ']'
-          + (suite.suite.length ? ' suite=' + suite.suite.map((x) => x.role + ':' + String(x.id).replace(/^anim_/, '')).join(' > ') : ' (不改动)'))
+      needsOut = extractNeeds({ text: userText, cues: Array.isArray(cues) ? cues : [], ...gameCtx() })
+      if (needsOut.needs.length) {
+        log('[perf] 需求: ' + needsOut.needs.map((n) => n.kind + ':' + (n.verb || n.family) + '[' + n.anchor + ']').join(', '))
       }
-      if (suite.suite.length) cues = suite.cues
+      if (needsOut.dropped.length) {
+        log('[perf] 否掉: ' + needsOut.dropped.map((d) => String(d.family).replace(/^anim_/, '') + '(' + d.why + ')').join('; '))
+      }
     } catch (error) {
-      log('[perf] core-action failed: ' + (error && error.message))
+      log('[perf] needs failed: ' + (error && error.message))
     }
     if (cues && cues.length > 0) {
       try {
-        const liveSnap = game.snapshot() || {}
+        const seatSnap = liveSnap()
         const had = cues.filter((c) => c && c.slot === 'animations').map((c) => c.id)
-        const seat = seatGuard(cues, liveSnap)
+        const seat = seatGuard(cues, seatSnap)
         if (seat.skipped) {
           cues = seat.cues
           log('[perf] 离座待机，本轮不编排: ' + seat.skipped + (had.length ? ' (原本要演 ' + had.join(',') + ')' : ''))
           // 落盘一份，方便事后核对"这一轮为什么不演"（log 走宿主 logger，不进数据目录）
           try {
-            appendFileSync(((cfg && cfg.dataDir) || ".") + "/gate.log", JSON.stringify({
+            appendRotating(((cfg && cfg.dataDir) || '.') + '/gate.log', JSON.stringify({
               at: new Date().toISOString(), seat: seat.skipped, text: String(userText || "").slice(0, 40), dropped: had
             }) + "\n")
           } catch { /* 诊断失败不影响演出 */ }
@@ -1183,7 +1340,7 @@ const runTurn = async (userText, options = {}) => {
     }
     if (cues && cues.length > 0) {
       try {
-        const snap = game.snapshot() || {}
+        const snap = liveSnap()
         const cur = snap.motion || {}
         const curLeft = Number(cur.remainingMs)
         const curLayer = cur.active ? layerOf(cur.active) : ""
@@ -1194,6 +1351,9 @@ const runTurn = async (userText, options = {}) => {
           emotion: parsed.emotion,
           manifest,
           currentLayer: curLayer,
+          // 按她此刻的姿势族预筛候选：不传的话闸门会从整张清单里挑跨族动作
+          // （实测 anim_wild_leavechair_cupcake_comeback_start），随后被 applyFamily 丢掉。
+          family: String((liveSnap() || {}).family || ""),
         })
         // 门决策落盘：事后能对照"她本来要演什么、被改成了什么"
         try {
@@ -1207,7 +1367,7 @@ const runTurn = async (userText, options = {}) => {
             manCount: Array.isArray(manifest && manifest.animations) ? manifest.animations.length : 0,
             hadCues: (cues || []).filter((c) => c.slot === "animations").map((c) => c.id),
           }) + "\n"
-          appendFileSync(((cfg && cfg.dataDir) || ".") + "/gate.log", gateLine)
+          appendRotating(((cfg && cfg.dataDir) || ".") + "/gate.log", gateLine)
         } catch { /* 诊断失败不影响演出 */ }
         if (gate.changed && gate.changed.length) {
           cues = gate.cues
@@ -1218,6 +1378,7 @@ const runTurn = async (userText, options = {}) => {
         try {
           const again = buildSuite(Array.isArray(cues) ? cues : [], userText)
           if (again.suite.length) cues = again.cues
+          else if (Array.isArray(cues) && again.cues.length < cues.length) cues = again.cues
         } catch (error) {
           log('[perf] core re-apply failed: ' + (error && error.message))
         }
@@ -1250,7 +1411,7 @@ const runTurn = async (userText, options = {}) => {
     }
     // 表演和语音解绑：动作按固定节拍顺序起手，与音频长度无关；口型仍严格跟音频。
   if (cues && cues.length > 0) {
-    // 核心动作的"一整套"已经由 planSequence 按整套跨度排好位（起手 → 核心 → 收尾），
+    // 主戏的一整套已经由 planSequence 按整套跨度排好位（起手 → 核心 → 收尾），
     // 这里再统一按 360ms 打散会把三拍挤成一团——实测伸懒腰被插进写代码的中段。
     // 没有整套时沿用 360ms 节拍（表演与语音解绑后的老规矩）。
     if (cues.some((c) => c && c.locked)) {
@@ -1259,7 +1420,20 @@ const runTurn = async (userText, options = {}) => {
       for (const c of cues) if (c && c.slot === 'animations' && Number(c.at) < base) c.at = base
     } else {
       const STEP_MS = 360
-      cues.forEach((c, i) => { c.at = i * STEP_MS })
+      // 模型给的 at 是「说到几成」的小数，这里先换成毫秒；
+      // 只有完全没有有效 at 时才退回固定节拍，否则「说到一半换个反应」永远挤在开口瞬间。
+      const estMs = Math.max(600, Math.round((Number(audio?.duration) || 0) * 1000) ||
+        Math.max(600, Math.round(String(parsed?.voice_text || '').length * 220)))
+      let auto = 0
+      cues.forEach((c) => {
+        const raw = Number(c && c.at)
+        if (Number.isFinite(raw) && raw > 0) {
+          c.at = raw <= 1 ? Math.round(raw * estMs) : Math.round(raw)
+        } else {
+          c.at = auto * STEP_MS
+          auto += 1
+        }
+      })
     }
   }
   return {
@@ -1308,6 +1482,9 @@ const runTurn = async (userText, options = {}) => {
         game: game.snapshot(),
         gameAgeMs: game.age(),
         gameOnline: game.online(),
+        // 和 gameOnline 不是一件事：gameOnline 只看"最近有没有心跳"，
+        // stale 表示"有过心跳但现在按过期处理"——面板据此能说"游戏关了 3 分钟"而不是"从没连上"。
+        gameStale: Boolean((game.snapshot() || {}).stale),
         // 大脑端自己的队列水位（和游戏端那个队列各自独立、互不同步）：
         // depth 是还没被拉走的条数，waiters 是挂着长轮询的游戏端连接数
         queue: feed.stats(),
@@ -1326,11 +1503,15 @@ const runTurn = async (userText, options = {}) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         const messages = Array.isArray(json?.messages) ? json.messages : []
         const userText = messages.filter((m) => m?.role === 'user').map((m) => String(m.content ?? '')).pop() ?? ''
         // 直调 runTurn 会绕开串行链：和游戏端 /act 并发时两边同时改记忆与状态
         const { parsed, model } = await serializedTurn(userText)
+        // 这条路径走完整 runTurn（会武装离座、塞 pendingTripCues），但它自己不推 cue：
+        // 不在这里补一次 flush，游戏端永远收不到 slot=trip，而 brain 认为她离座 3~5 分钟，
+        // tripLocked 会把窗口里所有动作过滤掉——她就一动不动。
+        flushTripCues()
         const wantsJson = json?.response_format?.type === 'json_object'
         const content = wantsJson ? encodeForJsonClient(parsed) : encodeForLegacyClient(parsed)
         sendJson(res, 200, {
@@ -1356,7 +1537,7 @@ const runTurn = async (userText, options = {}) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         const userText = String(json?.text ?? json?.userText ?? '').trim()
         const auto = isAutomation(req, json)
         const { parsed, model, audio, cues, dropped, mouth, debugInfo, timings, ttsError } = await serializedTurn(userText, { skipMemory: json?.remember === false, sandbox: auto, withHistory: json?.withHistory === true })
@@ -1364,7 +1545,48 @@ const runTurn = async (userText, options = {}) => {
         // 否则调试时看到 at=4386、游戏里实际在 1685，两边差一截，排起来没完。
         const actDurMs = Math.round(Number(audio?.duration) * 1000) || 0
         const actChars = String(parsed.subtitle_text || '').length
-        const actCues = cues === null ? null : chainStartToLoop(normalizeCueTiming(
+        const actLockedNow = Array.isArray(cues)
+          && cues.some((c) => c && c.slot === 'animations' && c.locked)
+        // 需求 → 编排：这一轮的动作序列在这里成形，一族一条基名。
+        // 交给游戏端自己拼 start→loop→end，它内部是连续的，段间不归还姿势。
+        // extractNeeds 是纯函数，这里重算一次比跨作用域传变量安全。
+        const needsNow = cues === null
+          ? null
+          : extractNeeds({ text: userText, cues: Array.isArray(cues) ? cues : [], ...gameCtx() })
+        const arrangedNow = needsNow
+          ? arrange(needsNow.needs, { speechMs: actDurMs, ambient: needsNow.ambient })
+          : null
+        if (arrangedNow) {
+          if (arrangedNow.notes.length) log('[perf] 编排: ' + arrangedNow.notes.join(' / '))
+          log('[perf] 排: ' + describeArrangement(arrangedNow.cues))
+          {
+            const nat = describeNative(arrangedNow.cues)
+            if (nat.length) log('[perf] 原生: ' + nat.join(' / '))
+          }
+        }
+        const actLocked = Boolean(arrangedNow) || actLockedNow
+        const actCues = cues === null ? null : arrangedNow
+          ? arrangedNow.cues.map((c) => ({
+            slot: String(c?.slot || 'animations'),
+            id: String(c?.id || ''),
+            at: Number(c?.at) || 0,
+            durationMs: Number(c?.durationMs) || animDurationMs(String(c?.id || '')),
+            holdMs: Number(c?.holdMs) || 0,
+            // 原生标记必须原样带下去：这一层也在重建对象，漏了就静默退回采样路径。
+            ...(c?.nativeName || c?.nativeSub || c?.stateName ? { nativeName: c.nativeName ? String(c.nativeName) : '', nativeId: Number(c.nativeId) || 0, ...(c.nativeSub ? { nativeSub: String(c.nativeSub) } : {}), ...(c.nativeAlso ? { nativeAlso: String(c.nativeAlso) } : {}), ...(c.stateName ? { stateName: String(c.stateName) } : {}), ...(c.facial ? { facial: String(c.facial) } : {}) } : {}),
+            text: c?.text || null,
+            why: c?.why || null,
+          }))
+          : actLockedNow
+          ? (cues || []).map((c) => ({
+            slot: String(c?.slot || 'animations'),
+            id: String(c?.id || ''),
+            at: Number(c?.at) || 0,
+            durationMs: Number(c?.durationMs) || animDurationMs(String(c?.id || '')),
+            text: c?.text || null,
+            why: c?.why || null,
+          }))
+          : chainStartToLoop(normalizeCueTiming(
           (cues || []).map((c) => ({
             slot: String(c?.slot || 'animations'),
             id: String(c?.id || ''),
@@ -1376,7 +1598,6 @@ const runTurn = async (userText, options = {}) => {
           actDurMs,
           actChars,
         ), actDurMs, actChars, perfFamily(), perfAge(), queueAheadNow())
-        try { const prim = (actCues || []).find((c) => c.slot === 'animations'); if (prim) notePerf(prim.id) } catch { }
         const act = buildAct(parsed, {
           turnId: `t-${Date.now()}`,
           textLang: cfg.tts.textLang,
@@ -1390,10 +1611,156 @@ const runTurn = async (userText, options = {}) => {
           cues: actCues,
           droppedCues: dropped.length,
         })
+        // 工作态只能专注时切：非专注把她按进 WorkPC 等于让她对着键盘敲却没有会话在跑。
+        // 游戏端也有一道同样的闸（SwitchState 里），这里先清掉，免得面板显示的和实际演的不一样。
+        if (state.phase !== 'focus' && Array.isArray(act.performance)) {
+          const WORK = new Set(['WorkPC', 'WorkBook', 'WorkReport'])
+          let cut = 0
+          for (const c of act.performance) {
+            if (c && WORK.has(String(c.stateName || ''))) { c.stateName = ''; cut += 1 }
+          }
+          if (cut) log('[state] 非专注，去掉 ' + cut + ' 条工作态（她身体状态归游戏）')
+        }
+        // 按她此刻的姿势族挑动作：跨族的动作游戏端会丢（姿势基准不同，播出来手臂错位），
+        // 与其让它在游戏端被丢，不如在这里就换成这一族里真有的那个。
+        // 她那会儿在喝茶族，就没有"害羞"这个动作——换成 Interest/DrinkTea 之类，
+        // 换成没有的再丢，只剩表情。
+        if (Array.isArray(act.performance)) {
+          // 族只在刚采到时采信：游戏关掉后 state 里还留着上一次的族，
+          // 按它改写等于把一个早就不存在的姿势基准套到新动作上——游戏端会静默丢掉。
+          const famFresh = !state.gameFamilyAt || (Date.now() - state.gameFamilyAt) < 30 * 1000
+          const fam = famFresh ? String(state.gameFamily || familyOfState(state.gameState, state.gameAnim) || '') : ''
+          if (fam) {
+            const allowCross = Boolean(cfg.crossFamilyNative)
+            const st = applyFamily(act, fam, { allow: allowCross })
+            if (st.mapped || st.dropped || st.sampledDropped) {
+              log('[族] 她这一族 ' + fam + '：换掉 ' + st.mapped + ' 条、丢掉 ' + (st.dropped + (st.sampledDropped || 0)) + ' 条、原样 ' + st.kept + ' 条')
+            }
+            // 内容类闸门（enforceContentClass）是按"需要什么类别的动作"从整张清单里挑的，
+            // 挑出来的可能根本不属于她此刻这一族（实测：读纸书族里给她换成了 anim_break_yawn_1_start），
+            // 于是上面这一步把它整条丢掉 —— 这一轮 0 条 cue，她说完台词一动不动。
+            // 所以族过滤之后再补一条本族动作：只要她还在坐着、动作没关、情绪不是刻意不动。
+            const stillAnim = (act.performance || []).some((c) => c && c.slot === 'animations' && (c.id || c.nativeName || c.nativeSub))
+            if (stillAnim) {
+              // 已经有动作，不补
+            } else if (String(state.phase || '') === 'focus') {
+              // 专注期不补：DLL 那边 FocusMode 一开就整条跳过动作（实测日志
+              // "focus: 跳过动作 …，只走原生表情/嘴形"）。补了也只是被跳过，
+              // 面板却已经把这条动作画出来了——又是"显示的和实际演的不一样"。
+              log('[族] 专注期，身体交给游戏自己的状态机（FocusMode），本轮不补动作')
+            } else if (String(cfg.motionMode || 'gentle') !== 'off' && emotionTier(parsed.emotion) !== 'still') {
+              const top = familyWantedCue()
+              if (top) {
+                act.performance.push(top)
+                log('[族] 这一轮的动作都被 ' + fam + ' 族过滤掉了，补一条本族动作 ' + (top.id || top.nativeName))
+              }
+            }
+          }
+        }
+        // 专注期：身体交给游戏自己的状态机。
+        // DLL 的 FocusMode 一开就整条跳过动作 cue（实测日志：
+        // `focus: 跳过动作 anim_story_base001_sub_nod，只走原生表情/嘴形`），
+        // 侧车却把它算进 cuesJson —— 面板于是画出一条她本来就没做的动作。
+        // 这里干脆不下发身体动作，只留表情 / 嘴形 / 音效。要恢复旧行为把 focusMovesBody 设 true。
+        if (Array.isArray(act.performance) && state.phase === 'focus' && cfg.focusMovesBody !== true) {
+          const keptBody = act.performance.filter((c) => c && c.slot !== 'animations')
+          if (keptBody.length !== act.performance.length) {
+            log('[focus] 专注期不下发身体动作：拦下 ' + (act.performance.length - keptBody.length) + ' 条（表情/嘴形照旧）')
+            act.performance = keptBody
+          }
+        }
+        // 专注期身体不动，但脸要动：表情和嘴形是游戏里唯一不打断她的通道。
+        // 以前专注轮次什么都不下发，她听着你说完却毫无反应，像没听见。
+        if (Array.isArray(act.performance) && cfg.facialFromEmotion !== false) {
+          const hasFacial = act.performance.some((c) => c && c.slot === 'facial' && c.id)
+          const face = hasFacial ? '' : facialForEmotion(parsed.emotion)
+          if (face) {
+            // DLL 只认 cue.facial 这个**字段**（ChangeFacial(cue.facial)），不认 slot=facial+id。
+            // 两个都填上：cuesJson 里字段给游戏用，id 给面板和日志看。
+            act.performance.push({ slot: 'facial', id: face, facial: face, at: 0 })
+            log('[face] 情绪 ' + parsed.emotion + ' → 表情 ' + face)
+          }
+        }
+        // 和上一轮一模一样的动作：换成本族的下一个手势。
+        // 只换身体，不动表情和台词；专注期本来就没有身体 cue，进不来。
+        {
+          const head = (act.performance || []).find((c) => c && c.slot === 'animations')
+          const keyOfCue = (c) => String((c && (c.id || c.nativeName || c.nativeSub)) || '')
+          const key = keyOfCue(head)
+          if (key && key === lastAnimKey) {
+            const famNow = String((liveSnap() || {}).family || state.gameFamily || '')
+            const pool = famNow ? gesturesIn(famNow) : []
+            if (pool.length > 1) {
+              const cur = Number(gestureCursor.get(famNow) || 0)
+              const next = pool[(cur % pool.length + pool.length) % pool.length]
+              const alt = next === key ? pool[(cur + 1) % pool.length] : next
+              gestureCursor.set(famNow, cur + 1)
+              const sub = String(alt).startsWith(famNow + '_') ? String(alt).slice(famNow.length + 1) : ''
+              head.id = ''
+              head.nativeName = alt
+              if (sub) head.nativeSub = sub
+              log('[repeat] 上一轮也是 ' + key + '，换成 ' + alt)
+              // 落盘，便于事后核对打散有没有真的发生（log() 走宿主 logger，翻不到）
+              try {
+                appendRotating(((cfg && cfg.dataDir) || ".") + "/repeat.log", JSON.stringify({
+                  at: new Date().toISOString(), key, alt, fam: famNow,
+                  text: String(userText || '').slice(0, 40),
+                }) + "\n")
+              } catch { /* 诊断失败不影响演出 */ }
+            } else {
+              log('[repeat] 上一轮也是 ' + key + '，但本族只有一条手势，保持原样')
+            }
+          }
+          if (keyOfCue(head)) lastAnimKey = keyOfCue(head)
+        }
+
+        // 机位**全手动**：模型与演出编排永远不碰镜头，只留面板上那排按钮。
+        // 放在这一层拦，是因为这是唯一会把模型输出变成 cue 的入口——
+        // 换模型、改 persona、加技能都不可能绕过这里。控制台的 /play 不经过 buildAct，不受影响。
+        if (Array.isArray(act.performance)) {
+          const kept = act.performance.filter((c) => c && c.slot !== 'camera')
+          if (kept.length !== act.performance.length) {
+            log('[camera] 丢弃 ' + (act.performance.length - kept.length) + ' 条机位 cue（机位只走手动面板）')
+            act.performance = kept
+          }
+        }
+        // —— 三段改写（工作态 / 姿势族 / 机位）之后，派生字段必须重算 ——
+        // 以前 buildAct 用改写**前**的 performance 算出 actions，motionScope 也用改写前的
+        // actCues，notePerf 记的还是改写前的族：于是响应里 actions / motionScope 与
+        // cuesJson 说的不是同一件事（面板显示的动作游戏里没有，motionScope=full 而实际全是 upper）。
+        act.actions = (act.performance || [])
+          .filter((c) => c && c.slot === 'animations')
+          .map((c) => ({
+            id: Number.isFinite(Number(c.id)) ? Number(c.id) : c.id,
+            kind: 'animation',
+            from: 'model',
+            emotion: parsed?.emotion || '',
+            at: c.at ?? 0,
+          }))
+        // 主戏的族要按**最终**下发的那一条记，下一轮 prompt 才不会建议一个刚被换掉的姿势
+        try {
+          const primFinal = (act.performance || []).find((c) => c && c.slot === 'animations')
+          if (primFinal) notePerf(primFinal.nativeSub || primFinal.id)
+        } catch { /* 记不上不影响演出 */ }
         // 扁平字段：JsonUtility 对「对象数组」解析不可靠，游戏端只读这三个平行数组
         act.slots = (act.performance || []).map((c) => String(c.slot))
         act.ids = (act.performance || []).map((c) => String(c.id))
         act.ats = (act.performance || []).map((c) => Number(c.at) || 0)
+        // 原生标记也必须走平行数组：游戏端根本不读 performance 对象数组
+        // （JsonUtility 对对象数组不可靠，一直被跳过），只读上面这三条 + 下面这两条。
+        // 漏在这里的表现是「原生标记写在 performance 里，游戏端永远收不到」——
+        // 试过一次，她照旧走采样，日志里 sub=[] name=[]。
+        act.nativeNames = (act.performance || []).map((c) => String(c.nativeName || ''))
+        act.nativeSubs = (act.performance || []).map((c) => String(c.nativeSub || ''))
+        // 持续状态：游戏端拿到 stateName 就调 DebugChangeState，不走采样。
+        act.stateNames = (act.performance || []).map((c) => String(c.stateName || ''))
+        act.facials = (act.performance || []).map((c) => String(c.facial || ''))
+        // 同义写法：游戏改动作名时，客户端语义链的第二层候选。
+        act.nativeAlsos = (act.performance || []).map((c) => String(c.nativeAlso || ''))
+        // 首选通道：一条字符串数组，每项是 cue 的完整 JSON。
+        // JsonUtility 对「对象数组」不可靠，但对 string[] 没问题 —— 这样给 cue 加字段
+        // 只需要改这里和 CueDto，不用再同步 N 条平行数组（上面那几条留着照顾老版本 DLL）。
+        act.cuesJson = (act.performance || []).map((c) => JSON.stringify(c))
         act.subtitleText = act.subtitle?.text || ''
         act.audioUrl = act.voice?.audioUrl || ''
         Object.assign(act, flatMouth(mouth))
@@ -1401,13 +1768,16 @@ const runTurn = async (userText, options = {}) => {
         act.timings = timings
         if (ttsError) act.ttsError = ttsError
         if (json?.debug === true) act.debug = debugInfo
-        act.motionScope = scopeFor(actCues, state.phase)
+        act.motionScope = scopeFor(act.performance || actCues, state.phase)
         // 从面板或悬浮框回她一句，游戏那边也要跟着演——否则她只在面板上说话、游戏里没反应。
         try {
           const item = buildCueItem({
             subtitle: act.subtitleText || '',
             audioUrl: act.audioUrl || '',
             performance: act.performance || [],
+            // 主戏锁成的一整族原样交给游戏端，让它自己拼 start→loop→end。
+            // 在这里再展开一次，游戏端就得分三次起手、三次归还姿势——开头那下抽动就是这么来的。
+            raw: actLocked,
             mouthFps: cfg.mouthFps || 0,
             source: 'reply',
             durationMs: audio && audio.duration > 0 ? audio.duration * 1000 : 0,
@@ -1421,10 +1791,15 @@ const runTurn = async (userText, options = {}) => {
           act.seq = pushCue(item)
           caps.emit('cue', item)
         } catch (error) {
+          // 以前只记一行日志、照样 200，面板按 result.seq ? … : '已在游戏里演出（服务端下发）'
+          // 显示成功，游戏里其实什么都没发生，也没有错误码可查。
           log('act push failed', { error: String(error?.message || error) })
+          act.pushError = String(error?.message || error)
+          act.error = { message: '已生成但没能下发：' + act.pushError }
+          act.seq = null
         }
         // /act 自己已经把这条演掉了，把 seq 交回去，前端不用再推一次
-        sendJson(res, 200, act)
+        sendJson(res, act.pushError ? 502 : 200, act)
       } catch (error) {
         log('act failed', { error: String(error?.message || error) })
         sendJson(res, 502, { error: { message: String(error?.message || error) } })
@@ -1439,7 +1814,7 @@ const runTurn = async (userText, options = {}) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         const next = applyEvent(state, json)
         Object.assign(state, next)
         await saveState()
@@ -1458,7 +1833,46 @@ const runTurn = async (userText, options = {}) => {
     log,
     execFileAsync,
   })
+// 单调性：上一轮她真正演的动作，以及每个族轮换到第几个手势。
+// 观察期实测连续 3 轮都是同一个 anim_story_base001_sub_nod——模型的"点头"倾向
+// 加上族兜底固定取 turnCount % pool.length，两者一起把她的身体语言压成一个动作。
+let lastAnimKey = ''
+const gestureCursor = new Map()
   const gameRunning = game.probe
+  /**
+   * "她这会儿真的在游戏里"的快照。
+   *
+   * `game.snapshot()` 会把最后一次心跳原样返回；游戏关掉之后那些字段（motion / queue /
+   * windowView / family）都是几小时前的，而它们直接参与判断：队列深度决定要不要重新起手，
+   * motion.remainingMs 决定能不能插动作，seat 决定是否离座待机——按过期的值判，
+   * 表现就是"她明明在待机，插件却以为她在演，于是这一轮什么都不排"。
+   * 需要现场的地方一律走这里；要展示"最后心跳是什么样"的地方（/health、面板）仍读原始快照。
+   */
+  function liveSnap() {
+    try {
+      const s = game.snapshot() || {}
+      return s.stale ? {} : s
+    } catch { return {} }
+  }
+  // 状态监测：心跳每次进来先做差分，变了才是信号。导演层据此换模式。
+  // 阈值之外的东西（fps / 队列深度）不算变化，否则每拍都"变了"，等于没做。
+  const monitor = createMonitor({
+    log,
+    onChange: (ev) => {
+      // 她睡着/醒来是导演层最关心的一次切换，单独记一行，排查时好找。
+      const hs = ev.changes.find((c) => c.field === 'heroState')
+      if (hs) log('[monitor] 她的状态 ' + hs.from + ' → ' + hs.to)
+      const f = ev.changes.find((c) => c.field === 'focus')
+      if (f) log('[monitor] 专注 ' + (f.to ? '开始' : '结束'))
+    },
+  })
+
+    /** 游戏侧此刻的语境。导演层据此选模式：睡着 / 游戏在走剧情 / 专注 / 正常。 */
+    function gameCtx() {
+      const ms = monitor.snapshot() || {}
+      return { phase: state.phase, heroineState: ms.heroState || '', gameStory: Boolean(ms.hard) }
+    }
+
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: '/chill/v1/game',
@@ -1466,13 +1880,18 @@ const runTurn = async (userText, options = {}) => {
       if (req.method === 'POST') {
         if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
         try {
-          const { json } = await readBody(req)
+          const json = await readJsonStrict(req, res)
           game.touch(json)
+          // 先差分：只回答「什么变了」，交给导演层换模式；番茄钟随后从 focus / timer
+          // 推阶段。两件事分开：这里管变化，applyHeartbeat 管这意味着哪个 phase。
+          monitor.observe(json)
           // 番茄钟：从心跳的 focus / timer 推出阶段，边沿变化时让她说一句
           const beat = applyHeartbeat(state, json, Date.now())
           Object.assign(state, beat.state)
           await saveState()
           for (const ev of beat.events) {
+            // stale = 采样断档（游戏关过 / 电脑睡过）：这一轮只记账，不让她开口评论时长
+            if (ev.stale) { log('[pomo] 断档结算，不播报', { type: ev.type, minutes: ev.minutes }); continue }
             if (ev.type === 'break') void pomoSay('break', ev)
             else if (ev.type === 'focus_end' && ev.stoppedEarly) void pomoSay('stopped', ev)
           }
@@ -1483,7 +1902,18 @@ const runTurn = async (userText, options = {}) => {
       }
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       const age = game.age()
-      return sendJson(res, 200, { ok: true, game: game.snapshot(), ageMs: age, online: game.online() })
+        const ms = monitor.snapshot()
+        return sendJson(res, 200, {
+          ok: true,
+          game: game.snapshot(),
+          ageMs: age,
+          online: game.online(),
+          monitor: ms,
+          changes: monitor.changeSeq,
+          mode: modeOf(gameCtx()).name,
+          cam: (ms && ms.cam) || '',
+          camStory: Boolean(ms && ms.camStory),
+        })
     },
   }), 'dsh-chill-with-you-companion: /chill/v1/game')
 
@@ -1520,7 +1950,7 @@ const runTurn = async (userText, options = {}) => {
         })
       }
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         if (json && typeof json.forget === 'string') {
           const removed = await mem.forget(json.forget)
           return sendJson(res, 200, { ok: true, removed, stats: mem.stats() })
@@ -1589,14 +2019,19 @@ const runTurn = async (userText, options = {}) => {
   // ---- 推送队列：长轮询，空转请求挂起 8 秒（游戏端 timeout = 10 秒）----
   const feed = createFeed({ epoch: Math.floor(Date.now() / 1000) })
 
-  /** 把口型二维帧压平成一维数组：JsonUtility 对嵌套数组不可靠，扁平数字最稳。 */
+  /** 把口型二维帧压平成一维数组：JsonUtility 对嵌套数组不可靠，扁平数字最稳。
+   *
+   * mouthChannels 跟着数据一起下发，是这一层的唯一契约：每帧 6 个数的排列顺序
+   * 由服务端说，游戏端照着填。以前游戏端自己有一份 MOUTH_KEYS 副本，两边靠人眼
+   * 保持一致——哪天改了顺序忘了另一边，嘴就会动，只是母音全错位，而且完全不报错。
+   * 现在只有 lib/lipsync.mjs 一个定义源。 */
   function flatMouth(mouth) {
     if (!mouth || !Array.isArray(mouth.frames) || !mouth.frames.length) {
-      return { mouthFps: 0, mouthFrames: 0, mouthFlat: [] }
+      return { mouthFps: 0, mouthFrames: 0, mouthFlat: [], mouthChannels: CHANNELS }
     }
     const flat = []
     for (const row of mouth.frames) for (const v of row) flat.push(Math.round(v * 1000) / 1000)
-    return { mouthFps: mouth.fps, mouthFrames: mouth.frames.length, mouthFlat: flat }
+    return { mouthFps: mouth.fps, mouthFrames: mouth.frames.length, mouthFlat: flat, mouthChannels: CHANNELS }
   }
 
   /** 某个动画在游戏里的时长（毫秒）。查不到给 0。 */
@@ -1647,7 +2082,7 @@ const runTurn = async (userText, options = {}) => {
   // 队里还排着几条：>0 说明上一套还没演完，这一套要"接"而不是"起"。
   function queueAheadNow() {
     try {
-      const snap = game.snapshot() || {}
+      const snap = liveSnap()
       const depth = Number((snap.queue || {}).depth) || 0
       // "正在演"也算前面有动作：这一刻她的身体不在待机里，下一套要接上去而不是重新起手。
       const m = snap.motion || {}
@@ -1680,6 +2115,11 @@ const runTurn = async (userText, options = {}) => {
     const others = []
     for (const c of list) {
       if (c.slot !== 'animations') { others.push(c); continue }
+      // 走原生路径的条目原样放行，不参与 start/loop/end 分组。
+      // 它本来就不需要展开——Unity 的状态机会自己播完整族。
+      // 这条判断不能省：mk() 造出来的新对象不带 nativeName，一旦被展开，
+      // 三份都会退回采样路径，等于原生白接。
+      if (c.nativeName || c.nativeSub || c.stateName) { others.push(c); continue }
       const seg = String(c.id).match(/^(.*)_(start|loop|end)$/)
       if (!seg) {
         // 裸名也可能是组头：break_tea_sub_drink 自己就是进入段，后面跟着
@@ -1824,9 +2264,14 @@ const runTurn = async (userText, options = {}) => {
     const out = []
     let cursor = 0
     const MIN_GAP = 160
+    // at 可能是毫秒，也可能是模型给的小数（0~1 = 说到几成）。
+    // 以前一律按毫秒读，0.55 被 Math.round 成 1ms，两拍动作永远同时起手。
+    const estMs = Math.max(600, Math.round(Number(durMs) || 0) ||
+      Math.max(600, Math.round((Number(subtitleLen) || 0) * 220)))
     for (const c of Array.isArray(list) ? list : []) {
       if (!c || typeof c !== "object") continue
-      const at = Math.max(0, Number(c.at) || 0)
+      const raw = Math.max(0, Number(c.at) || 0)
+      const at = raw > 0 && raw <= 1 ? raw * estMs : raw
       const group = String(c.id || "").replace(/_(start|loop2?|end)$/, "")
       const prev = out.length ? out[out.length - 1] : null
       const prevGroup = prev ? String(prev.id || "").replace(/_(start|loop2?|end)$/, "") : ""
@@ -1843,17 +2288,32 @@ const runTurn = async (userText, options = {}) => {
       : (json?.id ? [{ slot: 'animations', id: String(json.id), at: 0 }] : [])
     const durMs = Math.round(Number(json?.durationMs) || 0)
     const subtitleLen = String(json?.subtitle || '').length
-    const base = performance.slice(0, 8)
+    // 同 normalizeCueTiming：模型给的小数 at 在这里也要换成毫秒，否则 0.55 变成 1ms。
+    const atEstMs = Math.max(600, durMs || Math.round((subtitleLen || 0) * 220))
+    // 以前固定截 8 条且不吭声：编排里 sfx + 多族 start/loop/end 很容易超过 8 条，
+    // 多出来的被静默丢掉，面板看到的时间线和实际下发的不是同一份。
+    const cueCap = Math.max(8, Number(cfg.maxCues) > 0 ? Number(cfg.maxCues) + 3 : 12)
+    const truncated = performance.length > cueCap ? performance.length - cueCap : 0
+    const base = performance.slice(0, cueCap)
       .map((c) => ({
         slot: String(c?.slot || 'animations'),
         id: String(c?.id || ''),
-        at: Number(c?.at) || 0,
+        at: (() => { const v = Number(c?.at) || 0; return v > 0 && v <= 1 ? Math.round(v * atEstMs) : v })(),
         durationMs: Number(c?.durationMs) || animDurationMs(String(c?.id || '')),
         holdMs: Number(c?.holdMs) || 0,
+        // 原生路径标记：带上就让 DLL 调游戏自己的状态机，不再逐帧采样。
+        // 这一层是在重建对象，漏掉就会静默退化成旧路径——所以显式搬过来。
+        ...(c?.nativeName || c?.nativeSub || c?.stateName ? { nativeName: c.nativeName ? String(c.nativeName) : '', nativeId: Number(c.nativeId) || 0, ...(c.nativeSub ? { nativeSub: String(c.nativeSub) } : {}), ...(c.nativeAlso ? { nativeAlso: String(c.nativeAlso) } : {}), ...(c.stateName ? { stateName: String(c.stateName) } : {}), ...(c.facial ? { facial: String(c.facial) } : {}) } : {}),
+                // 表情字段：DLL 只认 cue.facial（ChangeFacial(cue.facial)），不认 slot+id。
+        // 以前这里没搬，从 /play 进来的表情 cue 一律被丢掉；/act 那条路是整条 JSON.stringify，所以没暴露。
+        ...(c?.facial ? { facial: String(c.facial) } : {}),
         text: typeof c?.text === 'string' ? c.text.slice(0, 40) : '',
         why: typeof c?.why === 'string' ? c.why.slice(0, 24) : '',
       }))
-      .filter((c) => c.id)
+        // 原生路径的 cue 可以没有 id（只给 nativeName，让 DLL 调游戏自己的状态机）：
+      // 实测专注时她的族是 WorkBase001，而游戏里没有 work_base001_* 这样的 clip，
+      // 兜底只能走原生手势名。以前这里只认 id，于是"明明给了 nativeName"被当成空条目丢掉。
+      .filter((c) => c.id || c.nativeName)
     // 离座长途的条目是"一条动作一个条目"，chain 会把它摊成 start/loop×n/end，
     // 按住那段就没了。raw 标记让它原样下发（holdMs 交给游戏端按住循环）。
     const cues = json?.raw
@@ -1862,10 +2322,10 @@ const runTurn = async (userText, options = {}) => {
     const audioUrl = typeof json?.audioUrl === 'string' ? json.audioUrl : ''
     return {
       performance: cues,
-      slots: cues.map((c) => c.slot),
-      ids: cues.map((c) => c.id),
-      ats: cues.map((c) => c.at),
-      holds: cues.map((c) => Number(c.holdMs) || 0),
+      // 首选通道：每项一条 JSON 文本。游戏端用自己手写的 JsonLite 逐条解析，
+      // 加一个 cue 字段只需要改这里和 CueDto，不用再同步一串平行数组。
+      // 平行数组（slots/ids/ats/holds/…）已于 2026-11-19 删除，DLL 侧同步移除了解析分支。
+      cuesJson: cues.map((c) => JSON.stringify(c)),
       ttlMs: Number(json?.ttlMs) || 0,
       subtitle: typeof json?.subtitle === 'string' ? json.subtitle.slice(0, cfg.maxSubtitle || 60) : '',
       voice: audioUrl ? { audioUrl } : null,
@@ -1874,6 +2334,7 @@ const runTurn = async (userText, options = {}) => {
       mouthFps: Number(json?.mouthFps) || 0,
       mouthFrames: Number(json?.mouthFrames) || 0,
       mouthFlat: Array.isArray(json?.mouthFlat) ? json.mouthFlat.slice(0, 4000) : [],
+      mouthChannels: Array.isArray(json?.mouthChannels) && json.mouthChannels.length ? json.mouthChannels.map((c) => String(c)) : CHANNELS,
       // 调用方明确给了就听它的；没给就按选中的动作自己判断，别一律 full
       motionScope: json?.motionScope === 'upper' || json?.motionScope === 'full'
         ? json.motionScope
@@ -1881,6 +2342,8 @@ const runTurn = async (userText, options = {}) => {
       // 这一句的语音有多长。游戏端原来按「字数 × 0.18 秒，最少 4 秒」估字幕停留，
       // 而日语念 20 个汉字往往要六七秒——字幕先没了、话还在说。有这个字段就按它算。
       durationMs: Math.round(Number(json?.durationMs) || 0),
+      // 被截断的条数（0 表示没丢）。面板/日志据此知道"这条时间线不是全部"
+      truncated,
     }
   }
 
@@ -1920,15 +2383,22 @@ const runTurn = async (userText, options = {}) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         // 去重闸门：面板发一句话时 /act 已经演过一次，前端还会拿同一份结果再 POST 一次
         // /play（client.js 的历史遗留），两条前后差几毫秒、内容一模一样。
-        // 同一个 audioUrl 或同一段字幕在 3 秒内重复进来，直接回原来那条的 seq，不再入队。
+        //
+        // 指纹以前只有 audioUrl + 字幕前 40 字，只跟"最后一次 push"比，两个方向都会错：
+        //   · TTS 关掉时 audioUrl 恒空 → 两句不同台词只要前 40 字相同就被判重复，第二条永不演；
+        //   · lastCue 被 spark/observe/pomoSay 一律更新 → 真正重复的 /play 反而拦不住，同一句演两遍。
+        // 现在指纹带上动作摘要（id@at）与来源，并且用 3 秒窗口的小 ring 查，而不是单条 lastCue。
         const now = Date.now()
-        const sig = String(json?.audioUrl || '') + '|' + String(json?.subtitle || '').slice(0, 40)
-        if (sig !== '|' && lastCue.sig === sig && now - lastCue.at < 3000) {
-          log('play: 重复推送已忽略', { src: json?.source || '', seq: lastCue.seq })
-          return sendJson(res, 200, { ok: true, seq: lastCue.seq, deduped: true })
+        const sig = cueSignature(json)
+        if (sig) {
+          const hit = recentCues.find((r) => r.sig === sig && now - r.at < 3000)
+          if (hit) {
+            log('play: 重复推送已忽略', { src: json?.source || '', seq: hit.seq })
+            return sendJson(res, 200, { ok: true, seq: hit.seq, deduped: true })
+          }
         }
         const item = buildCueItem(json)
         if (!item.performance.length && !item.subtitle && !item.audioUrl) {
@@ -2012,7 +2482,7 @@ const runTurn = async (userText, options = {}) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         // 一轮正在跑就别插话：她会打断他自己的一轮，记忆里还会多出半截上下文
         if (turnActive) return sendJson(res, 200, { ok: true, speak: false, reason: 'busy' })
         const title = String(json?.title || '').slice(0, 40)
@@ -2275,9 +2745,14 @@ const runTurn = async (userText, options = {}) => {
     note: '拉起快捷对话框（浏览器 app 模式）',
     handler: async (req, res) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
+      // 这条以前完全不鉴权，还把 cfg.token 拼进 URL 原样回显——
+      // 本机任何进程 POST 一下就能拿到全部记忆的钥匙。2026-11-20 修。
+      if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        // 端口从请求头取，不要在代码里写死 10723——sidecar 也可能落在别的口上。
-        const host = String(req.headers.host || '').trim() || '127.0.0.1'
+        // 端口只从本地 socket 取，不认请求头里的 Host：
+        // 伪造 Host 会把带 token 的 URL 指向任意主机。
+        const localPort = (req.socket && req.socket.localPort) || new URL('http://' + String(req.headers.host || '')).port || 10723
+        const host = '127.0.0.1:' + localPort
         // 页面本身不鉴权（它就是个壳），但页面里的 fetch 要带 token，所以拼进 URL。
         // 这个地址只有本机拿得到；`?t=` 里就是本机 token，不进日志。
         const url = 'http://' + host + '/chill/quick?t=' + encodeURIComponent(cfg.token)
@@ -2415,7 +2890,7 @@ const runTurn = async (userText, options = {}) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' })
       if (!authorized(req)) return sendJson(res, 401, { error: 'unauthorized' })
       try {
-        const { json } = await readBody(req)
+        const json = await readJsonStrict(req, res)
         const role = json?.role === 'assistant' ? 'assistant' : 'user'
         const text = String(json?.text ?? '').trim()
         if (!text) return sendJson(res, 400, { ok: false, error: 'empty text' })
