@@ -254,7 +254,7 @@ node "<本仓库>\tools\sync-token.mjs" --apply --game "$GAME"
 （`keyRef` 默认 `DEEPSEEK_API_KEY`，可在 `cordis.patch.yml` 改）。
 
 要换别家就在同一页「再加一条」：填名称 / `baseUrl` / 模型名 / key。
-**key 填了就用自己那套，留空就跟着对话那把走**；`baseUrl` 与模型名一律按填的请求。
+自定义供应商使用专用 key；共享的 DeepSeek key 仅用于内置供应商的官方地址。
 页面上没有"密钥来源"选项——真解析顺序（provider token → 环境变量 → dsh 凭据 → 宿主借来的）
 是实现细节，不摆在界面上。
 
@@ -278,8 +278,8 @@ $env:DEEPSEEK_API_KEY = "sk-..."
 
 重启 `dsh web`，然后逐条跑。**每条的失败含义都不一样，别混。**
 
-> 鉴权：除 `health` / `meta` 外都要 token。走宿主端口 `10722` 时它会代贴，直连侧车
-> `10723` 才需要自己带 `-H "x-chill-token: <token>"`。token 在 `<数据目录>/token`。
+> 鉴权：`GET /health` 与 `GET /meta` 公开。宿主面板使用 DSH 所有者会话。命令行和游戏访问宿主
+> 或侧车时都使用插件 token，默认保存在 `<数据目录>/token`。
 
 ```powershell
 # ① 进程活着
@@ -301,7 +301,9 @@ curl.exe -s http://127.0.0.1:10722/chill/v1/meta
 
 ```powershell
 # ③ 真正跑一次演出（sandbox:true = 不写记忆、不动真实状态）
+$TOKEN = (Get-Content "<数据目录>\token" -Raw).Trim()
 curl.exe -s -X POST http://127.0.0.1:10722/chill/v1/act `
+  -H "x-chill-token: $TOKEN" `
   -H "content-type: application/json" `
   -d '{\"text\":\"我开始了，25 分钟\",\"sandbox\":true}'
 ```

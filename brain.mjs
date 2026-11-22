@@ -82,6 +82,7 @@ import { createGame } from './lib/game.mjs'
 import { createMonitor } from './lib/game-monitor.js'
 import { modeOf } from './lib/director-mode.js'
 import { createVoice } from './lib/voice.mjs'
+import { requestSpeech } from './lib/tts-client.mjs'
 import { createCapabilities } from './lib/capabilities.mjs'
 
 const VERSION = '0.11.0'
@@ -92,7 +93,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 export const name = 'dsh-chill-with-you-companion'
 export const inject = ['webServer']
 
-// 配置集中在 lib/config.mjs（DEFAULTS / resolveConfig / readFlag）。
+// 配置由 lib/config.mjs 统一解析。
 
 // sendJson / sendText / readBody 在 lib/http.mjs。
 
@@ -343,7 +344,7 @@ const PERSPECTIVE = '（下面背景里提到的「他」，指的就是你现�
     const key = cacheKey({
       text: voiceText,
       lang: langOverride || vs.textLang || cfg.tts.textLang,
-      ref: vs.path || vs.file,
+      ref: cfg.tts.provider === 'voicevox' ? 'voicevox:' + cfg.tts.speaker : vs.path || vs.file,
       prompt: vs.promptText,
       promptLang: vs.promptLang,
       speed: vs.speedFactor,
@@ -361,14 +362,6 @@ const PERSPECTIVE = '（下面背景里提到的「他」，指的就是你现�
     } catch {
       // 未缓存，继续合成
     }
-    const query = new URLSearchParams({
-      text: voiceText,
-      text_lang: langOverride || vs.textLang || cfg.tts.textLang,
-      ref_audio_path: vs.path || vs.file,
-      prompt_text: vs.promptText,
-      prompt_lang: vs.promptLang,
-      speed_factor: String(vs.speedFactor),
-    })
     // 合成可能被游戏抢显存拖慢：超时/中断就再试一次，别因为一次抖动把这一句直接判成"没声音"
     const attempts = Math.max(1, Number(cfg.tts.retries ?? 1) + 1)
     let buffer = null
@@ -378,11 +371,8 @@ const PERSPECTIVE = '（下面背景里提到的「他」，指的就是你现�
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), cfg.tts.timeoutMs)
       try {
-        const response = await fetch(`${cfg.tts.url.replace(/\/$/, '')}/tts?${query}`, { signal: controller.signal })
-        if (!response.ok) throw new Error(`tts ${response.status}`)
-        const data = Buffer.from(await response.arrayBuffer())
-        if (data.length < 1024) throw new Error(`tts returned ${data.length} bytes`)
-        buffer = data
+        const language = langOverride || vs.textLang || cfg.tts.textLang
+        buffer = await requestSpeech(cfg.tts, voiceText, vs, language, controller.signal)
         lastError = null
         break
       } catch (error) {
@@ -1471,10 +1461,12 @@ const runTurn = async (userText, options = {}) => {
         characterName: (await chars.active())?.name || '',
         tts: {
       enabled: cfg.tts.enabled,
+      provider: cfg.tts.provider,
+      credit: cfg.tts.provider === 'voicevox' ? 'VOICEVOX Nemo' : '',
       url: cfg.tts.url,
       textLang: (await voices.activeVoice()).textLang || cfg.tts.textLang,
       voiceId: (await voices.activeVoice()).id,
-      voiceName: (await voices.activeVoice()).name,
+      voiceName: cfg.tts.provider === 'voicevox' ? 'VOICEVOX Nemo' : (await voices.activeVoice()).name,
       voiceCount: (await voices.list()).items.length,
     },
         assets: manifestSize(manifest),
@@ -1976,7 +1968,8 @@ const gestureCursor = new Map()
     port: VOICE_PORT,
     task: VOICE_TASK,
     watchdogTask: 'ChillGSVWatchdog',
-    launcher: cfg.tts?.launcher || 'auto',
+    launcher: cfg.tts.provider === 'voicevox' ? 'spawn' : cfg.tts.launcher,
+    provider: cfg.tts.provider,
     engine: cfg.tts?.engine || {},
     refAudioPath: cfg.tts?.refAudio || '',
     wantPath: join(cfg.dataDir, 'voice.want'),
@@ -2003,13 +1996,27 @@ const gestureCursor = new Map()
     runTask: runVoiceTask,
     heal: healVoiceEngine,
     warmUp: warmUpVoice,
+    stopOwnedEngine,
   } = voice
+
+  ctx.effect(() => {
+    if (cfg.tts.provider !== 'voicevox') return
+    process.once('exit', stopOwnedEngine)
+    if (cfg.tts.enabled && voiceWant()) {
+      void runVoiceTask()
+      warmUpVoice()
+    }
+    return () => {
+      process.removeListener('exit', stopOwnedEngine)
+      stopOwnedEngine()
+    }
+  }, 'dsh-chill-with-you-companion: voice lifecycle')
 
   // ---- 扩展点登记：以后加能力先在这里声明，`/chill/v1/meta` 会自描述 ----
   const caps = createCapabilities({ name: 'dsh-chill-with-you-companion', version: VERSION, log })
   caps.feature('chat', 'DeepSeek 对话 / 表演编排 / 记忆压缩')
   caps.feature('llm', '模型供应商切换（默认共用 DSH 的 key）')
-  caps.feature('tts', 'GPT-SoVITS 日文语音合成与 wav 缓存')
+  caps.feature('tts', '本地 GPT-SoVITS 或 VOICEVOX 日文合成与 WAV 缓存')
   caps.feature('feed', '长轮询推送队列（控制台 → 游戏）')
   caps.feature('voice-admin', '语音引擎起停 / 探活 / 预热 / 自愈')
   caps.feature('game-bridge', '游戏进程探测与拉起')
@@ -2920,6 +2927,7 @@ const gestureCursor = new Map()
     ttsUrl: cfg.tts?.url || '',
     textLang: cfg.tts?.textLang || 'ja',
     lastError: lastTtsError,
+    credit: cfg.tts.provider === 'voicevox' ? 'VOICEVOX Nemo' : '',
   }, note ? { note } : {})
 
   const { voiceAction } = registerVoiceAdminRoutes({ ctx, caps, authorized, sendJson, voiceSnapshot })
@@ -2943,6 +2951,7 @@ const gestureCursor = new Map()
 
   voiceAction('restart', async () => {
     setVoiceWant(true)
+    if (cfg.tts.provider === 'voicevox') await killByPort()
     const online = await runVoiceTask()
     warmUpVoice()
     return online ? '已重启，引擎在线' : '已重启，端口还没起来（看 warm.log）'

@@ -18,6 +18,7 @@ function mockCtx() {
     routes,
     effects,
     webServer: { register(route) { routes.push(route); return () => {} } },
+    connection: { admit: () => ({ rejection: 401 }) },
     effect(fn, label) { effects.push({ fn, label }); return () => {} },
     logger: { info() {}, warn() {} },
     get() { return null },
@@ -37,7 +38,7 @@ function drainEffects(ctx, { skip = /sidecar lifecycle/ } = {}) {
 
 test('插件元信息没被改坏', () => {
   assert.equal(name, 'dsh-chill-with-you-companion')
-  assert.deepEqual(inject, ['webServer'])
+  assert.deepEqual(inject, ['webServer', 'connection'])
 })
 
 test('apply 挂上四条路由，路径与种类都没变', () => {
@@ -49,9 +50,9 @@ test('apply 挂上四条路由，路径与种类都没变', () => {
     try {
       const got = ctx.routes.map((r) => r.kind + ' ' + r.path).sort()
       assert.deepEqual(got, [
+        'exact /chill/quick',
         'exact /chill/v1/admin/sidecar',
         'prefix /chill/host/work',
-        'prefix /chill/quick',
         'prefix /chill/v1',
       ])
       for (const r of ctx.routes) assert.equal(typeof r.handler, 'function', r.path + ' 的 handler 不是函数')
@@ -78,7 +79,59 @@ test('apply 注册了侧车生命周期与热更新，且都由 effect 托管', 
   }
 })
 
-test('侧车没起来时，代理入口回 503 而不是挂住', () => {
+test('敏感宿主路由要求插件令牌或 DSH 所有者会话', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'chill-apply-auth-'))
+  const ctx = mockCtx()
+  ctx.connection.admit = (req) => {
+    if (req.headers.origin) return { rejection: 403 }
+    if (req.headers.cookie === 'session=owner') return { peer: { principal: { kind: 'owner' } } }
+    if (req.headers.cookie === 'session=guest') return { peer: { principal: { kind: 'guest' } } }
+    return { rejection: 401 }
+  }
+  apply(ctx, { dataDir: dir, token: 'fixture-token' })
+  const disposers = drainEffects(ctx)
+
+  /**
+   * 调用一个已注册的宿主处理器并记录返回状态。
+   *
+   * @param {string} path 请求路径。
+   * @param {object} headers 请求头。
+   * @param {string} method HTTP 方法。
+   * @return {Promise<number>} HTTP 状态码。
+   */
+  async function request(path, headers = {}, method = 'GET') {
+    const route = ctx.routes.find((r) => r.kind === 'exact' && r.path === path)
+      || ctx.routes.find((r) => r.kind === 'prefix' && path.startsWith(r.path))
+    const res = {
+      statusCode: 0,
+      setHeader() {},
+      writeHead(status) { this.statusCode = status },
+      end() {},
+    }
+    await route.handler({ method, url: path, headers }, res)
+    return res.statusCode
+  }
+
+  try {
+    assert.equal(await request('/chill/v1/llm'), 401)
+    assert.equal(await request('/chill/v1/llm', {}, 'POST'), 401)
+    assert.equal(await request('/chill/v1/quickbox', {}, 'POST'), 401)
+    assert.equal(await request('/chill/v1/admin/sidecar', {}, 'POST'), 401)
+    assert.equal(await request('/chill/host/work'), 401)
+    assert.equal(await request('/chill/v1/health', {}, 'POST'), 401)
+    assert.equal(await request('/chill/v1/llm', { cookie: 'session=guest' }), 403)
+    assert.equal(await request('/chill/v1/llm', { cookie: 'session=owner', origin: 'https://untrusted.invalid' }), 403)
+    assert.equal(await request('/chill/v1/llm', { authorization: 'Bearer wrong' }), 401)
+    assert.equal(await request('/chill/v1/llm', { authorization: 'Bearer fixture-token' }), 503)
+    assert.equal(await request('/chill/v1/llm', { cookie: 'session=owner' }), 503)
+    assert.equal(await request('/chill/v1/admin/sidecar', { cookie: 'session=owner' }), 200)
+  } finally {
+    for (const dispose of disposers) dispose()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('侧车没起来时，公开探活返回 503', () => {
   const dir = mkdtempSync(join(tmpdir(), 'chill-apply-'))
   try {
     const ctx = mockCtx()

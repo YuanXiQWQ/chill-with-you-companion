@@ -16,12 +16,12 @@ import { watch, appendFileSync, readFileSync, writeFileSync, statSync, mkdirSync
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { stat } from 'node:fs/promises'
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { createAuth, sendJson } from './lib/http.mjs'
 import { resolveToken } from './lib/config.mjs'
 import { createSidecarSupervisor } from './lib/sidecar-supervisor.js'
 
 export const name = 'dsh-chill-with-you-companion'
-export const inject = ['webServer']
+export const inject = ['webServer', 'connection']
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SERVE = join(HERE, 'serve.mjs')
@@ -31,8 +31,6 @@ const PORT = Number(process.env.CHILL_BRAIN_PORT || 10723)
 // 数据目录优先级与 brain.mjs 一致：配置 dataDir > CHILL_DATA_DIR > 插件目录下的 data/
 // 以前无条件写 HERE/data：配了 dataDir 之后日志仍留在源码树里，排查看错目录。
 let DATA_DIR = join(HERE, 'data')
-// 与侧车共用同一个 token：宿主在反代时注入 x-chill-token，浏览器/面板就不必知道它。
-let TOKEN = ''
 const sidecarLogPath = () => join(DATA_DIR, 'sidecar.log')
 
 /** 侧车诊断落盘：宿主 stdio 一崩就没了，退出码/尾部输出必须写到自己的文件里。 */
@@ -69,16 +67,13 @@ export async function pickDshCredential(ctx, keyRef) {
 }
 
 export function apply(ctx, rawConfig = {}) {
-  // 与 brain.mjs 同一套优先级；相对路径按插件目录解析
-  {
-    const want = String((rawConfig && rawConfig.dataDir) || process.env.CHILL_DATA_DIR || '').trim()
-    DATA_DIR = !want
-      ? join(HERE, 'data')
-      : (/^[A-Za-z]:[\\/]/.test(want) || want.startsWith('/') ? want : join(HERE, want))
-    try { mkdirSync(DATA_DIR, { recursive: true }) } catch { /* 已存在 */ }
-    // 空 token 不再等于放行：这里生成 / 读取，侧车那边解析到同一个值。
-    TOKEN = resolveToken({ explicit: rawConfig && rawConfig.token, dataDir: DATA_DIR })
-  }
+  const want = String(rawConfig.dataDir || process.env.CHILL_DATA_DIR || '').trim()
+  DATA_DIR = !want
+    ? join(HERE, 'data')
+    : (/^[A-Za-z]:[\\/]/.test(want) || want.startsWith('/') ? want : join(HERE, want))
+  try { mkdirSync(DATA_DIR, { recursive: true }) } catch { /* 已存在 */ }
+  const token = resolveToken({ explicit: rawConfig.token, dataDir: DATA_DIR })
+  const hasPluginToken = createAuth({ token })
   const log = (...args) => {
     try {
       const logger = ctx.logger
@@ -86,30 +81,31 @@ export function apply(ctx, rawConfig = {}) {
       if (write) write.call(logger, '[dsh-chill-with-you-companion]', ...args)
     } catch { /* 同上：记日志永不允许抛 */ }
   }
-  // 宿主侧自己的一对校验：/chill/host/work 这类"能操作会话"的接口要用，
-  // 它们不在侧车里，拿不到侧车的 authorized。
-  const hostAuth = (req) => {
-    if (!TOKEN) return false
-    const digest = (v) => createHash('sha256').update(String(v)).digest()
-    const want = digest(TOKEN)
-    const header = String(req.headers?.authorization || '')
-    const bearer = header.startsWith('Bearer ') ? header.slice(7) : ''
-    const custom = String(req.headers?.['x-chill-token'] || '')
-    if (bearer && timingSafeEqual(digest(bearer), want)) return true
-    if (custom && timingSafeEqual(digest(custom), want)) return true
-    return false
+  /**
+   * 校验 DSH 的请求来源与登录会话。游戏和命令行使用已有的插件令牌。
+   *
+   * @param {import('node:http').IncomingMessage} req 宿主收到的请求。
+   * @return {number} 允许时返回 200，否则返回 HTTP 拒绝状态。
+   */
+  function requestAccess(req) {
+    const admission = ctx.connection.admit(req)
+    if (admission.rejection === 403) return 403
+    if (admission.peer) return admission.peer.principal.kind === 'owner' ? 200 : 403
+    return hasPluginToken(req) ? 200 : 401
   }
-  // 浏览器跨源请求一定带 Origin；只放本机面板那几个来源，其余 403。
-  // 裸 fetch / curl 不带 Origin，交给上面的 token 兜（它们照样得带 token）。
-  const hostOriginOk = (req) => {
-    const origin = String(req.headers?.origin || '')
-    if (!origin) return true
-    const panelPort = String(process.env.DSH_WEB_PORT || 10722)
-    try {
-      const u = new URL(origin)
-      if (u.hostname !== '127.0.0.1' && u.hostname !== 'localhost') return false
-      return !u.port || u.port === panelPort
-    } catch { return false }
+
+  /**
+   * 将鉴权结果写入响应，供宿主处理器在执行操作前调用。
+   *
+   * @param {import('node:http').IncomingMessage} req 宿主收到的请求。
+   * @param {import('node:http').ServerResponse} res 宿主响应。
+   * @return {boolean} 请求是否已获授权。
+   */
+  function requireAccess(req, res) {
+    const status = requestAccess(req)
+    if (status === 200) return true
+    sendJson(res, status, { error: status === 403 ? 'forbidden' : 'unauthorized' })
+    return false
   }
   // 注意：cordis 的 logger.info/warn 是原型方法，内部用 this()[type]() 取真实 logger。
   // 把它从 ctx.logger 上摘下来裸调用，this 就是 undefined，会抛 TypeError: this is not a function；
@@ -131,11 +127,20 @@ export function apply(ctx, rawConfig = {}) {
     pickCredential: pickDshCredential,
   })
 
-  // ── 反代：游戏端与面板仍然只认 10722 ─────────────────────────────────────
-  function proxy(req, res) {
+  /**
+   * 将请求转发到本机侧车，只有通过宿主鉴权的请求才携带侧车令牌。
+   *
+   * @param {import('node:http').IncomingMessage} req 宿主收到的请求。
+   * @param {import('node:http').ServerResponse} res 宿主响应。
+   * @param {boolean} authenticated 是否已通过宿主鉴权。
+   */
+  function proxy(req, res, authenticated) {
     const port = sup.port
     const headers = { ...req.headers, host: `127.0.0.1:${port}` }
-    if (TOKEN) headers['x-chill-token'] = TOKEN   // 面板与浮窗都不持有 token，由宿主代贴
+    delete headers.cookie
+    delete headers.authorization
+    delete headers['x-chill-token']
+    if (authenticated) headers['x-chill-token'] = token
     const upstream = http.request({ host: '127.0.0.1', port, method: req.method, path: req.url, headers }, (up) => {
       res.writeHead(up.statusCode || 502, up.headers)
       up.pipe(res)
@@ -158,24 +163,27 @@ export function apply(ctx, rawConfig = {}) {
     kind: 'prefix',
     path: '/chill/v1',
     handler: (req, res) => {
+      const pathname = String(req.url || '').split('?')[0]
+      const isPublic = req.method === 'GET' && (pathname === '/chill/v1/health' || pathname === '/chill/v1/meta')
+      if (!isPublic && !requireAccess(req, res)) return
       if (!sup.ready) {
         res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'retry-after': '2' })
         return res.end(JSON.stringify({ ok: false, error: 'sidecar starting', port: sup.port }))
       }
-      proxy(req, res)
+      proxy(req, res, !isPublic)
     },
   }), 'dsh-chill-with-you-companion: proxy /chill/v1 → sidecar')
 
   // 快捷框页面走 /chill/quick，不属于 /chill/v1 前缀，以前没代理 → 打开是 404
   ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
+    kind: 'exact',
     path: '/chill/quick',
     handler: (req, res) => {
       if (!sup.ready) {
         res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'retry-after': '2' })
         return res.end(JSON.stringify({ ok: false, error: 'sidecar starting', port: PORT }))
       }
-      proxy(req, res)
+      proxy(req, res, false)
     },
   }), 'dsh-chill-with-you-companion: proxy /chill/quick → sidecar')
 
@@ -184,6 +192,10 @@ export function apply(ctx, rawConfig = {}) {
     kind: 'exact',
     path: '/chill/v1/admin/sidecar',
     handler: async (req, res) => {
+      if (!requireAccess(req, res)) return
+      if (req.method !== 'GET' && req.method !== 'POST') {
+        return sendJson(res, 405, { error: 'method not allowed' })
+      }
       const body = { ok: true, ...sup.state(), uptimeSec: Math.round(process.uptime()) }
       if (req.method === 'POST') {
         sup.recycleSafe('admin')
@@ -218,7 +230,7 @@ export function apply(ctx, rawConfig = {}) {
     const body = JSON.stringify(payload || {})
     const init = {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) },
+      headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)), 'x-chill-token': token },
       body,
     }
     if (typeof AbortSignal.timeout === 'function') init.signal = AbortSignal.timeout(60000)
@@ -244,7 +256,7 @@ export function apply(ctx, rawConfig = {}) {
       const body = JSON.stringify({ text })
       await fetch('http://127.0.0.1:' + sup.port + '/chill/v1/ambient', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)) },
+        headers: { 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)), 'x-chill-token': token },
         body,
       })
       ambientStamp = text
@@ -293,11 +305,7 @@ export function apply(ctx, rawConfig = {}) {
         res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
         res.end(JSON.stringify(body))
       }
-      // 这条以前整段没有校验：本机任何进程都能列会话、还能 POST /send 往正在跑的
-      // DSH 会话里塞文本（等于对 agent 做提示词注入）。2026-11-20 修：
-      // ① 和其余接口同一套 token；② Origin 只放本机面板，挡掉网页里的跨源 simple POST。
-      if (!hostAuth(req)) return reply(401, { error: 'unauthorized' })
-      if (!hostOriginOk(req)) return reply(403, { error: 'bad origin' })
+      if (!requireAccess(req, res)) return
       const url = new URL(String(req.url || '/'), 'http://127.0.0.1')
       const head = url.pathname.replace('/chill/host/work', '').replace(/^\/+|\/+$/g, '').split('/')[0] || ''
       const readJson = () => new Promise((resolve) => {

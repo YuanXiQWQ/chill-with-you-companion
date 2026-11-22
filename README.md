@@ -273,13 +273,21 @@ curl.exe http://127.0.0.1:10722/chill/v1/health
 填四样：名称、`baseUrl`、模型名、key。
 
 - **key 填了** → 完全用你自己那套，与对话那把无关。
-- **key 留空** → 跟着对话那把走（同一个 `DEEPSEEK_API_KEY`）。
+- **key 留空** → 该自定义供应商没有可用凭据。已保存的自定义供应商可以重新添加并配置专用 key。
 
 `baseUrl` / 模型名 / 请求头一律按你填的发出去，插件不覆盖。
 分辨率上的细节：真解析时按「provider 自己的 token → 环境变量 → dsh 凭据文件 → 宿主借来的」四档取，
 面板不暴露这个顺序，只在你选中的那条上生效。
 
 `/chill/v1/health` 的 `hasApiKey` 为 `false` 表示四档全空。值是永远不会回显的。
+
+### VOICEVOX Nemo 离线日语
+
+可在 DSH profile 的补丁中将本插件的 `tts.provider` 设为 `voicevox`，将 `tts.url` 设为
+`http://127.0.0.1:50121`，并在 `tts.engine.executable` 填写官方 CPU 版的 `run.exe`。
+`tts.speaker` 为声音编号，`10005` 对应 Nemo「女声1」。在控制台启动一次后，后续启动会沿用该状态。
+
+语音署名为 VOICEVOX Nemo。该引擎使用内置声线，合成只访问本机端口。
 
 ## 卸载
 
@@ -410,18 +418,19 @@ node tools/doctor.mjs --json   # agent 读：checks[] 带 detail，next[] 是要
 | GET / POST | `/chill/v1/avatar/<id>` | 头像：GET 取当前图；POST 上传自定义 PNG（≤2 MB，原子替换） |
 | POST | `/chill/v1/avatar/<id>/reset` | 删掉自定义图，回落内置默认 |
 
-**鉴权**：除 `health` / `meta` 之外的全部接口都要 token（`health` 是验收与探活用的，故意公开）。
+**鉴权**：`GET /health` 与 `GET /meta` 公开供探活。其余 API 需要 DSH 所有者会话或插件 token。直连侧车时使用插件 token。
 两种头等价：`x-chill-token: <token>` 或 `Authorization: Bearer <token>`。
 
 ```powershell
 # token 在哪：配置里的 token → CHILL_TOKEN → <数据目录>/token（都没有时自动生成，64 位 hex）
-Get-Content "<数据目录>\token"
+$TOKEN = (Get-Content "<数据目录>\token" -Raw).Trim()
 ```
 
-示例（宿主端口 10722 会自动代贴 token，直连侧车 10723 才需要自己带头）：
+示例（命令行访问宿主或侧车都需要带插件 token）：
 
 ```powershell
 curl.exe -X POST http://127.0.0.1:10722/chill/v1/act `
+  -H "x-chill-token: $TOKEN" `
   -H "content-type: application/json" `
   -d '{\"text\":\"我开始了，25 分钟\"}'
 ```
