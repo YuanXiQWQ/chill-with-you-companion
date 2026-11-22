@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import { table as nativeGestures } from '../lib/gestures.mjs'
 
 const routes = []
 const ctx = {
@@ -79,6 +80,7 @@ apply(ctx, {
   model: 'deepseek-flash',
   thinking: 'disabled',
   tts: { enabled: false },
+  facialFromEmotion: false, // 白名单用例只检查模型给出的资源指令。
   dataDir: sandboxData,        // 隔离：不碰真实记忆 / 清单 / 状态
   personaPath: joinPath(sandboxData, 'persona.md'),
 })
@@ -322,12 +324,18 @@ await check('meta 自描述带能力与路由', async () => {
 })
 
 console.log('# 鉴权')
-await check('token 为空时放行（本地回环）', async () => {
-  const r = await call('/chill/v1/health')
-  assert.equal(r.status, 200)
+await check('公开探活无需令牌，模型接口必须认证', async () => {
+  assert.equal((await realFetch(base + '/chill/v1/health')).status, 200)
+  assert.equal((await realFetch(base + '/chill/v1/act', { method: 'POST' })).status, 401)
 })
 
 console.log('# 资源白名单：只用游戏自身资源')
+const focusEnded = await call('/chill/v1/event', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ type: 'idle' }),
+})
+assert.equal(focusEnded.status, 200)
 await check('上传游戏资源清单并被规整', async () => {
   const r = await call('/chill/v1/assets', {
     method: 'POST',
@@ -392,16 +400,21 @@ await check('越界 id / 未知槽位被剪，合法指令保留', async () => {
   assert.ok(r.json.meta.droppedCues >= 2)
   modelReply = { emotion: 'Drink', voice_text: 'お茶でも飲む？', subtitle_text: '要喝口茶吗？' }
 })
-await check('模型不给 performance → 情绪兜底，且只演清单里有的', async () => {
+await check('模型不给 performance 时只输出游戏支持的兜底动作', async () => {
   modelReply = { emotion: 'Wave', voice_text: 'おかえりなさい。', subtitle_text: '欢迎回来。' }
   const r = await call('/chill/v1/act', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ text: '我回来了' }),
   })
-  // Wave 映射到 5001，但清单里没有 → 不演，而不是硬播一个不存在的动作
-  assert.deepEqual(r.json.performance, [])
-  assert.deepEqual(r.json.actions, [])
+  assert.equal(r.status, 200)
+  // 白名单中没有旧 Wave 动作；编排器仍可使用游戏公开的原生手势。
+  const nativeNames = new Set(Object.values(nativeGestures().families).flat())
+  for (const cue of r.json.performance) {
+    assert.equal(cue.slot, 'animations')
+    assert.ok(nativeNames.has(cue.nativeName), cue.nativeName)
+  }
+  assert.ok(!r.json.actions.some((action) => String(action.id) === '5001'))
   modelReply = { emotion: 'Drink', voice_text: 'お茶でも飲む？', subtitle_text: '要喝口茶吗？' }
 })
 await check('GET assets 回读一致', async () => {

@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { wavDuration } from '../lib/lipsync.mjs'
 import { readBinary } from '../lib/http.mjs'
+import { requestSpeech } from '../lib/tts-client.mjs'
 
 export function registerVoiceRoutes(deps) {
   const { ctx, caps, authorized, sendJson, readBody, cfg, voices, voiceProbe, voice, audioDir } = deps
@@ -28,6 +29,16 @@ export function registerVoiceRoutes(deps) {
         const online = await voiceProbe()
         // 引擎缺件和"离线"是两回事：缺件要给安装指引，离线只要点启动。
         const dep = voice.doctor()
+        if (cfg.tts.provider === 'voicevox') {
+          const voice = await voices.activeVoice()
+          const speaker = Number(cfg.tts.speaker)
+          const name = speaker === 10005 ? 'VOICEVOX Nemo · 女声1' : 'VOICEVOX Nemo · ' + speaker
+          return sendJson(res, 200, {
+            ok: true, online, ready: dep.ok, missing: dep.missing,
+            provider: 'voicevox', active: voice.id,
+            items: [{ id: voice.id, name, builtin: true, speedFactor: voice.speedFactor, promptLang: 'ja', textLang: 'ja' }],
+          })
+        }
         return sendJson(res, 200, Object.assign({ ok: true, online, ready: dep.ok, missing: dep.missing }, data))
       }
 
@@ -58,21 +69,10 @@ export function registerVoiceRoutes(deps) {
           if (!v) return sendJson(res, 404, { error: '没有这条声线' })
           if (!(await voiceProbe())) return sendJson(res, 503, { ok: false, error: '语音引擎没在线（先在状态页启动语音引擎）' })
           const text = 'ねえ、聞こえてる？'
-          const q = new URLSearchParams({
-            text,
-            text_lang: v.textLang || cfg.tts.textLang,
-            ref_audio_path: v.path || v.file,
-            prompt_text: v.promptText,
-            prompt_lang: v.promptLang,
-            speed_factor: String(v.speedFactor),
-          })
           const controller = new AbortController()
           const timer = setTimeout(() => controller.abort(), Math.max(20000, cfg.tts.timeoutMs))
           try {
-            const resp = await fetch(cfg.tts.url.replace(/\/$/, '') + '/tts?' + q, { signal: controller.signal })
-            if (!resp.ok) throw new Error('tts ' + resp.status)
-            const buf = Buffer.from(await resp.arrayBuffer())
-            if (buf.length < 1024) throw new Error('tts 只返回了 ' + buf.length + ' 字节')
+            const buf = await requestSpeech(cfg.tts, text, v, v.textLang || cfg.tts.textLang, controller.signal)
             const name = 'preview-' + v.id + '.wav'
             // 全新数据目录里 audio/ 还没建（只有 ensureDirs 会建），
     // 而"第一次进语音页点试听"正好发生在那之前，不 mkdir 就是必然 502。

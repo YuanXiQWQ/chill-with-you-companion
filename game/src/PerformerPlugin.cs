@@ -1907,12 +1907,15 @@ if (Time.unscaledTime < nextAt) return;
 
         private string lastSceneBound = "";
 
+        /// <summary>更新游戏状态与表演。反射命令入口只在开发构建中启用。</summary>
         private void Update()
         {
             Plugin.WatchTick();
             GameBusy.Tick();
+#if CHILL_DEV_REFLECTION
             ReflectConsole.Host = this;
             ReflectConsole.Tick(Plugin.Log);
+#endif
                 GameVoiceGate.Tick();
                 TryFlushTrip();
             // 换场景后旧的 heroine / Animator / SkinnedMesh 全部失效，不重建就会永久静默
@@ -4520,6 +4523,9 @@ if (Time.unscaledTime < nextAt) return;
             }
         }
 
+        /// <summary>通过本地缓存或已认证的侧车连接播放语音。</summary>
+        /// <param name="urlOrPath">侧车返回的音频路径或 URL。</param>
+        /// <returns>播放协程。</returns>
         private IEnumerator PlayAudio(string urlOrPath)
         {
             if (audioSource == null) yield break;
@@ -4538,6 +4544,16 @@ if (Time.unscaledTime < nextAt) return;
             }
             catch (Exception e) { Plugin.Log.LogWarning("audio path: " + e.Message); }
             if (string.IsNullOrEmpty(url)) url = ResolveAudioUrl(urlOrPath);
+            Uri audioUri;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out audioUri)) yield break;
+            if (!audioUri.IsFile)
+            {
+                Uri brainUri;
+                if (!Uri.TryCreate(BaseUrl, UriKind.Absolute, out brainUri) ||
+                    (audioUri.Scheme != Uri.UriSchemeHttp && audioUri.Scheme != Uri.UriSchemeHttps) ||
+                    !string.Equals(audioUri.GetLeftPart(UriPartial.Authority),
+                        brainUri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase)) yield break;
+            }
             if (Plugin.VerboseCues.Value) Plugin.Log.LogInfo("audio url: " + url);
             // 不能用 using：DownloadHandlerAudioClip 把音频数据挂在请求上，
             // 请求一 Dispose，clip 当场失效 —— 语音只响一帧或者干脆没声。
@@ -4550,6 +4566,9 @@ if (Time.unscaledTime < nextAt) return;
                 yield break;
             }
             req.timeout = 30;
+            req.redirectLimit = 0;
+            if (!audioUri.IsFile && !string.IsNullOrEmpty(Plugin.ApiToken.Value))
+                req.SetRequestHeader("Authorization", "Bearer " + Plugin.ApiToken.Value);
             yield return req.SendWebRequest();
             if (req.isNetworkError || req.isHttpError)
             {

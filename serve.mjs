@@ -12,10 +12,11 @@
  */
 import http from 'node:http'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { createAuth } from './lib/http.mjs'
-import { resolveToken } from './lib/config.mjs'
+import { resolveConfig } from './lib/config.mjs'
 
-const HERE = new URL('.', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+const HERE = fileURLToPath(new URL('.', import.meta.url))
 const PORT = Number(process.env.CHILL_BRAIN_PORT || process.env.PORT || 10723)
 const HOST = process.env.CHILL_BRAIN_HOST || '127.0.0.1'
 
@@ -84,11 +85,8 @@ const ctx = {
 
 const { apply } = await import('./brain.mjs')
 const sidecarCfg = readConfig()
-// 自重启这条以前只看 CHILL_API_TOKEN，而全仓只有这里用到那个变量名，
-// 宿主注入的是 CHILL_TOKEN / token 文件——于是它实际上永远免鉴权，本机任何进程
-// POST 一下就能让侧车退出（宿主会拉回，但在跑的对话与长轮询全断）。
-// 改成和其余路由同一套 token，口径由 resolveToken 统一。
-const restartAuth = createAuth({ token: resolveToken({ explicit: sidecarCfg.token, dataDir: sidecarCfg.dataDir }) })
+// 自重启与对话侧车使用同一套配置及数据目录来解析令牌。
+const restartAuth = createAuth(resolveConfig(sidecarCfg, HERE))
 apply(ctx, sidecarCfg)
 
 // 自重启：侧车自己退出，由父进程（DSH 插件）拉回来。独立运行时也能靠这条手动换代。

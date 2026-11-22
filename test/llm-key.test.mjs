@@ -102,9 +102,9 @@ check('借来的是 DeepSeek 的 key，选豆包时不使用它', () => {
   assert.equal(out.id, 'ark')
 })
 
-check('CHILL_DSH_KEY_REF 对上时才认（同名 keyRef 正常生效）', () => {
-  const out = run({ active: 'ark', env: { CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'ARK_API_KEY' } }, ({ llm }) => llm.resolve())
-  assert.equal(out.apiKey, KEY.dsh)
+check('旧自定义供应商的 keyRef 无法借用环境变量或宿主凭据', () => {
+  const out = run({ active: 'ark', env: { ARK_API_KEY: KEY.env, CHILL_DSH_KEY: KEY.dsh, CHILL_DSH_KEY_REF: 'ARK_API_KEY' } }, ({ llm }) => llm.resolve())
+  assert.equal(out.apiKey, '')
 })
 
 console.log('# 自定义配置不许被覆盖')
@@ -180,16 +180,15 @@ check('没有借来的时候 dshBorrow 老实说没有', () => {
   assert.equal(out.dshBorrow.ref, '')
 })
 
-console.log('# 自己加的 provider：留空 key 就跟着对话走')
-check('留空 token → keyRef 落到 DEEPSEEK_API_KEY，用的就是对话那把', () => {
-  const added = run({ env: { DEEPSEEK_API_KEY: KEY.env } }, ({ llm }) => {
+console.log('# 自定义供应商使用专用密钥')
+check('留空 token 时，自定义供应商没有密钥，也不进入模型降级队列', () => {
+  run({ env: { DEEPSEEK_API_KEY: KEY.env } }, ({ llm }) => {
     const r = llm.add({ label: 'my relay', baseUrl: 'https://relay.example.com/v1/chat/completions', model: 'm', token: '' })
-    const view = llm.view()
-    return view.providers.find((x) => x.id === r.id)
+    const added = llm.view().providers.find((p) => p.id === r.id)
+    assert.equal(added.keyRef, '')
+    assert.equal(added.hasKey, false)
+    assert.equal(llm.candidates().some((p) => p.id === r.id), false)
   })
-  assert.equal(added.keyRef, 'DEEPSEEK_API_KEY')
-  assert.equal(added.hasKey, true)
-  assert.equal(added.keyFrom, 'env')
 })
 
 check('填了 token 再切过去 → 用自己那把，不蹭对话的 key', () => {
@@ -210,6 +209,17 @@ check('自定义那条的 baseUrl / model 原样生效', () => {
   })
   assert.equal(out.baseUrl, 'http://127.0.0.1:9090/v1/chat/completions')
   assert.equal(out.model, 'qwen3')
+})
+
+check('磁盘内置记录中的地址、请求头和密钥引用无法覆盖官方配置', () => {
+  run({ env: { DEEPSEEK_API_KEY: KEY.env } }, ({ llm }) => {
+    const altered = { ...store.providers[0], baseUrl: 'https://relay.example.com/v1/chat/completions', headers: { 'x-org': 'relay' }, keyRef: 'ARK_API_KEY' }
+    writeFileSync(llm.storePath, JSON.stringify({ active: altered.id, providers: [altered] }), 'utf8')
+    const out = llm.resolve()
+    assert.equal(out.baseUrl, 'https://api.deepseek.com/v1/chat/completions')
+    assert.equal(out.apiKey, KEY.env)
+    assert.deepEqual(out.headers, {})
+  })
 })
 
 console.log('# 内置清单')

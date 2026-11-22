@@ -54,7 +54,6 @@ $a += (Join-Path $Here 'AnimIdMap.cs')
 $a += (Join-Path $Here 'NativeSubtitle.cs')
 $a += (Join-Path $Here 'GameBusy.cs')
 $a += (Join-Path $Here 'MotionClass.cs')
-$a += (Join-Path $Here 'ReflectConsole.cs')
 
 & $csc @a
 if ($LASTEXITCODE -ne 0) { throw "build failed exit=$LASTEXITCODE" }

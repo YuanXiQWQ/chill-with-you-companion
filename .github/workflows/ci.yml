@@ -26,7 +26,8 @@ jobs:
         run: |
           $bad = 0
           $files = @('brain.mjs', 'index.js', 'serve.mjs')
-          $files += Get-ChildItem lib, test, tools -Recurse -File | Where-Object { $_.Extension -in '.mjs', '.js' } | ForEach-Object { $_.FullName }
+          # _archive 中是供查阅的脚本片段。可运行的工具与 API 路由参与语法检查。
+          $files += Get-ChildItem lib, routes, test, tools -Recurse -File | Where-Object { $_.DirectoryName -notmatch '[\\/]_archive(?:[\\/]|$)' -and $_.Extension -in '.mjs', '.js' } | ForEach-Object { $_.FullName }
           foreach ($f in $files) { node --check $f; if ($LASTEXITCODE -ne 0) { $bad++ } }
           if ($bad -gt 0) { throw "$bad 个文件语法失败" }
 

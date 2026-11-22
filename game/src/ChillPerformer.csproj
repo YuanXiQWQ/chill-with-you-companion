@@ -32,6 +32,14 @@
     <BepInExCore>$(GameDir)\BepInEx\core</BepInExCore>
   </PropertyGroup>
 
+  <!-- 文件驱动的反射控制台只可用于显式启用的开发构建。 -->
+  <PropertyGroup Condition="'$(EnableReflectionDiagnostics)' == 'true'">
+    <DefineConstants>$(DefineConstants);CHILL_DEV_REFLECTION</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(EnableReflectionDiagnostics)' != 'true'">
+    <Compile Remove="ReflectConsole.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
@@ -61,6 +69,22 @@
       <HintPath>$(ManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(ManagedDir)\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.JSONSerializeModule">
       <HintPath>$(ManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath>
       <Private>false</Private>
@@ -76,7 +100,7 @@
   </ItemGroup>
 
   <!-- 只往 BepInEx\plugins 复制自己，不碰游戏任何原文件 -->
-  <Target Name="DeployToPlugins" AfterTargets="Build" Condition="Exists('$(GameDir)\BepInEx\plugins')">
+  <Target Name="DeployToPlugins" AfterTargets="Build" Condition="'$(DeployToGame)' != 'false' and '$(EnableReflectionDiagnostics)' != 'true' and Exists('$(GameDir)\BepInEx\plugins')">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)\BepInEx\plugins" />
     <Message Importance="high" Text="ChillPerformer.dll -> $(GameDir)\BepInEx\plugins" />
   </Target>
